@@ -1,31 +1,51 @@
 # ---------------------------------------------------------------------------- #
-# -- Packages and Install Dependencies --------------------------------------- #
+# -- SystematicReviewClass.r ------------------------------------------------- #
 # ---------------------------------------------------------------------------- #
-
-# Set CRAN mirror
-options(repos = c(CRAN = "https://cloud.r-project.org"))
-
-# Function to install and load packages
-install_and_load <- function(packages) {
-  new_packages <- packages[!(packages %in% installed.packages()[,"Package"])]
-  if (length(new_packages)) install.packages(new_packages, dependencies = TRUE)
-  invisible(lapply(packages, require, character.only = TRUE))
-}
-
-# List of required packages
-packages <- c("bibliometrix", "ggsci", "changepoint", "kableExtra", "jsonlite", 
-              "pander", "rlang", "dplyr", "broom", "Metrics", "knitr", "ggplot2", 
-              "plotly", "webshot", "gridExtra", "igraph", "nls2", "reshape2", "minpack.lm")
-
-# Install and load necessary packages
-install_and_load(packages)
-
-# Load inner libraries and functions
-source('src/M1_Main_Information/M1_Main_Information.r')
-source('src/M2_Annual_Production/M2_Annual_Production.r')
 
 # ---------------------------------------------------------------------------- #
 
+
+
+# ---------------------------------------------------------------------------- #
+# -- Packages and Install Dependencies
+# ---------------------------------------------------------------------------- #
+
+  # Set CRAN mirror
+  options(repos = c(CRAN = "https://cloud.r-project.org"))
+
+  # Function to install and load packages
+  install_and_load <- function(packages) {
+    new_packages <- packages[!(packages %in% installed.packages()[,"Package"])]
+    if (length(new_packages)) install.packages(new_packages, dependencies = TRUE)
+    invisible(lapply(packages, require, character.only = TRUE))
+  }
+
+  # List of required packages
+  packages <- c("bibliometrix", "ggsci", "changepoint", "kableExtra", "jsonlite", 
+                "pander", "rlang", "dplyr", "broom", "Metrics", "knitr", "ggplot2", 
+                "plotly", "webshot", "gridExtra", "igraph", "nls2", "reshape2", "minpack.lm")
+
+  # Install and load necessary packages
+  install_and_load(packages)
+
+# ---------------------------------------------------------------------------- #
+
+
+
+# ---------------------------------------------------------------------------- #
+# -- Loading Modules
+# ---------------------------------------------------------------------------- #
+  # Load inner libraries and functions
+  source('../../src/M1_Main_Information/M1_Main_Information.r')
+  source('../../src/M2_Annual_Production/M2_Annual_Production.r')
+# ---------------------------------------------------------------------------- #
+
+
+
+
+# ---------------------------------------------------------------------------- #
+# -- Class Definition
+# ---------------------------------------------------------------------------- #
 # SystematicReviewClass.r
 SystematicReview <- setRefClass(
 
@@ -130,7 +150,7 @@ SystematicReview <- setRefClass(
     # ---------------------------------------------------------------------------- #
     # --  #Module 1: Data Cleaning ----------------------------------------------- #
     # ---------------------------------------------------------------------------- #
-    do_m1_cleaning = function() {
+    do_m0_cleaning_data = function() {
       # Placeholder for data cleaning logic
       message(" ")
       message(" ")
@@ -150,7 +170,7 @@ SystematicReview <- setRefClass(
     # ---------------------------------------------------------------------------- #
     # --  #Module 2: Main Information -------------------------------------------- #
     # ---------------------------------------------------------------------------- #
-    do_m2_main_information = function() {
+    do_m1_main_information = function() {
       message(" ")
       message(" ")
       message(" M2 :: Analyzing Main Information...")
