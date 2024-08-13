@@ -13,9 +13,9 @@ This project focuses on automating the analysis and reporting of bibliometric da
 - [ ] Comprehensive Literature Review PDF: Combine bibliometric analysis and PDF content insights into a cohesive literature review document.
 
 ## Roadmap
-- [ ] Bibliometrixs R Integration
-- [ ] Module 1: Main Information
-- [ ] Module 2: Annual Articles Production Trend
+- [x] Bibliometrixs R Integration
+- [x] Module 1: Main Information
+- [x] Module 2: Annual Articles Production Trend
 - [ ] Module 3: Authors
 - [ ] Module 4: Documents
 - [ ] Module 5: Clustering
