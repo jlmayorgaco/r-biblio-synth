@@ -9,12 +9,12 @@ library(zoo)
 library(jsonlite)
 
 # Load additional scripts
-source('libs/RBiblioMetricsAnalyzer/M2_Annual_Production/M2_Annual_Production___Data_Cleaning.r')
-source('libs/RBiblioMetricsAnalyzer/M2_Annual_Production/M2_Annual_Production___Metrics.r')
-source('libs/RBiblioMetricsAnalyzer/M2_Annual_Production/M2_Annual_Production___Models.r')
-source('libs/RBiblioMetricsAnalyzer/M2_Annual_Production/M2_Annual_Production___Regression.r')
-source('libs/RBiblioMetricsAnalyzer/M2_Annual_Production/M2_Annual_Production___Plotter.r')
-source('libs/RBiblioMetricsAnalyzer/M2_Annual_Production/M2_Annual_Production___Report.r')
+source('../../src/M2_Annual_Production/M2_Annual_Production___Data_Cleaning.r')
+source('../../src/M2_Annual_Production/M2_Annual_Production___Metrics.r')
+source('../../src/M2_Annual_Production/M2_Annual_Production___Models.r')
+source('../../src/M2_Annual_Production/M2_Annual_Production___Regression.r')
+source('../../src/M2_Annual_Production/M2_Annual_Production___Plotter.r')
+source('../../src/M2_Annual_Production/M2_Annual_Production___Report.r')
 
 
 # M2_Annual_Production class
