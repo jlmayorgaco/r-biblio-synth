@@ -364,10 +364,14 @@ save_metric_m0_eda_plots <- function(metric_eda) {
   moving_averages_window_size <- metric_eda$moving_averages_window_size
   moving_averages_arrays <- metric_eda$moving_averages_arrays
 
+  label1 <- paste("Avg ", moving_averages_window_size[1], "years", sep = "", collapse=NULL)
+  label2 <- paste("Avg ", moving_averages_window_size[2], "years", sep = "", collapse=NULL)
+  label3 <- paste("Avg ", moving_averages_window_size[3], "years", sep = "", collapse=NULL)
+
   # Convert lists to data frames with types
-  df_moving_average_n1_years <- convert_to_df(moving_averages_arrays[1], "Moving Average N1")
-  df_moving_average_n2_years <- convert_to_df(moving_averages_arrays[2], "Moving Average N2")
-  df_moving_average_n3_years <- convert_to_df(moving_averages_arrays[3], "Moving Average N3")
+  df_moving_average_n1_years <- convert_to_df(moving_averages_arrays[1], paste(label1))
+  df_moving_average_n2_years <- convert_to_df(moving_averages_arrays[2], paste(label2))
+  df_moving_average_n3_years <- convert_to_df(moving_averages_arrays[3], paste(label3))
 
   # Combine all data frames
   combined_df <- rbind(df_moving_average_n1_years, df_moving_average_n2_years, df_moving_average_n3_years)
@@ -379,8 +383,10 @@ save_metric_m0_eda_plots <- function(metric_eda) {
   }
 
   # Create and save the plot
-  output_file_path <- file.path(dir_path, "moving_averages_plot.png")
+  output_dir <- "results/M2_Annual_Production/Individual_Plots"
+  output_file_path <- file.path(dir_path, "Plot_Annual_Production_Average_Years_Trends.png")
   create_moving_average_plot(combined_df, output_file_path)
+  save_individual_plots(combined_df, output_dir)
 
 }
 save_metric_m1_trending_plots <- function(metric_trend) {
@@ -392,6 +398,7 @@ save_metric_m2_periodic_plots <- function(metric_periodic) {
 
 save_metric_m1_trending_table <- function(metric_trend) {
   path <- file.path("results/", "M2_Annual_Production/m1_trending_table.csv");
+
   # Create a list to store the metric data
   trend_list <- list(
     ModelName = metric_trend$model_name,
@@ -399,6 +406,17 @@ save_metric_m1_trending_table <- function(metric_trend) {
     ModelRSquare = metric_trend$model_r_squared,
     ModelRegressionTable = metric_trend$model_regression_table
   )
+
+
+  message(" ")
+  message(" ")
+  message(" >>>> DEBUG 3 post END [METRIC] M1 TREND")
+  message(" ")
+  message(" trend_list")
+  message(trend_list)
+  message(" ")
+  message(" ")
+
   # Save the list as a JSON file
   write.csv(trend_list, file = path, row.names = FALSE)
 }
