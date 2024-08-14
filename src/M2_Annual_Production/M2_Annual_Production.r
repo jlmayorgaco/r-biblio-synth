@@ -134,8 +134,8 @@ M2_Annual_Production <- setRefClass(
 
       json_data <- toJSON(m1_trending, pretty = TRUE, auto_unbox = TRUE)
       write(json_data, file = file.path(.self$report_path, "m1_trending.json"))
-      
-      save_metric_m1_trending_table(m1_trending)
+
+      #save_metric_m1_trending_table(m1_trending)
       # Uncomment the following line if plotting is implemented
       # save_metric_m1_trending_plots(m1_trending)
       
@@ -152,8 +152,8 @@ M2_Annual_Production <- setRefClass(
         is_periodic = is_periodic
       )
       
-      save_metric_m2_periodic_table(m2_periodic)
-      save_metric_m2_periodic_plots(m2_periodic)
+      #save_metric_m2_periodic_table(m2_periodic)
+      #save_metric_m2_periodic_plots(m2_periodic)
       
       return(m2_periodic)
     },
