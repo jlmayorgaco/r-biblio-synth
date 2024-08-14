@@ -36,6 +36,8 @@
 # -- Loading Modules
 # ---------------------------------------------------------------------------- #
   # Load inner libraries and functions
+  source('../../src/Config/PlotThemes.r')
+  
   source('../../src/M1_Main_Information/M1_Main_Information.r')
   source('../../src/M2_Annual_Production/M2_Annual_Production.r')
 # ---------------------------------------------------------------------------- #
@@ -177,7 +179,7 @@ SystematicReview <- setRefClass(
       message(" ")
       message(" ")
 
-      overview <- fn_m2_main_information(.self$data)
+      overview <- fn_m1_main_information(.self$data)
 
       .self$results$overview <- list(
         main_information = overview$main_information,
@@ -192,7 +194,7 @@ SystematicReview <- setRefClass(
       )
 
       path_dir <- "results/M1_Main_Information";
-      path_file <- paste0(path_dir,'/m2_main_information.json')
+      path_file <- paste0(path_dir,'/m1_main_information.json')
       if (!dir.exists(path_dir)) {
         dir.create(path_dir, recursive = TRUE)
       }
