@@ -3,7 +3,7 @@
 # ---------------------------------------------------------------------------- #
 
 # Main function to extract and clean main information from bibliometric data
-fn_m2_main_information <- function(bib_data) {
+fn_m1_main_information <- function(bib_data) {
   res1 <- biblioAnalysis(bib_data, sep = ";")
   s1 <- summary(res1, pause = FALSE, verbose = FALSE)
 
