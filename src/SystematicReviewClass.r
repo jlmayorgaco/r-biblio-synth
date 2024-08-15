@@ -173,6 +173,7 @@ SystematicReview <- setRefClass(
     # --  #Module 2: Main Information -------------------------------------------- #
     # ---------------------------------------------------------------------------- #
     do_m1_main_information = function() {
+
       message(" ")
       message(" ")
       message(" M2 :: Analyzing Main Information...")
