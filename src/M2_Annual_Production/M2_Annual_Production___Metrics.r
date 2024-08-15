@@ -10,15 +10,28 @@ convert_to_df <- function(moving_average_list, type_label) {
 
 # Function to calculate metrics for a model
 calculate_metrics <- function(model, data) {
-  if (is.null(model)) return(list(rmse = NA, r_squared = NA))
+
+  # Return NA metrics if model is NULL
+  if (is.null(model)) {
+    return(list(rmse = NA, r_squared = NA))
+  }
   
+  # Ensure Year column is numeric
   data$Year <- as.numeric(as.character(data$Year))
+
+  # Handle any NA values in the data to avoid errors
+  if (anyNA(data$Year) || anyNA(data$Articles)) {
+    stop("Data contains NA values, please clean the data before passing it to the function.")
+  }
+
+  # Calculate predictions, residuals, RMSE, and R-squared
   predictions <- predict(model, newdata = data)
   residuals <- data$Articles - predictions
   rmse <- sqrt(mean(residuals^2))
   r_squared <- 1 - sum(residuals^2) / sum((data$Articles - mean(data$Articles))^2)
   
-  list(rmse = rmse, r_squared = r_squared)
+  # Return metrics as a named list
+  return(list(rmse = rmse, r_squared = r_squared))
 }
 
 # Function to extract parameters from a model
