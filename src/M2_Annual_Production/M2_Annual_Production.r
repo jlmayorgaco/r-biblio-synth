@@ -1,70 +1,134 @@
-# Load necessary libraries
-library(ggplot2)
-library(dplyr)
-library(broom)
-library(Metrics)
-library(minpack.lm)
-library(rlang)
-library(zoo)
-library(jsonlite)
+# ---------------------------------------------------------------------------- #
+# -- Module 2 : M2 Annual Production ----------------------------------------- #
+# ---------------------------------------------------------------------------- #
+  # Set CRAN mirror
+  options(repos = c(CRAN = "https://cloud.r-project.org"))
 
-# Load additional scripts
-source('../../src/M2_Annual_Production/M2_Annual_Production___Data_Cleaning.r')
-source('../../src/M2_Annual_Production/M2_Annual_Production___Metrics.r')
-source('../../src/M2_Annual_Production/M2_Annual_Production___Models.r')
-source('../../src/M2_Annual_Production/M2_Annual_Production___Regression.r')
-source('../../src/M2_Annual_Production/M2_Annual_Production___Plotter.r')
-source('../../src/M2_Annual_Production/M2_Annual_Production___Report.r')
+  # Function to install and load packages
+  install_and_load <- function(packages) {
+    new_packages <- packages[!(packages %in% installed.packages()[,"Package"])]
+    if (length(new_packages)) install.packages(new_packages, dependencies = TRUE)
+    invisible(lapply(packages, require, character.only = TRUE))
+  }
+
+  # List of required packages
+  packages <- c("ggplot2", "dplyr", "kableExtra", "knitr", "broom", "Metrics", "zoo" , "jsonlite", "rlang")
+
+  # Install and load necessary packages
+  install_and_load(packages)
+# ---------------------------------------------------------------------------- #
 
 
-# M2_Annual_Production class
+
+# ---------------------------------------------------------------------------- #
+# -- Packages and Install Dependencies
+# ---------------------------------------------------------------------------- #
+  # Load necessary libraries
+  library(ggplot2)
+  library(dplyr)
+  library(broom)
+  library(Metrics)
+  library(minpack.lm)
+  library(rlang)
+  library(zoo)
+  library(jsonlite)
+
+  # Load additional scripts
+  source('../../src/M2_Annual_Production/M2_Annual_Production___Data_Cleaning.r')
+  source('../../src/M2_Annual_Production/M2_Annual_Production___Metrics.r')
+  source('../../src/M2_Annual_Production/M2_Annual_Production___Models.r')
+  source('../../src/M2_Annual_Production/M2_Annual_Production___Regression.r')
+  source('../../src/M2_Annual_Production/M2_Annual_Production___Plotter.r')
+  source('../../src/M2_Annual_Production/M2_Annual_Production___Report.r')
+# ---------------------------------------------------------------------------- #
+
+
+
+# ---------------------------------------------------------------------------- #
+# -- M2_Annual_Production class
+# ---------------------------------------------------------------------------- #
 M2_Annual_Production <- setRefClass(
+
+  # ClassName
   "M2_Annual_Production",
+
+  # Attributes
   fields = list(
+
     df = "data.frame",
-    df_year_column = "character",
-    df_articles_column = "character",
-    regression_models = "list",
-    metrics_best_model = "ANY",
-    metrics_comparison_table = "ANY",
-    report_path = "character"
+    df_column_name_year = "character",
+    df_column_name_articles = "character",
+
+    models_table = "ANY",
+
+    models_best_obj = "ANY",
+    models_best_name = "ANY",
+    models_best_params = "ANY",
+
+    path_results_jsons = "character",
+    path_results_plots = "character"
+
   ),
+
+  # Methods
   methods = list(
     # Constructor
     initialize = function(df, year_col = "Year", articles_col = "Articles", report_path = "results/M2_Annual_Production") {
+
       .self$df <- df
-      .self$df_year_column <- year_col
-      .self$df_articles_column <- articles_col
-      .self$regression_models <- list()
-      .self$metrics_best_model <- NULL
-      .self$metrics_comparison_table <- NULL
-      .self$report_path <- report_path
+      .self$df_column_name_year <- year_col
+      .self$df_column_name_articles <- articles_col
+      .self$models_table <- list()
+      .self$models_best_obj <- NULL
+      .self$models_best_name <- ""
+      .self$models_best_params <- ""
+      .self$path_results_jsons <- paste0(report_path, '/jsons')
+      .self$path_results_plots <- paste0(report_path, '/figures')
+
       .self$initializeReportDir()
     },
     
     # Initialize report directory
     initializeReportDir = function() {
-      if (!dir.exists(.self$report_path)) {
-        dir.create(.self$report_path, recursive = TRUE)
+      # Ensure the output directory exists
+      if (dir.exists(.self$path_results_jsons)) {
+        unlink(.self$path_results_jsons, recursive = TRUE)  # Delete the directory and its contents
       }
+      # Create a new, clean output directory
+      dir.create(.self$path_results_jsons, recursive = TRUE)
+
+      # Ensure the output directory exists
+      if (dir.exists(.self$path_results_plots)) {
+        unlink(.self$path_results_plots, recursive = TRUE)  # Delete the directory and its contents
+      }
+      # Create a new, clean output directory
+      dir.create(.self$path_results_plots, recursive = TRUE)
     },
     
     # Accessor methods
     getYearData = function() {
-      return(.self$df[[.self$df_year_column]])
+      return(.self$df[[.self$df_column_name_year]])
     },
     
     getArticlesData = function() {
-      return(.self$df[[.self$df_articles_column]])
+      return(.self$df[[.self$df_column_name_articles]])
     },
     
     # Run regression models and determine best fit
     runRegression = function() {
+
       x <- .self$getYearData()
       y <- .self$getArticlesData()
-      .self$regression_models <- get_regression_models(x = x, y = y)
-      .self$metrics_comparison_table <- get_metrics_comparison_table(models = .self$regression_models, data = .self$df)
-      .self$metrics_best_model <- get_best_model(.self$metrics_comparison_table)
+
+      v_models_regression <- get_regression_models(x = x, y = y)
+      v_models_table <- get_metrics_comparison_table(models = v_models_regression, data = .self$df)
+      v_models_best_obj <- get_best_model(v_models_table)
+
+      .self$models_table <- v_models_table
+      .self$models_best_obj <- v_models_best_obj
+      .self$models_best_name <- v_models_best_obj$name
+      .self$models_best_params <- v_models_best_obj$params
+
     },
     
     # Run all metrics
@@ -87,64 +151,88 @@ M2_Annual_Production <- setRefClass(
       end_year <- max(x, na.rm = TRUE)
       peak_row <- df[which.max(y), ]
       
-      anomalies <- get_anomalies(df, .self$df_articles_column, .self$df_year_column, .self$metrics_best_model$name, .self$metrics_best_model$params)
-      window_sizes <- c(5, 10, 20)
+      anomalies <- get_anomalies(
+        df, 
+        .self$df_column_name_articles, 
+        .self$df_column_name_year, 
+        .self$models_best_obj$name,
+        .self$models_best_obj$params
+      )
+
+      window_sizes <- c(1, 5, 10)
       moving_avgs <- lapply(window_sizes, function(window) {
-        df_avg <- data.frame(Year = df[[.self$df_year_column]], Articles = df[[.self$df_articles_column]])
+        df_avg <- data.frame(
+          Year = df[[.self$df_column_name_year]], 
+          Articles = df[[.self$df_column_name_articles]]
+        )
         return(calculate_moving_average(df_avg, "Articles", window_size = window))
       })
       
       m0_eda <- list(
         start_date = start_year,
         end_year = end_year,
-        peak_year = peak_row[[.self$df_year_column]],
-        peak_articles = peak_row[[.self$df_articles_column]],
+        peak_year = peak_row[[.self$df_column_name_year]],
+        peak_articles = peak_row[[.self$df_column_name_articles]],
         anomalies = anomalies,
         outliers = list(
-          zscore = detect_outliers_zscore(df, .self$df_articles_column),
-          identified = identify_outliers(df, .self$df_articles_column, .self$df_year_column)
+          zscore = detect_outliers_zscore(df, .self$df_column_name_articles),
+          identified = identify_outliers(df, .self$df_column_name_articles, .self$df_column_name_year)
         ),
         moving_averages_arrays = moving_avgs,
         moving_averages_window_size = window_sizes
       )
 
+      # Saving JSON 
       json_data <- toJSON(m0_eda, pretty = TRUE, auto_unbox = TRUE)
-      write(json_data, file = file.path(.self$report_path, "m0_eda.json"))
-      
-      save_metric_m0_eda_table(m0_eda)
-      save_metric_m0_eda_plots(m0_eda)
+      write(json_data, file = file.path(.self$path_results_jsons, "m0_eda.json"))
 
+      # Saving Plots
+      create_moving_average_multiplot(m0_eda, .self$path_results_plots);
+      create_moving_average_individual_plots(m0_eda, .self$path_results_plots);
+      
       return(m0_eda)
     },
     
     # Run Trending metric
     runMetricTrending = function() {
-      message("[METRIC] M1 TREND")
-      
-      v_metrics_comparison_table <- .self$metrics_comparison_table %>% select(-Model_Object)
+
+      message(" ");message(" ");
+      message(" [METRIC] M1 TREND");
+      message(" ");message(" ");
+
+      v_models_best_obj <- .self$models_best_obj
+      v_models_table <- .self$models_table %>% select(-Model_Object)
       
       m1_trending <- list(
-        model_name = .self$metrics_best_model$name,
-        model_params = .self$metrics_best_model$params,
-        model_r_squared = .self$metrics_best_model$R2,
-        model_aic = .self$metrics_best_model$AIC,
-        model_rmse = .self$metrics_best_model$RMSE,
-        model_regression_table = v_metrics_comparison_table
+        model_name = v_models_best_obj$name,
+        model_params = v_models_best_obj$params,
+        model_r_squared = v_models_best_obj$R2,
+        model_aic = v_models_best_obj$AIC,
+        model_rmse = v_models_best_obj$RMSE,
+        model_regression_others = v_models_table
       )
 
-      json_data <- toJSON(m1_trending, pretty = TRUE, auto_unbox = TRUE)
-      write(json_data, file = file.path(.self$report_path, "m1_trending.json"))
+      x <- .self$df[.self$df_column_name_year]
+      y <- .self$df[.self$df_column_name_articles]
 
-      #save_metric_m1_trending_table(m1_trending)
-      # Uncomment the following line if plotting is implemented
-      # save_metric_m1_trending_plots(m1_trending)
+      # Saving JSON 
+      json_data <- toJSON(m1_trending, pretty = TRUE, auto_unbox = TRUE)
+      write(json_data, file = file.path(.self$path_results_jsons, "m1_trending.json"))
+
+      # Saving Plots
+      create_regression_articles_plots(m1_trending, model_function_map, x, y, .self$path_results_plots)   
       
+      # Create Regression Table
+      create_regression_articles_table(v_models_table, .self$path_results_plots)
       return(m1_trending)
     },
     
     # Run Periodic metric
     runMetricPeriodic = function() {
-      message("[METRIC] M2 PERIODIC")
+
+      message(" ");message(" ");
+      message(" [METRIC] M2 PERIODIC");
+      message(" ");message(" ");
       
       is_periodic <- FALSE # Placeholder logic for periodic analysis
       
