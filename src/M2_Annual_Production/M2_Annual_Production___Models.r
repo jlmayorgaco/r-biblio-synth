@@ -16,12 +16,6 @@ fit_exponential_model <- function(data) {
   nls(Articles ~ a * exp(b * Year), data = data, start = list(a = 1, b = 0.1))
 }
 
-# Map model names to functions
-model_function_map <- list(
-  "Linear" = fit_linear_model,
-  "Polynomial" = fit_polynomial_model,
-  "Exponential" = fit_exponential_model
-)
 
 # Function to get the best model based on a comparison table
 get_best_model <- function(metrics_comparison_table) {
@@ -31,14 +25,12 @@ get_best_model <- function(metrics_comparison_table) {
   }
   
   # Select the best model based on the AIC (or other criterion)
-  best_model_row <- metrics_comparison_table %>%
-    arrange(AIC) %>%    # You can change this to another criterion if needed
-    slice(1)
-  
+  best_model_row <- metrics_comparison_table %>% arrange(AIC) %>% slice(1)  
+
   # Return the best model details
   return(list(
     name = best_model_row$Model_Name,
-    params = best_model_row$Model_Params,
+    params = best_model_row$Parameters,
     R2 = best_model_row$R_Squared,
     AIC = best_model_row$AIC,
     RMSE = best_model_row$RMSE
