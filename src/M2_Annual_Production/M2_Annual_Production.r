@@ -221,6 +221,10 @@ M2_Annual_Production <- setRefClass(
 
       # Saving Plots
       create_regression_articles_plots(m1_trending, model_function_map, x, y, .self$path_results_plots)   
+
+      create_diff_nominal_articles_plots(x, y, .self$path_results_plots) 
+      
+      create_diff_percentage_articles_plots(x, y, .self$path_results_plots) 
       
       # Create Regression Table
       create_regression_articles_table(v_models_table, .self$path_results_plots)
