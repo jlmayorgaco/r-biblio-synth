@@ -9,6 +9,15 @@ THEME_COLORS <- c(
   "Darkgrey" = "#232323"
 )
 
+LABEL_MAPPING <- c(
+  article = "Article",
+  article_article = "Article (Revised)",
+  article_conference_paper = "Article & Conference Paper",
+  article_review = "Article Review",
+  conference_paper = "Conference Paper",
+  review = "Review"
+)
+
 #c("sans", "serif", "mono")
 
 # Define IEEE style theme
