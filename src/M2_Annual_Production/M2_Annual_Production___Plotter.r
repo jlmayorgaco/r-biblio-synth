@@ -245,6 +245,82 @@ create_regression_articles_plots <- function(metric_regression, models_regressio
   ggsave(filename = output_file_svg, plot = p, width = v_width, height = v_hight, device = "svg")
 
 }
+
+
+# Main function to create and save the plot
+create_diff_nominal_articles_plots <- function(x, y, output_path) {
+  
+  # Real data
+  t_real <- x$Year
+  y_real <- y$Articles
+
+  # Calculate the numerical derivative of y with respect to x (Year)
+  y_diff <- diff(y_real)
+  t_diff <- t_real[-1]  # Remove the first time point to match the length of dy_dt
+
+  # Create a data frame for plotting
+  df_diff <- data.frame(Year = t_diff, Articles = y_diff)
+
+  # Create the plot
+  p <- ggplot(data = df_diff, aes(x = Year, y = Articles))
+  p <- p + geom_point(size = 1.25, shape = 20)
+  p <- p + geom_line(size = 0.25, linetype = "solid")
+  p <- p + labs(title = 'Derivate Nominal Annual Articles Regression Plot', x = 'Year', y = 'Diff of Articles')
+  p <- p + theme_minimal(base_size = 10)
+  p <- p + ieee_theme
+
+
+  # Save the plot as PNG and SVG
+  output_file_png <- file.path(output_path, "Nominal_Annual_Diff_Articles_Plot_PNG.png")
+  output_file_svg <- file.path(output_path, "Nominal_Annual_Diff_Articles_Plot_SVG.svg")
+  
+  v_k_scaling <- 0.5;
+  v_k_width_hight <- 1.5; 
+  v_width <- 8.8 * v_k_scaling;
+  v_hight <- v_width / v_k_width_hight;
+
+  ggsave(filename = output_file_png, plot = p, width = v_width, height = v_hight, dpi = 900)
+  ggsave(filename = output_file_svg, plot = p, width = v_width, height = v_hight, device = "svg")
+
+}
+
+create_diff_percentage_articles_plots <- function(x, y, output_path) {
+  
+  # Real data
+  t_real <- x$Year
+  y_real <- y$Articles
+
+  # Calculate the numerical derivative of y with respect to x (Year)
+  t_diff <- t_real[-1] 
+  y_diff_percentage <- sapply(1:(length(y_real) - 1), function(i) {
+    100 * (y_real[i + 1] - y_real[i]) / (y_real[i] + 0.00001)
+  })
+  # Create a data frame for plotting
+  df_diff <- data.frame(Year = t_diff, Articles = y_diff_percentage)
+
+  # Create the plot
+  p <- ggplot(data = df_diff, aes(x = Year, y = Articles))
+  p <- p + geom_point(size = 1.25, shape = 20)
+  p <- p + geom_line(size = 0.25, linetype = "solid")
+  p <- p + labs(title = 'Derivate Nominal Annual Articles Regression Plot', x = 'Year', y = '% Change Articles')
+  p <- p + theme_minimal(base_size = 10)
+  p <- p + ieee_theme
+
+
+  # Save the plot as PNG and SVG
+  output_file_png <- file.path(output_path, "Percentage_Annual_Diff_Articles_Plot_PNG.png")
+  output_file_svg <- file.path(output_path, "Percentage__Annual_Diff_Articles_Plot_SVG.svg")
+  
+  v_k_scaling <- 0.5;
+  v_k_width_hight <- 1.5; 
+  v_width <- 8.8 * v_k_scaling;
+  v_hight <- v_width / v_k_width_hight;
+
+  ggsave(filename = output_file_png, plot = p, width = v_width, height = v_hight, dpi = 900)
+  ggsave(filename = output_file_svg, plot = p, width = v_width, height = v_hight, device = "svg")
+
+}
+
 # Define a custom function to format numbers
 format_number <- function(x) {
   if (is.na(x)) {
