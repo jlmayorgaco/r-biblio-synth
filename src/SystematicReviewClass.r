@@ -21,7 +21,7 @@
   }
 
   # List of required packages
-  packages <- c("bibliometrix", "ggsci", "changepoint", "kableExtra", "jsonlite", 
+  packages <- c("bibliometrix", "ggwordcloud", "ggsci", "changepoint", "kableExtra", "jsonlite", 
                 "pander", "rlang", "dplyr", "broom", "Metrics", "knitr", "ggplot2", 
                 "plotly", "webshot", "gridExtra", "igraph", "nls2", "reshape2", "minpack.lm")
 
@@ -182,6 +182,8 @@ SystematicReview <- setRefClass(
 
       overview <- fn_m1_main_information(.self$data)
 
+      most_rel_keywords <- fn_most_rel_keywords(overview$most_rel_keywords);
+
       .self$results$overview <- list(
         main_information = overview$main_information,
         most_cited_papers = overview$most_cited_papers,
@@ -195,7 +197,7 @@ SystematicReview <- setRefClass(
       )
 
       path_dir <- "results/M1_Main_Information";
-      path_file <- paste0(path_dir,'/m1_main_information.json')
+      path_file <- paste0(path_dir,'/jsons/m1_main_information.json')
       if (!dir.exists(path_dir)) {
         dir.create(path_dir, recursive = TRUE)
       }
