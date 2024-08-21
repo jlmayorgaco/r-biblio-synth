@@ -1,6 +1,7 @@
 # ---------------------------------------------------------------------------- #
 # -- M2 Main Information  ---------------------------------------------------- #
 # ---------------------------------------------------------------------------- #
+library(ggwordcloud)
 
 # Main function to extract and clean main information from bibliometric data
 fn_m1_main_information <- function(bib_data) {
@@ -59,7 +60,60 @@ fn_m1_main_information <- function(bib_data) {
     bradford_law = bradford_law_df
   )
 
+  v_document_types <- main_information_data$main_information$document_types;
+  fn_save_m1_articles_pie(v_document_types);
+
   return(main_information_data)
+}
+
+fn_save_m1_articles_pie <- function(v_document_types){
+
+  # Prepare the data frame for ggplot
+  v_names <- names(v_document_types)
+  v_counts <- sapply(v_document_types, function(x) ifelse(length(x) == 0, 0, x))
+
+  # Calculate the percentage for each document type
+  v_percentages <- (v_counts / sum(v_counts)) * 100
+
+  df <- data.frame(
+    Document_Type = v_names,
+    Count = v_percentages
+  )
+  
+  # Map the Document_Type column to the new labels
+  df$Document_Type <- LABEL_MAPPING[df$Document_Type]
+
+  # Filter out zero counts
+  df <- df[df$Count > 0, ]
+
+  # Create a pie chart using ggplot2
+  p <- ggplot(df, aes(x = "", y = Count, fill = Document_Type))
+  p <- p + geom_bar(width = 1, stat = "identity")
+  p <- p + coord_polar("y", start = 0)
+  p <- p + labs(title = "Document Types Distribution")
+  #p <- p + ieee_theme
+  p <- p + theme_void()
+  p <- p + theme(legend.title = element_blank())
+
+    # Save the plot as PNG and SVG
+  output_file_png <- file.path("results/M1_Main_Information", "/figures/M1_Document_Types_Pie_Plot_PNG.png")
+  output_file_svg <- file.path("results/M1_Main_Information", "/figures/M1_Document_Types_Pie_Plot_SVG.svg")
+  
+  v_k_scaling <- 0.5;
+  v_k_width_hight <- 1.5; 
+  v_width <- 8.8 * v_k_scaling;
+  v_hight <- v_width / v_k_width_hight;
+
+  # Ensure the output directory exists
+  if (dir.exists("results/M1_Main_Information/figures")) {
+    unlink("results/M1_Main_Information/figures", recursive = TRUE)  # Delete the directory and its contents
+  }
+  # Create a new, clean output directory
+  dir.create("results/M1_Main_Information/figures", recursive = TRUE)
+
+  ggsave(filename = output_file_png, plot = p, width = v_width, height = v_hight, dpi = 900)
+  ggsave(filename = output_file_svg, plot = p, width = v_width, height = v_hight, device = "svg")
+
 }
 # Function to clean whitespace from a data frame
 clean_whitespace <- function(df) {
@@ -77,3 +131,50 @@ clean_whitespace <- function(df) {
   })
   return(df)
 }
+
+
+
+fn_most_rel_keywords <-function (most_rel_keywords){
+
+    names(most_rel_keywords)[2] <- "Article-Author-Keywords"
+    names(most_rel_keywords)[4] <- "Article-Keywords-Plus"
+
+    # Convert the counts to numeric, if they aren't already
+    most_rel_keywords$`Article-Keywords-Plus` <- as.numeric(most_rel_keywords$`Article-Keywords-Plus`)
+    most_rel_keywords$`Article-Author-Keywords` <- as.numeric(most_rel_keywords$`Article-Author-Keywords`)
+
+    print(' ')
+    print(' ')
+    print(' ')
+    print(' =====> most_rel_keywords')
+    print(most_rel_keywords)
+    print(' ')
+    print(' ')
+    print(' ')
+
+    p <- ggplot(most_rel_keywords, aes(label = `Author Keywords (DE)` , size = `Article-Author-Keywords`)) 
+    p <- p + geom_text_wordcloud()
+    p <- p + theme_minimal()
+    p <- p + labs(
+        title = "Most Relevant Author Keywords",
+         x = "Author Keywords (DE)",
+         y = "Number of Articles"
+    )
+    p <- p + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+    v_k_scaling <- 0.5;
+    v_k_width_hight <- 1.5; 
+    v_width <- 8.8 * v_k_scaling;
+    v_hight <- v_width / v_k_width_hight;
+
+    output_file_png <- file.path("results/M1_Main_Information", "/figures/M1_Most_Rel_Keywords_Bar_Plot_PNG.png")
+    output_file_svg <- file.path("results/M1_Main_Information", "/figures/M1_Most_Rel_Keywords_Bar_Plot_SVG.svg")
+    
+    ggsave(filename = output_file_png, plot = p, width = v_width, height = v_hight, dpi = 900)
+    ggsave(filename = output_file_svg, plot = p, width = v_width, height = v_hight, device = "svg")
+
+
+    # Save the most_rel_keywords data frame as a CSV file
+    write.csv(most_rel_keywords, file = file.path("results/M1_Main_Information", "/jsons/M1_Most_Rel_Keywords_Dataset.csv"), row.names = FALSE)
+
+  }
