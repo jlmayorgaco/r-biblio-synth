@@ -1,0 +1,59 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<svg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' class='svglite' width='316.80pt' height='211.20pt' viewBox='0 0 316.80 211.20'>
+<defs>
+  <style type='text/css'><![CDATA[
+    .svglite line, .svglite polyline, .svglite polygon, .svglite path, .svglite rect, .svglite circle {
+      fill: none;
+      stroke: #000000;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-miterlimit: 10.00;
+    }
+    .svglite text {
+      white-space: pre;
+    }
+  ]]></style>
+</defs>
+<rect width='100%' height='100%' style='stroke: none; fill: none;'/>
+<defs>
+  <clipPath id='cpMC4wMHwzMTYuODB8MC4wMHwyMTEuMjA='>
+    <rect x='0.00' y='0.00' width='316.80' height='211.20' />
+  </clipPath>
+</defs>
+<g clip-path='url(#cpMC4wMHwzMTYuODB8MC4wMHwyMTEuMjA=)'>
+</g>
+<defs>
+  <clipPath id='cpMTguNTR8MzExLjMyfDIzLjM0fDE5Mi42Ng=='>
+    <rect x='18.54' y='23.34' width='292.78' height='169.32' />
+  </clipPath>
+</defs>
+<g clip-path='url(#cpMTguNTR8MzExLjMyfDIzLjM0fDE5Mi42Ng==)'>
+<text x='69.66' y='112.23' style='font-size: 17.07px; font-family: "Arial";' textLength='81.53px' lengthAdjust='spacingAndGlyphs'>CHANNEL</text>
+<text x='155.93' y='112.23' style='font-size: 17.07px; font-family: "Arial";' textLength='104.28px' lengthAdjust='spacingAndGlyphs'>ESTIMATION</text>
+<text x='127.81' y='126.34' style='font-size: 14.76px; font-family: "Arial";' textLength='43.42px' lengthAdjust='spacingAndGlyphs'>OFDM</text>
+<text x='103.84' y='94.46' style='font-size: 12.73px; font-family: "Arial";' textLength='79.86px' lengthAdjust='spacingAndGlyphs'>FREQUENCY</text>
+<text x='187.23' y='94.46' style='font-size: 12.73px; font-family: "Arial";' textLength='77.73px' lengthAdjust='spacingAndGlyphs'>ESTIMATION</text>
+<text x='176.21' y='125.31' style='font-size: 7.65px; font-family: "Arial";' textLength='73.84px' lengthAdjust='spacingAndGlyphs'>SYNCHRONIZATION</text>
+<text x='74.50' y='127.15' style='font-size: 7.06px; font-family: "Arial";' textLength='43.07px' lengthAdjust='spacingAndGlyphs'>ESTIMATION</text>
+<text x='116.39' y='140.39' style='font-size: 6.11px; font-family: "Arial";' textLength='19.65px' lengthAdjust='spacingAndGlyphs'>STATE</text>
+<text x='137.73' y='140.39' style='font-size: 6.11px; font-family: "Arial";' textLength='37.25px' lengthAdjust='spacingAndGlyphs'>ESTIMATION</text>
+<text x='148.80' y='78.20' style='font-size: 5.82px; font-family: "Arial";' textLength='24.54px' lengthAdjust='spacingAndGlyphs'>PHASOR</text>
+<text x='174.95' y='78.20' style='font-size: 5.82px; font-family: "Arial";' textLength='45.19px' lengthAdjust='spacingAndGlyphs'>MEASUREMENT</text>
+<text x='221.75' y='78.20' style='font-size: 5.82px; font-family: "Arial";' textLength='13.56px' lengthAdjust='spacingAndGlyphs'>UNIT</text>
+<text x='236.92' y='78.20' style='font-size: 5.82px; font-family: "Arial";' textLength='16.78px' lengthAdjust='spacingAndGlyphs'>(PMU)</text>
+<text x='182.17' y='139.58' style='font-size: 4.73px; font-family: "Arial";' textLength='17.83px' lengthAdjust='spacingAndGlyphs'>POWER</text>
+<text x='201.31' y='139.58' style='font-size: 4.73px; font-family: "Arial";' textLength='20.18px' lengthAdjust='spacingAndGlyphs'>QUALITY</text>
+<text x='117.82' y='80.91' style='font-size: 2.85px; font-family: "Arial";' textLength='11.69px' lengthAdjust='spacingAndGlyphs'>KALMAN</text>
+<text x='130.30' y='80.91' style='font-size: 2.85px; font-family: "Arial";' textLength='9.79px' lengthAdjust='spacingAndGlyphs'>FILTER</text>
+<text x='120.01' y='65.28' style='font-size: 2.85px; font-family: "Arial";' textLength='20.21px' lengthAdjust='spacingAndGlyphs'>ORTHOGONAL</text>
+<text x='141.01' y='65.28' style='font-size: 2.85px; font-family: "Arial";' textLength='17.83px' lengthAdjust='spacingAndGlyphs'>FREQUENCY</text>
+<text x='159.64' y='65.28' style='font-size: 2.85px; font-family: "Arial";' textLength='12.48px' lengthAdjust='spacingAndGlyphs'>DIVISION</text>
+<text x='172.91' y='65.28' style='font-size: 2.85px; font-family: "Arial";' textLength='20.85px' lengthAdjust='spacingAndGlyphs'>MULTIPLEXING</text>
+<text x='194.55' y='65.28' style='font-size: 2.85px; font-family: "Arial";' textLength='10.27px' lengthAdjust='spacingAndGlyphs'>(OFDM)</text>
+</g>
+<g clip-path='url(#cpMC4wMHwzMTYuODB8MC4wMHwyMTEuMjA=)'>
+<text x='164.93' y='203.29' text-anchor='middle' style='font-size: 11.00px; font-family: "Arial";' textLength='109.43px' lengthAdjust='spacingAndGlyphs'>Author Keywords (DE)</text>
+<text transform='translate(13.37,108.00) rotate(-90)' text-anchor='middle' style='font-size: 11.00px; font-family: "Arial";' textLength='90.47px' lengthAdjust='spacingAndGlyphs'>Number of Articles</text>
+<text x='18.54' y='14.94' style='font-size: 13.20px; font-family: "Arial";' textLength='188.42px' lengthAdjust='spacingAndGlyphs'>Most Relevant Author Keywords</text>
+</g>
+</svg>
