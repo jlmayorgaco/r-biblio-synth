@@ -1,0 +1,39 @@
+------------------------------------------------------------
+Automated Bubble Chart Analysis Report
+------------------------------------------------------------
+
+### Summary
+A total of 10 papers were analyzed to identify the most influential, emerging, and impactful research contributions in the dataset.
+
+---
+
+### Highlights
+
+**1. Top-Cited Paper:**
+   - Title: 'YE H, 2018, IEEE WIRELESS COMMUN LETT COMPUT SCI RES DEVEL DEV'
+   - Total Citations: 1357
+   - Annual Citation Rate: 193.9 citations per year
+   - Insights: This paper has the highest total citations, making it a cornerstone reference in its field.
+
+**2. Emerging Paper:**
+   - Title: 'YE H, 2018, IEEE WIRELESS COMMUN LETT COMPUT SCI RES DEVEL DEV'
+   - Annual Citation Rate: 193.9 citations per year
+   - Insights: This paper shows the highest annual citation rate in the dataset. Its recent publication date likely contributes to its growing visibility.
+
+**3. Sustained Impact Paper:**
+   - Title: 'YE H, 2018, IEEE WIRELESS COMMUN LETT COMPUT SCI RES DEVEL DEV'
+   - Total Citations: 1357
+   - Annual Citation Rate: 193.9 citations per year
+   - Insights: This paper combines consistent relevance and high impact, making it a sustained influence in its field.
+
+---
+
+### Observations
+1 .  Several papers have high normalized citation scores, highlighting their consistent and widespread influence.
+
+### Recommendations
+1 .  Highlight emerging papers with high annual citation rates in academic reviews and proposals.
+2 .  Investigate papers with high normalized scores for interdisciplinary insights.
+
+------------------------------------------------------------
+
