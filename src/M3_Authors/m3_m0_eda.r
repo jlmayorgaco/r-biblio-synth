@@ -28,21 +28,6 @@ M3_M0_EDA <- setRefClass(
     run = function() {
       message(" ==> M3_M0 :: run")
       
-      # 1. Number of unique authors
-      unique_authors <- .self$get_unique_authors()
-      
-      # 2. Distribution of publications per author
-      publications_per_author <- .self$get_publications_per_author()
-      
-      # 3. Distribution of publications over time
-      publications_over_time <- .self$get_publications_over_time()
-
-      # Save results
-      .self$results <- list(
-        unique_authors = unique_authors,
-        publications_per_author = publications_per_author,
-        publications_over_time = publications_over_time
-      )
     },
 
     # Get unique authors
