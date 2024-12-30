@@ -4,15 +4,15 @@
 
 # Load necessary files
 message("Loaded file: _helpers.r")
-source('../../src/M3_Authors/_helpers.r')
+#source('../../src/M3_Authors/_helpers.r')
 
 message("Loaded file: _utils.r")
-source('../../src/M3_Authors/_utils.r')
+#source('../../src/M3_Authors/_utils.r')
 
 message("Loaded file: _settings.r")
-source('../../src/M3_Authors/_settings.r')
+#source('../../src/M3_Authors/_settings.r')
 
-source('../../src/M3_Authors/m3_m0_eda.r')
+#source('../../src/M3_Authors/m3_m0_eda.r')
 
 M3_Authors <- setRefClass(
   "M3_Authors",
@@ -41,10 +41,10 @@ M3_Authors <- setRefClass(
       message("=============== RUNNING METRICS ==================")
 
       # Metric 0: EDA
-      m0_eda <- M3_M0_EDA$new(.self$df, .self$df_column_name_year, .self$df_column_name_articles)
-      m0_eda$run()
-      m0_eda$save_plot(.self$path_results_plots)
-      m0_eda$save_json(.self$path_results_jsons)
+      #m0_eda <- M3_M0_EDA$new(.self$df, .self$df_column_name_year, .self$df_column_name_articles)
+      #m0_eda$run()
+      #m0_eda$save_plot(.self$path_results_plots)
+      #m0_eda$save_json(.self$path_results_jsons)
 
 
       message("=============== METRICS COMPLETED ==================")
