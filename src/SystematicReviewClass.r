@@ -21,9 +21,9 @@
   }
 
   # List of required packages
-  packages <- c("bibliometrix", "ggwordcloud", "ggsci", "changepoint", "kableExtra", "jsonlite", 
+  packages <- c("bibliometrix", "rworldmap", "ggwordcloud", "ggsci", "changepoint", "lomb","WaveletComp", "kableExtra", "jsonlite", 
                 "pander", "rlang", "dplyr", "broom", "Metrics", "knitr", "ggplot2", 
-                "plotly", "webshot", "gridExtra", "igraph", "nls2", "reshape2", "minpack.lm")
+                "plotly", "webshot", "gridExtra", "igraph", "nls2", "reshape2", "minpack.lm", "htmlwidgets")
 
   # Install and load necessary packages
   install_and_load(packages)
@@ -39,7 +39,8 @@
   source('../../src/Config/PlotThemes.r')
   
   source('../../src/M1_Main_Information/M1_Main_Information.r')
-  source('../../src/M2_Annual_Production/M2_Annual_Production.r')
+  #source('../../src/M2_Annual_Production/M2_Annual_Production.r')
+  #source('../../src/M3_Most_Prod_Authors/M3_Most_Prod_Authors.r')
 # ---------------------------------------------------------------------------- #
 
 
@@ -170,126 +171,79 @@ SystematicReview <- setRefClass(
     # ---------------------------------------------------------------------------- #
 
     # ---------------------------------------------------------------------------- #
-    # --  #Module 2: Main Information -------------------------------------------- #
+    # Module 2: Main Information
     # ---------------------------------------------------------------------------- #
-    do_m1_main_information = function() {
+do_m1_main_information = function() {
 
-      message(" ")
-      message(" ")
-      message(" M2 :: Analyzing Main Information...")
-      message(" ")
-      message(" ")
+      # Step 0: Set the main output directory
+        output_dir <- "results/M1_Main_Information"
+        figures_dir <- file.path(output_dir, "figures")
+        jsons_dir <- file.path(output_dir, "jsons")
 
-      overview <- fn_m1_main_information(.self$data)
+        # Step 1: Delete the main output directory if it exists
+        if (dir.exists(output_dir)) {
+          unlink(output_dir, recursive = TRUE)
+          message("[INFO] Deleted existing directory: ", output_dir)
+        }
 
-      most_rel_keywords <- fn_most_rel_keywords(overview$most_rel_keywords);
+        # Step 2: Recreate the directory structure
+        dir.create(figures_dir, recursive = TRUE, showWarnings = FALSE)
+        dir.create(jsons_dir, recursive = TRUE, showWarnings = FALSE)
+        message("[INFO] Created new directory structure: ", output_dir)
 
-      .self$results$overview <- list(
-        main_information = overview$main_information,
-        most_cited_papers = overview$most_cited_papers,
-        most_prod_countries = overview$most_prod_countries,
-        tc_per_country = overview$tc_per_countries,
-        most_rel_source = overview$most_rel_sources,
-        most_rel_keywords = overview$most_rel_keywords,
-        most_prod_authors = overview$most_prod_authors,
-        author_prod_over_time = overview$author_prod_over_time,
-        bradford_law = overview$bradford_law
-      )
+        # Step 3: Inform user about the processing stage
+        message("\n\nM2 :: Analyzing Main Information...\n\n")
 
-      path_dir <- "results/M1_Main_Information";
-      path_file <- paste0(path_dir,'/jsons/m1_main_information.json')
-      if (!dir.exists(path_dir)) {
-        dir.create(path_dir, recursive = TRUE)
-      }
+        # Step 4: Extract the main information
+        data <- .self$data
+        overview <- fn_m1_main_information(data)
 
-      # Saving the overview to JSON file
-      jsonlite::write_json(
-        overview, 
-        path = path_file, 
-        pretty = TRUE
-      )
-    },
-    # ---------------------------------------------------------------------------- #
+        # Step 6: Store processed overview results in a structured list
+        results_overview <- list(
+          main_information = overview$main_information,
+          author_prod_over_time = overview$author_prod_over_time,
+          most_prod_authors = overview$most_prod_authors,
+          most_cited_papers = overview$most_cited_papers,
+          most_prod_countries = overview$most_prod_countries,
+          tc_per_country = overview$tc_per_countries,
+          most_rel_source = overview$most_rel_sources,
+          most_rel_keywords = overview$most_rel_keywords,
+          bradford_law = overview$bradford_law
+        )
 
-    # ---------------------------------------------------------------------------- #
-    # --  #Module 2: Annual Production ------------------------------------------- #
-    # ---------------------------------------------------------------------------- #
-    do_m2_author_prod_over_time_regression = function() {
-      message(" ")
-      message(" ")
-      message(" M2 :: Analyzing Annual Production...")
-      message(" ")
-      message(" ")
+        # Step 7: Save overview as JSON
+        json_path <- file.path(jsons_dir, "m1_main_information.json")
+        save_json(results_overview, json_path)
 
-      v_df <- .self$results$overview$author_prod_over_time
-      colnames(v_df) <- trimws(colnames(v_df))
 
-      # Convert Year to numeric if it's a factor
-      if (is.factor(v_df$Year)) {
-        v_df$Year <- as.numeric(as.character(v_df$Year))
-      }
+        # Step 8: Analyze and generate specific visualizations
 
-      v_df <- v_df %>% filter(Year < 2024)
+        # Top Keywords
+        fn_most_rel_keywords_wordcloud(overview$most_rel_keywords)
+        fn_most_rel_keywords_wordcloud2(overview$most_rel_keywords)
 
-      m2AnnualProduction <- M2_Annual_Production(
-        df = v_df, 
-        year_col = "Year", 
-        articles_col = "Articles", 
-        report_path = "results/M2_Annual_Production"
-      );
+        # Top Authors
+        analyze_and_plot_most_prod_authors(overview$most_prod_authors, output_dir)
+        generate_lorenz_curve(overview$most_prod_authors, file.path(figures_dir, "most_prod_authors_lorenz_curve"))
 
-      m2AnnualProduction$runRegression();
-      m2AnnualProduction$runMetrics();
-      m2AnnualProduction$runReport();
+        # Most Cited Papers
+        analyze_and_plot_most_cited_papers(overview$most_cited_papers, output_dir)
+        analyze_and_plot_citations_per_year(overview$most_cited_papers, output_dir)
+        generate_bubble_chart(overview$most_cited_papers, output_dir)
+        generate_bubble_chart_analysis(overview$most_cited_papers, output_dir)
 
-    },
-    # ---------------------------------------------------------------------------- #
+        # Most Productive Countries
+        analyze_and_plot_most_prod_countries(overview$most_prod_countries, output_dir)
 
-    # Module 3: Authors Analysis
-    do_m3_authors = function() {
-      # Placeholder for authors analysis logic
-      message("Analyzing authors...")
-    },
+        # Total Citations per Country
+        analyze_and_plot_tc_per_country(overview$tc_per_countries, output_dir)
 
-    # Module 4: Documents Analysis
-    do_m4_documents = function() {
-      # Placeholder for documents analysis logic
-      message("Analyzing documents...")
-    },
+        # Most Relevant Sources
+        analyze_and_plot_most_rel_sources(overview$most_rel_sources, output_dir)
 
-    # Module 5: Clusterings
-    do_m5_clusterings = function() {
-      # Placeholder for clustering logic
-      message("Performing cluster analysis...")
-    },
 
-    # Module 6: Conceptual Structure
-    do_m6_conceptual_structure = function() {
-      # Placeholder for conceptual structure logic
-      message("Analyzing conceptual structure...")
-    },
-
-    # Module 7: Social Structure
-    do_m7_social_structure = function() {
-      # Placeholder for social structure logic
-      message("Analyzing social structure...")
-    },
-
-    # Module 8: Create Report
-    do_m8_report = function() {
-      # Placeholder for report creation logic
-      message("Creating report...")
-    },
-
-    # Module 9: Save
-    do_m9_save = function() {
-      # Placeholder for report creation logic
-      message("Saving Files...")
-
-      # Save overview_data to JSON
-      json_path <- "results/exported_bibliometrics_results.json"
-      json_data <- .self$results
-      #write_json(json_data, json_path, pretty = TRUE)
+        # Step 9: Inform completion
+        message("[INFO] Main Information analysis completed.\n")
     }
     # ---------------------------------------------------------------------------- #
   )
