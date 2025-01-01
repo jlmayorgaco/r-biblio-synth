@@ -21,6 +21,8 @@ fn_m1_main_information <- function(bib_data) {
   res1 <- biblioAnalysis(bib_data, sep = ";")
   s1 <- summary(res1, pause = FALSE, verbose = FALSE)
 
+  extracted_data <- extract_bibliographic_data(bib_data, res1)
+
   # Extract and clean additional summary information
   summary_df <- clean_whitespace(s1$MainInformationDF)
   most_prod_authors <- clean_whitespace(s1$MostProdAuthors)
@@ -31,6 +33,26 @@ fn_m1_main_information <- function(bib_data) {
   most_rel_sources <- clean_whitespace(s1$MostRelSources)
   most_rel_keywords <- clean_whitespace(s1$MostRelKeywords)
 
+
+  # Assign unique IDs based on DOI match
+  most_cited_papers <- most_cited_papers %>%
+    dplyr::mutate(
+      PaperID = dplyr::case_when(
+        DOI %in% bib_data$DI ~ paste0("[", match(DOI, bib_data$DI), "]"),
+        TRUE ~ NA_character_ # If no match, set to NA
+      )
+    )
+
+
+  # Ensure there are no missing IDs
+  if (any(is.na(most_cited_papers$PaperID))) {
+    warning("[WARNING] Some papers could not be assigned unique IDs.")
+  }
+
+  # Ensure PaperID column is present
+  if (!"PaperID" %in% colnames(most_cited_papers)) {
+    stop("[ERROR] Unable to assign unique IDs. Check DOI consistency between datasets.")
+  }
   # Compute Bradford's Law
   bradford_law <- bradford(bib_data)$table
 
@@ -44,167 +66,187 @@ fn_m1_main_information <- function(bib_data) {
     most_rel_keywords = most_rel_keywords,
     most_prod_authors = most_prod_authors,
     author_prod_over_time = annual_production,
-    bradford_law = bradford_law
+    bradford_law = bradford_law,
+    extracted_data = extracted_data
   )
-
-  # Save document type pie chart
-  fn_save_m1_articles_pie(main_information_data$main_information$document_types)
 
   return(main_information_data)
 }
 
 # ---------------------------------------------------------------------------- #
-# Function: Save Document Types Pie Chart
+# Function: M1 Metric Mtrc1 :: Save Document Types Pie Chart
 # ---------------------------------------------------------------------------- #
-fn_save_m1_articles_pie <- function(v_document_types) {
+fn_m1_mtrc1_articles_types_pie <- function(v_document_types) {
+  # Create data frame from document types
   df <- data.frame(
     Document_Type = names(v_document_types),
     Count = sapply(v_document_types, function(x) ifelse(length(x) == 0, 0, x))
   )
 
+  # Filter out types with zero count and apply label mapping
   df <- df[df$Count > 0, ]
   df$Document_Type <- LABEL_MAPPING[df$Document_Type]
 
-  # Call the generic pie chart plotting function
-  pie_chart <- plot_pie_chart(
-    df = df,
-    title = "Document Types Distribution",
-    fill_var = "Document_Type",
-    count_var = "Count"
-  )
-
-  save_plot(pie_chart, "M1_DOCUMENT_TYPES_PIE_PLOT", width = 6, height = 4, dpi = 600)
-}
-
-# ---------------------------------------------------------------------------- #
-# Function: Analyze and Plot Most Productive Authors
-# ---------------------------------------------------------------------------- #
-analyze_and_plot_most_prod_authors <- function(data, output_dir) {
-  # Ensure unique column names
-  colnames(data) <- make.unique(colnames(data))
-
-  # Check for required columns
-  if (!("Authors" %in% colnames(data))) {
-    stop("[ERROR] The 'Authors' column is missing in the dataset.")
-  }
-
-  if (!("Articles" %in% colnames(data))) {
-    stop("[ERROR] The 'Articles' column is missing in the dataset.")
-  }
-
-  # Convert 'Articles' to numeric
-  data$Articles <- suppressWarnings(as.numeric(data$Articles))
-  if (any(is.na(data$Articles))) {
-    stop("[ERROR] 'Articles' column contains non-numeric or missing values.")
-  }
-
-  # Sort by Articles in descending order and select the top 10
-  top_authors <- data[order(-data$Articles), ]
-  top_authors <- head(top_authors, 10)
-
-  # Create bar plot
-  p <- ggplot(top_authors, aes(x = reorder(Authors, Articles), y = Articles)) +
-    geom_bar(stat = "identity", fill = THEME_COLORS["Green"]) +
-    coord_flip() +
-    labs(
-      title = "Top 10 Most Productive Authors",
-      x = "Authors",
-      y = "Number of Articles"
+  # Create the pie chart
+  pie_chart <- ggplot(df, aes(x = "", y = Count, fill = Document_Type)) +
+    geom_bar(
+      width = 1, 
+      stat = "identity", 
+      color = THEME_COLORS$Grayscale$Black, 
+      size = 0.25
     ) +
-    ieee_theme +
+    coord_polar("y", start = 0) +
+    labs(
+      title = "Document Types Distribution"
+    ) +
+    theme_void() +
     theme(
-      axis.text.x = element_text(angle = 45, hjust = 1),
-      plot.title = element_text(hjust = 0.5)
-    )
+      plot.title = element_text(
+        size = 16, 
+        face = "bold", 
+        hjust = 0.5, 
+        margin = margin(t = 10, b = 10), 
+        color = THEME_COLORS$Text$Title
+      ),
+      legend.title = element_blank(),
+      legend.text = element_text(
+        size = 12, 
+        color = THEME_COLORS$Text$Body
+      ),
+      legend.position = "right"
+    ) +
+    scale_fill_manual(values = THEME_COLORS$Main)
 
-  # Save results and plot
-  save_json(top_authors, file.path(output_dir, "jsons", "most_prod_authors.json"))
-  save_plot(p, "M1_MOST_PROD_AUTHORS_BAR_PLOT")
-  message("[INFO] Most Productive Authors analysis completed successfully.")
+  # Save the plot using the save_plot function
+  save_plot(pie_chart, "M1_G2_DOCUMENT_TYPES_PIE_PLOT", width = 6, height = 4, dpi = 600)
 }
 
-
 # ---------------------------------------------------------------------------- #
-# Function: Generate Lorenz Curve for Author Contributions
+# Function: M1 Metric Mtrc1 :: Generate Most Relevant Keywords Wordcloud using ggplot2
 # ---------------------------------------------------------------------------- #
-generate_lorenz_curve <- function(data, output_path) {
-  # Ensure unique column names
-  colnames(data) <- make.unique(colnames(data))
-
-  # Validate input data
-  if (!all(c("Authors", "Articles") %in% colnames(data))) {
-    stop("[ERROR] Missing required columns: 'Authors' and 'Articles'.")
+fn_m1_mtrc2_most_rel_keywords_wordcloud <- function(most_rel_keywords, output_path = "results/M1_Main_Information/figures") {
+  
+  # Check if input data is null or empty
+  if (is.null(most_rel_keywords) || nrow(most_rel_keywords) == 0) {
+    stop("[ERROR] The input `most_rel_keywords` is NULL or empty.")
   }
 
-  # Convert Articles column to numeric
-  data$Articles <- suppressWarnings(as.numeric(data$Articles))
-  if (any(is.na(data$Articles))) {
-    stop("[ERROR] 'Articles' column contains non-numeric or missing values.")
+  # Ensure the columns contain the correct data
+  colnames(most_rel_keywords)[1] <- "Author Keywords (DE)"
+  colnames(most_rel_keywords)[2] <- "Article-Author-Keywords"
+  colnames(most_rel_keywords)[3] <- "Keywords-Plus (ID)"
+  colnames(most_rel_keywords)[4] <- "Keywords-Plus-Articles"
+
+  # Function to split keywords and repeat counts appropriately
+  split_keywords <- function(keywords, counts) {
+    split_words <- unlist(strsplit(keywords, " "))
+    counts_repeated <- rep(counts, times = lengths(strsplit(keywords, " ")))
+    data.frame(Keyword = split_words, Count = counts_repeated, stringsAsFactors = FALSE)
   }
 
-  # Sort data by Articles in descending order
-  data <- data[order(-data$Articles), ]
-
-  # Calculate cumulative percentages for Lorenz Curve
-  cumulative_authors <- cumsum(rep(1, nrow(data))) / nrow(data)
-  cumulative_articles <- cumsum(data$Articles) / sum(data$Articles)
-
-  # Calculate the Gini coefficient
-  area_trapezoids <- (cumulative_authors[-1] + cumulative_authors[-length(cumulative_authors)]) * diff(cumulative_articles) / 2
-  area_under_curve <- sum(area_trapezoids)
-  gini <- 1 - 2 * area_under_curve
-
-  # Prepare data for plotting (ensure only necessary columns are included)
-  plot_data <- data.frame(
-    cumulative_authors = c(0, cumulative_authors, 1),
-    cumulative_articles = c(0, cumulative_articles, 1)
+  # Process both "Author Keywords (DE)" and "Keywords-Plus (ID)"
+  author_keywords <- split_keywords(
+    most_rel_keywords$`Author Keywords (DE)`, 
+    as.numeric(most_rel_keywords$`Article-Author-Keywords`)
+  )
+  keywords_plus <- split_keywords(
+    most_rel_keywords$`Keywords-Plus (ID)`, 
+    as.numeric(most_rel_keywords$`Keywords-Plus-Articles`)
   )
 
-  # Define symmetrical axis limits
-  axis_limits <- c(0, 1)
+  # Combine both into a single data frame
+  combined_keywords <- rbind(author_keywords, keywords_plus)
 
-  # Define plot labels and annotations
-  plot_label_titles <- labs(
-    title = "Lorenz Curve: Author Contributions",
-    x = "Cumulative Percentage of Articles",
-    y = "Cumulative Percentage of Authors"
-  )
-  plot_label_annotation <- annotate(
-    "text", x = 0.2, y = 0.8, label = paste0("Gini Coefficient: ", round(gini, 3)),
-    color = "black", size = 4, hjust = 0
-  )
+  # Remove NA or empty keywords
+  combined_keywords <- combined_keywords[!is.na(combined_keywords$Keyword) & combined_keywords$Keyword != "", ]
 
-  # Create the Lorenz Curve plot
-  p <- ggplot(plot_data, aes(x = cumulative_articles, y = cumulative_authors))
-  p <- p + geom_line(color = THEME_COLORS["Blue"], linewidth = 1)
-  p <- p + geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = THEME_COLORS["Darkgrey"])
-  p <- p + coord_fixed(ratio = 1)
-  p <- p + xlim(axis_limits)
-  p <- p + ylim(axis_limits)
-  p <- p + plot_label_titles
-  p <- p + plot_label_annotation
-  p <- p + ieee_theme +
+  # Aggregate duplicate keywords and sum their counts
+  combined_keywords <- combined_keywords %>%
+    group_by(Keyword) %>%
+    summarise(Count = sum(Count, na.rm = TRUE)) %>%
+    ungroup()
+
+  # Sort keywords by frequency
+  combined_keywords <- combined_keywords %>%
+    arrange(desc(Count))
+
+  # Generate the word cloud
+  p <- ggplot(
+    combined_keywords, 
+    aes(
+      label = Keyword,
+      size = Count,
+      color = Count
+    )
+  ) +
+    geom_text_wordcloud(
+      area_corr = TRUE,
+      family = "Helvetica",
+      rotate_ratio = 0.5,
+      shape = "circle",
+      grid_size = 10,
+      rm_outside = FALSE
+    ) +
+    scale_size_area(max_size = 100) +
+    scale_color_gradientn(
+      colors = c(
+        THEME_COLORS$Categorical["Lower"], 
+        THEME_COLORS$Categorical["Medium"], 
+        THEME_COLORS$Categorical["Bigger"]
+      ),
+      values = scales::rescale(c(1, 10, 50, max(combined_keywords$Count))),
+      name = "Word Frequency",
+      guide = guide_colorbar(
+        barwidth = 10, barheight = 0.8, 
+        title.position = "top", title.hjust = 0.5
+      )
+    ) +
+    labs(
+      title = "Most Relevant Keywords"
+      #subtitle = "Word frequency representation",
+      #caption = "Generated using ggplot2"
+    ) +
+    theme_void() +
     theme(
-      plot.title = element_text(size = 14, margin = margin(b = 15, t = 15)),
-      plot.background = element_rect(fill = "transparent", color = NA),  # Transparent plot background
-      panel.background = element_rect(fill = "white", color = NA),      # White plot area
-      axis.title.x = element_text(size = 10, margin = margin(t = 15, b = 5)), # X-axis title adjustments
-      axis.title.y = element_text(size = 10, margin = margin(r = 15, l = 0)),  # Y-axis title adjustments
-      axis.text = element_text(size = 8)                       
+      plot.title = element_text(
+        size = 16, face = "bold", hjust = 0.5, 
+        color = THEME_COLORS$Text$Title,
+        margin = margin(t = 10, b = 10)
+      ),
+      plot.subtitle = element_text(
+        size = 12, hjust = 0.5, 
+        color = THEME_COLORS$Text$Subtitle,
+        margin = margin(t = 5, b = 5)
+      ),
+      plot.caption = element_text(
+        size = 10, hjust = 0.5, 
+        color = THEME_COLORS$Text$Body,
+        margin = margin(t = 5)
+      ),
+      legend.position = "bottom",
+      legend.title = element_text(
+        size = 10, face = "bold", color = THEME_COLORS$Text$Title
+      ),
+      legend.text = element_text(
+        size = 8, color = THEME_COLORS$Text$Body
+      )
     )
 
   # Save the plot
-  save_plot(p, "M1_MOST_PROD_AUTHORS_LORENZ_PLOT", width = 5, height = 5, dpi=600,  aspect_ratio = 1)
-  message("[INFO] Lorenz Curve generated and saved successfully.")
+  save_plot(
+    p, 
+    "M1_G1_MOST_RELEVANT_KEYWORDS_WORDCLOUD", 
+    width = 8, height = 6, dpi = 600
+  )
+
+  # Log a success message
+  message("[INFO] Wordcloud generated and saved successfully.")
 }
-
-
-
 
 # ---------------------------------------------------------------------------- #
 # Function: Generate Most Relevant Keywords Wordcloud2
 # ---------------------------------------------------------------------------- #
-fn_most_rel_keywords_wordcloud2 <- function(most_rel_keywords) {
+fn_m1_mtrc2_most_rel_keywords_wordcloud2 <- function(most_rel_keywords) {
   if (is.null(most_rel_keywords) || nrow(most_rel_keywords) == 0) {
     stop("[ERROR] The input `most_rel_keywords` is NULL or empty.")
   }
@@ -230,129 +272,266 @@ fn_most_rel_keywords_wordcloud2 <- function(most_rel_keywords) {
   htmlwidgets::saveWidget(wordcloud, output_html, selfcontained = FALSE)
   message("[INFO] Wordcloud saved at: ", output_html)
 }
+create_wordcloud_from_text <- function(extracted_data, output_dir) {
+  # Validate extracted_data input
+  if (is.null(extracted_data$keywords) || is.null(extracted_data$titles) || is.null(extracted_data$descriptions)) {
+    stop("[ERROR] Extracted data must include `keywords`, `titles`, and `descriptions`.")
+  }
+  
+  # Combine keywords, titles, and descriptions into a single text vector
+  combined_text <- c(
+    unlist(extracted_data$keywords),
+    unlist(extracted_data$titles),
+    unlist(extracted_data$descriptions)
+  )
+  
+  # Clean the text
+  cleaned_text <- tolower(combined_text) # Convert to lowercase
+  cleaned_text <- gsub("[[:punct:]]", " ", cleaned_text) # Remove punctuation
+  cleaned_text <- gsub("[[:digit:]]", "", cleaned_text) # Remove numbers
+  cleaned_text <- gsub("\\s+", " ", cleaned_text) # Remove extra whitespace
+  cleaned_text <- trimws(cleaned_text) # Trim leading/trailing spaces
+  
+  # Tokenize the text into words
+  words <- unlist(strsplit(cleaned_text, split = " "))
+  
+  # Remove stopwords (common words like 'the', 'and', etc.)
+  stopwords <- c("the", "and", "of", "in", "to", "for", "on", "with", "by", "a", "an", "is", "this", "that", "it", "as", "at", "from", "are")
+  words <- words[!words %in% stopwords]
+  
+  # Count word frequencies
+  word_counts <- as.data.frame(table(words))
+  colnames(word_counts) <- c("word", "freq")
+  word_counts <- word_counts[order(-word_counts$freq), ] # Sort by frequency
+  
+  # Debugging: Print top words
+  print(head(word_counts, 10))
+  
+  # Create a word cloud
+  p <- ggplot(word_counts, aes(label = word, size = freq)) +
+    geom_text_wordcloud(area_corr = TRUE, color = "darkblue") +
+    scale_size_area(max_size = 10) + # Adjust max size for better visualization
+    labs(
+      title = "Word Cloud from Extracted Data",
+      subtitle = "Based on Keywords, Titles, and Descriptions",
+      caption = "Generated using ggwordcloud"
+    ) +
+    theme_minimal() +
+    theme(
+      plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+      plot.subtitle = element_text(size = 12, hjust = 0.5),
+      plot.caption = element_text(size = 10, hjust = 0.5)
+    )
+  
+  # Save the plot
+  output_file <- file.path(output_dir, "wordcloud_extracted_data.png")
+  ggsave(output_file, plot = p, width = 8, height = 6, dpi = 300)
+  message("[INFO] Word cloud saved at: ", output_file)
+  
+  return(word_counts) # Return word counts for further analysis
+}
+
+# ---------------------------------------------------------------------------- #
+# Function: Analyze and Plot Most Productive Authors
+# ---------------------------------------------------------------------------- #
+fn_m1_mtrc3_analyze_and_plot_most_prod_authors <- function(data) {
+  # Step 1: Validate data
+  data <- validate_data(data, c("Authors", "Articles"))
+  
+  # Step 2: Calculate metrics
+  metrics <- calculate_metrics_top_authors(data)
+  
+  # Step 3: Generate the plot
+  plot <- generate_bar_plot(
+    data = metrics,
+    title = "Top 10 Most Productive Authors",
+    x_label = "Authors",
+    y_label = "Number of Articles",
+    x_var = "Authors",
+    y_var = "Articles"
+  )
+
+  message("[INFO] ======>  Most Productive Authors plot generated sucessfuly.")
+  print(plot)
+  
+  # Step 4: Save JSON
+  save_json(metrics, "most_prod_authors.json")
+  
+  # Step 5: Save plot
+  save_plot(plot, "M1_G3_MOST_PROD_AUTHORS_BAR_PLOT", width = 8, height = 6, dpi = 600)
+  
+  # Log success
+  message("[INFO] Most Productive Authors analysis completed successfully.")
+}
+# ---------------------------------------------------------------------------- #
+# Function: Generate Lorenz Curve for Author Contributions with Debug Logs
+# ---------------------------------------------------------------------------- #
+fn_m1_mtrc3_generate_lorenz_curve <- function(data, output_dir) {
+  # Validate input data
+  validate_data(data, c("Authors", "Articles"))
+
+  # Check for NA in 'Authors' column
+  if (any(is.na(data$Authors))) {
+    warning("[DEBUG] The following rows have NA in 'Authors':")
+    print(data[is.na(data$Authors), ])
+  }
+
+  # Check for NA or non-numeric values in 'Articles' column
+  data$Articles <- suppressWarnings(as.numeric(data$Articles))
+  if (any(is.na(data$Articles))) {
+    warning("[DEBUG] The following rows have NA or non-numeric values in 'Articles':")
+    print(data[is.na(data$Articles), ])
+  }
+
+  # Stop execution if invalid data exists
+  if (any(is.na(data$Authors)) || any(is.na(data$Articles))) {
+    stop("[ERROR] 'Authors' or 'Articles' column contains NA or non-numeric values. Please fix the data.")
+  }
+
+  # Call the generic Lorenz curve generation function
+  gini <- generate_lorenz_curve(
+    data = data, 
+    value_col = "Articles",
+    entity_col = "Authors",
+    plot_title = "Lorenz Curve: Author Contributions",
+    x_label = "Cumulative Percentage of Articles",
+    y_label = "Cumulative Percentage of Authors",
+    file_name = "M1_G3_AUTHOR_CONTRIBUTIONS_LORENZ_PLOT"
+  )
+
+  # Log the Gini coefficient for reporting
+  message("[INFO] Gini Coefficient for Author Contributions: ", round(gini, 3))
+  message("[INFO] Lorenz Curve for Author Contributions generated and saved successfully.")
+}
+
+
 
  
 # ---------------------------------------------------------------------------- #
 # Function: Analyze and Plot Most Cited Papers
 # ---------------------------------------------------------------------------- #
-analyze_and_plot_most_cited_papers <- function(data, output_dir) {
-  # Ensure unique column names
-  colnames(data) <- make.unique(colnames(data))
+fn_m1_mtrc4_analyze_and_plot_most_cited_papers <- function(data) {
+  # Step 1: Validate required columns
+  colnames(data) <- make.unique(colnames(data)) # Ensure unique column names
 
-  # Check for alternative column names for Citations
   citation_col <- if ("Citations" %in% colnames(data)) {
     "Citations"
   } else if ("TC" %in% colnames(data)) {
-    "TC"  # Common abbreviation for Total Citations
+    "TC"  # Total Citations (common abbreviation)
   } else {
-    stop("[ERROR] No column for Citations (e.g., 'Citations' or 'TC') in the dataset.")
+    stop("[ERROR] Missing column for citations (e.g., 'Citations' or 'TC').")
   }
 
-  if (!("Paper" %in% colnames(data))) {
-    stop("[ERROR] The 'Paper' column is missing in the dataset.")
+  if (!all(c("Paper", "PaperID") %in% colnames(data))) {
+    stop("[ERROR] Missing 'Paper' or 'PaperID' column in the dataset.")
   }
 
-  # Convert the citation column to numeric
+  # Step 2: Clean and preprocess data
   data[[citation_col]] <- suppressWarnings(as.numeric(data[[citation_col]]))
+  if ("TCperYear" %in% colnames(data)) {
+    data$TCperYear <- suppressWarnings(as.numeric(data$TCperYear))
+  }
   if (any(is.na(data[[citation_col]]))) {
-    message("[WARNING] Removing rows with invalid citation values.")
+    message("[INFO] Removing rows with invalid citation values.")
     data <- data[!is.na(data[[citation_col]]), ]
   }
 
-  # Ensure there are valid rows remaining
   if (nrow(data) == 0) {
     stop("[ERROR] No valid rows in the dataset after cleaning citation values.")
   }
 
-  # Sort by citations and get the top 10
+  # Step 3: Sort and select top 10 most cited papers
   top_cited_papers <- data[order(-data[[citation_col]]), ]
   top_cited_papers <- head(top_cited_papers, 10)
 
-  # Create the plot
-  p <- ggplot(top_cited_papers, aes(x = reorder(Paper, data[[citation_col]]), y = data[[citation_col]])) +
-    geom_bar(stat = "identity", fill = THEME_COLORS["Orange"]) +
-    coord_flip() +
-    labs(
-      title = "Top 10 Most Cited Papers",
-      x = "Papers",
-      y = "Number of Citations"
-    ) +
-    ieee_theme +
-    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  # Step 4: Generate the dual-axis plot
+  dual_plot <- generate_bar_plot_with_line(
+    data = top_cited_papers,
+    title = "Top 10 Most Cited Papers with TC per Year",
+    x_label = "Papers",
+    y_label = "Number of Citations",
+    secondary_y_label = "Citations per Year",
+    x_var = "PaperID",
+    y_var = citation_col,
+    line_var = "TCperYear" # Include the line for TCperYear
+  )
 
-  # Save JSON and plot
-  save_json(top_cited_papers, file.path(output_dir, "jsons", "most_cited_papers.json"))
-  save_plot(p, "most_cited_papers")
+  # Step 5: Save JSON and plot
+  save_json(top_cited_papers, "most_cited_papers.json")
+  save_plot(
+    dual_plot,
+    "M1_G4_MOST_CITED_PAPERS_DUAL_PLOT",
+    width = 8,
+    height = 6,
+    dpi = 600
+  )
+
+  # Log completion
   message("[INFO] Most Cited Papers analysis completed successfully.")
 }
 
 
 
 
-
-
-
+ 
 # ---------------------------------------------------------------------------- #
 # Function: Analyze and Plot Citations per Year
 # ---------------------------------------------------------------------------- #
-analyze_and_plot_citations_per_year <- function(data, output_dir) {
-  # Ensure unique column names
-  colnames(data) <- make.unique(colnames(data))
+fn_m1_mtrc4_analyze_and_plot_citations_per_year <- function(data) {
+  # Step 1: Validate required columns
+  colnames(data) <- make.unique(colnames(data)) # Ensure unique column names
 
-  # Check for the appropriate column for CitationsPerYear
-  citation_col <- if ("TCperYear" %in% colnames(data)) {
-    "TCperYear"
-  } else {
+  # Check for required columns
+  if (!("TCperYear" %in% colnames(data))) {
     message("[INFO] Available columns: ", paste(colnames(data), collapse = ", "))
-    stop("[ERROR] No column for CitationsPerYear (e.g., 'TCperYear') in the dataset.")
+    stop("[ERROR] 'TCperYear' column is missing in the dataset.")
   }
-
-  # Ensure the 'Paper' column exists
   if (!("Paper" %in% colnames(data))) {
     message("[INFO] Available columns: ", paste(colnames(data), collapse = ", "))
-    stop("[ERROR] The 'Paper' column is missing in the dataset.")
+    stop("[ERROR] 'Paper' column is missing in the dataset.")
   }
 
-  # Convert the citation column to numeric
-  data[[citation_col]] <- suppressWarnings(as.numeric(data[[citation_col]]))
-  if (any(is.na(data[[citation_col]]))) {
-    num_invalid <- sum(is.na(data[[citation_col]]))
-    message("[WARNING] Removing ", num_invalid, " rows with invalid citation per year values.")
-    data <- data[!is.na(data[[citation_col]]), ]
+  # Step 2: Preprocess the 'TCperYear' column
+  data$TCperYear <- suppressWarnings(as.numeric(data$TCperYear))
+  if (any(is.na(data$TCperYear))) {
+    num_invalid <- sum(is.na(data$TCperYear))
+    message("[WARNING] Removing ", num_invalid, " rows with invalid 'Citations Per Year' values.")
+    data <- data[!is.na(data$TCperYear), ]
   }
 
-  # Ensure there are valid rows remaining
+  # Ensure valid rows exist
   if (nrow(data) == 0) {
-    stop("[ERROR] No valid rows in the dataset after cleaning citation per year values.")
+    stop("[ERROR] No valid rows in the dataset after cleaning 'Citations Per Year' values.")
   }
 
-  # Sort by citations per year and get the top 10
-  top_cited_papers <- data[order(-data[[citation_col]]), ]
+  # Step 3: Sort and select top 10 papers by 'TCperYear'
+  top_cited_papers <- data[order(-data$TCperYear), ]
   top_cited_papers <- head(top_cited_papers, 10)
 
-  # Verify if there are enough papers to plot
-  if (nrow(top_cited_papers) < 10) {
-    warning("[WARNING] Less than 10 papers available for plotting. Adjusting to available rows.")
-  }
+  # Step 4: Plot the data using a helper function
+  plot <- generate_bar_plot(
+    data = top_cited_papers,
+    title = "Top 10 Papers by Citations Per Year",
+    x_label = "Citations Per Year",
+    y_label = "Papers",
+    x_var = "TCperYear",
+    y_var = "Paper",
+    file_name = NULL # File name handled later
+  )
 
-  # Create the plot
-  p <- ggplot(top_cited_papers, aes(x = reorder(Paper, -data[[citation_col]]), y = data[[citation_col]])) +
-    geom_bar(stat = "identity", fill = THEME_COLORS["Green"]) +
-    coord_flip() +
-    labs(
-      title = "Top 10 Papers by Citations Per Year",
-      x = "Papers",
-      y = "Citations Per Year"
-    ) +
-    ieee_theme +
-    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  # Step 5: Save JSON and plot
+  save_json(top_cited_papers, "citations_per_year.json")
+  save_plot(
+    plot,
+    "M1_G4_CITATIONS_PER_YEAR_BAR_PLOT",
+    width = 8,
+    height = 6,
+    dpi = 600
+  )
 
-  # Save JSON and plot
-  save_json(top_cited_papers, file.path(output_dir, "jsons", "citations_per_year.json"))
-  save_plot(p, "citations_per_year")
+  # Log completion
   message("[INFO] Citations Per Year analysis completed successfully.")
 }
-
 
 
 
@@ -557,47 +736,6 @@ generate_bubble_chart <- function(data, output_path) {
 
 
 
-# ---------------------------------------------------------------------------- #
-# Function: Generate Most Relevant Keywords Wordcloud using ggplot2
-# ---------------------------------------------------------------------------- #
-fn_most_rel_keywords_wordcloud <- function(most_rel_keywords, output_path) {
-  if (is.null(most_rel_keywords) || nrow(most_rel_keywords) == 0) {
-    stop("[ERROR] The input `most_rel_keywords` is NULL or empty.")
-  }
-
-  # Format column names
-  colnames(most_rel_keywords)[1] <- "Author Keywords (DE)"
-  colnames(most_rel_keywords)[2] <- "Article-Author-Keywords"
-
-  # Convert counts to numeric
-  most_rel_keywords$`Article-Author-Keywords` <- as.numeric(most_rel_keywords$`Article-Author-Keywords`)
-
-  # Generate the word cloud using ggplot2
-  p <- ggplot(
-      most_rel_keywords, 
-      aes(
-        label = `Author Keywords (DE)`, 
-        size = `Article-Author-Keywords`
-      )
-   )
-    p <- p + geom_text_wordcloud(area_corr = TRUE, color = THEME_COLORS["Blue"])
-    p <- p + scale_size_area(max_size = 65)
-    p <- p + labs(
-      title = "Most Relevant Author Keywords",
-      subtitle = "Based on Article Contributions",
-      caption = "Generated using ggplot2"
-    )
-    p <- p + theme_minimal()
-    p <- p + theme(
-      plot.title = element_text(size = 12, face = "bold", hjust = 0.5),
-      plot.subtitle = element_text(size = 10, hjust = 0.5),
-      plot.caption = element_text(size = 8, hjust = 0.5)
-    )
-
-  # Save plot
-  save_plot(p, "most_rel_keywords_wordcloud")
-  message("[INFO] Wordcloud generated and saved using ggplot2.")
-}
 
 
 
@@ -610,9 +748,8 @@ analyze_and_plot_most_prod_countries <- function(data, output_dir) {
 
   # Generate bar plot
   top_countries <- get_top_countries(data, top_n = 15) # Get top 15 countries
-  generate_bar_plot(
-    data = top_countries,
-    output_dir = output_dir,
+  plot <- generate_bar_plot(
+    data = top_countries, 
     title = "Top 10 Most Productive Countries",
     x_label = "Country",
     y_label = "Number of Articles",
@@ -697,7 +834,7 @@ analyze_and_plot_tc_per_country <- function(data, output_dir) {
 
   # Save plot
   save_plot(p, "tc_per_country")
-  save_json(top_countries, file.path(output_dir, "jsons", "tc_per_country.json"))
+  save_json(top_countries, "tc_per_country.json")
 }
 
 # ---------------------------------------------------------------------------- #
@@ -727,7 +864,7 @@ analyze_and_plot_most_rel_sources <- function(data, output_dir) {
 
   # Save plot
   save_plot(p, "most_rel_sources")
-  save_json(top_sources, file.path(output_dir, "jsons", "most_rel_sources.json"))
+  save_json(top_sources, "most_rel_sources.json")
 }
 
 # ---------------------------------------------------------------------------- #
@@ -751,6 +888,6 @@ analyze_and_plot_bradford_law <- function(data, output_dir) {
 
   # Save plot
   save_plot(p, "bradford_law")
-  save_json(data, file.path(output_dir, "jsons", "bradford_law.json"))
+  save_json(data, "bradford_law.json")
 }
 
