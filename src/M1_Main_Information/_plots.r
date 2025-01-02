@@ -7,10 +7,7 @@
 # ---------------------------------------------------------------------------- #
 # Function: Generate Bar Plot with New Theme
 # ---------------------------------------------------------------------------- #
-generate_bar_plot <- function(data,  title, x_label, y_label, x_var, y_var, threshold_var = NULL, file_name = NULL) {
-  
-
-
+generate_bar_plot <- function(data, title, x_label, y_label, x_var, y_var, threshold_var = NULL, file_name = NULL) {
   message("[DEBUG] Generating bar plot...")
   message("[DEBUG] Data for the plot:")
   print(head(data))
@@ -18,7 +15,6 @@ generate_bar_plot <- function(data,  title, x_label, y_label, x_var, y_var, thre
   message("[DEBUG] y_var: ", y_var)
   message("[DEBUG] x_label: ", x_label)
   message("[DEBUG] y_label: ", y_label)
-
 
   # Calculate threshold information if provided
   if (!is.null(threshold_var)) {
@@ -31,52 +27,51 @@ generate_bar_plot <- function(data,  title, x_label, y_label, x_var, y_var, thre
   }
 
   # Create the bar plot
-  bar_plot <- ggplot(data, aes(x = .data[[x_var]], y = factor(.data[[y_var]], levels = unique(.data[[y_var]])))) +
-  geom_bar(
-    stat = "identity",
-    fill = THEME_COLORS$Main[1], # Use the first main theme color
-    color = THEME_COLORS$Grayscale$Black, # Border color
-    linewidth = 0.3
-  ) +
-  coord_flip() +
-  scale_x_continuous(expand = c(0, 0)) +
-  labs(
-    title = title,
-    x = x_label,
-    y = y_label
-  ) +
-  ieee_theme +
-  theme(
-    plot.title = element_text(
-      size = 16, face = "bold", hjust = 0.5,
-      color = THEME_COLORS$Text$Title,
-      margin = margin(t = 10, b = 10)
-    ),
-    axis.title.x = element_text(
-      size = 14, margin = margin(t = 15),
-      color = THEME_COLORS$Text$Title
-    ),
-    axis.title.y = element_text(
-      size = 14, margin = margin(r = 15),
-      color = THEME_COLORS$Text$Title
-    ),
-    axis.text = element_text(
-      size = 12, color = THEME_COLORS$Text$Body
-    ),
-    plot.background = element_rect(
-      fill = "transparent", color = NA
-    ),
-    panel.background = element_rect(
-      fill = THEME_COLORS$Grayscale$White, color = NA
+  bar_plot <- ggplot(data, aes(x = reorder(.data[[x_var]], -(.data[[y_var]])), y = .data[[y_var]])) +
+    geom_bar(
+      stat = "identity",
+      fill = THEME_COLORS$Main[1], # Use the first main theme color
+      color = THEME_COLORS$Grayscale$Black, # Border color
+      linewidth = 0.3
+    ) +
+    coord_flip() +
+    scale_y_continuous(expand = c(0, 0)) + # Set y-axis limits starting at 0
+    labs(
+      title = title,
+      x = x_label,
+      y = y_label
+    ) +
+    ieee_theme +
+    theme(
+      plot.title = element_text(
+        size = 16, face = "bold", hjust = 0.5,
+        color = THEME_COLORS$Text$Title,
+        margin = margin(t = 10, b = 10)
+      ),
+      axis.title.x = element_text(
+        size = 14, margin = margin(t = 15),
+        color = THEME_COLORS$Text$Title
+      ),
+      axis.title.y = element_text(
+        size = 14, margin = margin(r = 15),
+        color = THEME_COLORS$Text$Title
+      ),
+      axis.text = element_text(
+        size = 12, color = THEME_COLORS$Text$Body
+      ),
+      plot.background = element_rect(
+        fill = "transparent", color = NA
+      ),
+      panel.background = element_rect(
+        fill = THEME_COLORS$Grayscale$White, color = NA
+      )
     )
-  )
-
 
   # Add threshold line and annotation if threshold information is available
   if (!is.null(threshold_row)) {
     bar_plot <- bar_plot +
-      geom_vline(
-        xintercept = threshold_row, linetype = "dashed", 
+      geom_hline(
+        yintercept = threshold_row, linetype = "dashed",
         color = THEME_COLORS$Grayscale$DarkGray, linewidth = 1
       ) +
       annotate(
@@ -89,14 +84,14 @@ generate_bar_plot <- function(data,  title, x_label, y_label, x_var, y_var, thre
       )
   }
 
-  if(!is.null(file_name)){
+  if (!is.null(file_name)) {
     # Save the plot to the specified directory
     save_plot(bar_plot, file_name, width = 8, height = 6, dpi = 600)
   }
 
   return(bar_plot)
-
 }
+
 
 
 
@@ -297,3 +292,122 @@ bar_line_plot <- ggplot(data, aes(x = reorder(.data[[x_var]], .data[[y_var]]))) 
 
   return(bar_line_plot)
 }
+# ---------------------------------------------------------------------------- #
+# Function: Generate Bubble Chart
+# ---------------------------------------------------------------------------- #
+generate_bubble_chart <- function(
+  data, x_var, y_var, size_var, label_var,
+  title, x_label, y_label, size_label
+) {
+  ggplot(data, aes(
+    x = .data[[x_var]],
+    y = .data[[y_var]],
+    size = .data[[size_var]],
+    label = .data[[label_var]]
+  )) +
+    geom_point(alpha = 0.7, color = THEME_COLORS$Main[2]) +
+    geom_text(hjust = 0.5, vjust = -0.5, size = 3, color = THEME_COLORS$Text$Body) +
+    labs(
+      title = title,
+      x = x_label,
+      y = y_label,
+      size = size_label
+    ) +
+    ieee_theme +
+    theme(
+      plot.title = element_text(size = 16, hjust = 0.5, margin = margin(b = 15), color = THEME_COLORS$Text$Title),
+      axis.title.x = element_text(size = 12, margin = margin(t = 10), color = THEME_COLORS$Text$Body),
+      axis.title.y = element_text(size = 12, margin = margin(r = 10), color = THEME_COLORS$Text$Body),
+      axis.text = element_text(size = 10, color = THEME_COLORS$Text$Body),
+      legend.position = "right",
+      legend.title = element_text(size = 12, color = THEME_COLORS$Text$Title),
+      legend.text = element_text(size = 10, color = THEME_COLORS$Text$Body),
+      panel.background = element_rect(fill = "white", color = NA),
+      plot.background = element_rect(fill = "transparent", color = NA)
+    )
+}
+
+
+
+generate_world_map_ggplot <- function(data, file_name, title) {
+  ggplot(data, aes(map_id = Country, fill = Articles)) +
+    geom_map(map = world_map, aes_string(fill = "Articles"), color = "black", linewidth = 0.2) +
+    expand_limits(x = world_map$long, y = world_map$lat) +
+    scale_fill_gradient(
+      low = THEME_COLORS$Main[1], high = THEME_COLORS$Main[2],
+      name = "Number of Articles"
+    ) +
+    labs(
+      title = title
+    ) +
+    ieee_theme +
+    theme_void() +
+    theme(
+      plot.title = element_text(
+        size = 16, face = "bold", hjust = 0.5, color = THEME_COLORS$Text$Title,
+        margin = margin(b = 10)
+      ),
+      legend.position = "bottom"
+    ) +
+    ggsave(file_name, width = 10, height = 6, dpi = 600)
+}
+
+
+# Generate World Map with Enhanced Features
+generate_world_map <- function(
+  map_data,
+  output_dir = "results/M1_Main_Information/figures",
+  value_col = "Articles",
+  map_title = "Global Distribution of Articles",
+  file_name = "world_map",
+  color_scheme = "grayscale"
+) {
+  # Validate input
+  if (!value_col %in% colnames(map_data)) {
+    stop("[ERROR] The specified value column does not exist in the data.")
+  }
+
+  if (!"Country" %in% colnames(map_data)) {
+    stop("[ERROR] The 'Country' column is missing in the data.")
+  }
+
+  # Choose color palette
+  if (color_scheme == "grayscale") {
+    palette <- grey.colors(5, start = 0.9, end = 0.1)
+  } else if (color_scheme == "gradient") {
+    palette <- RColorBrewer::brewer.pal(9, "Blues")
+  } else {
+    stop("[ERROR] Invalid color scheme. Choose 'grayscale' or 'gradient'.")
+  }
+
+  # Prepare output path
+  png_filename <- file.path(output_dir, "figures", paste0(file_name, ".png"))
+  dir.create(dirname(png_filename), recursive = TRUE, showWarnings = FALSE)
+
+  # Plot the map
+  png(png_filename, width = 1200, height = 800, units = "px")
+  par(cex.main = 2, cex.axis = 1.5, cex.lab = 1.5)
+
+  tryCatch({
+    mapCountryData(
+      map_data,
+      nameColumnToPlot = value_col,
+      mapTitle = map_title,
+      catMethod = "fixedWidth",
+      colourPalette = palette,
+      addLegend = TRUE,
+      borderCol = "#000000"
+    )
+  }, error = function(e) {
+    dev.off() # Close device on error
+    stop("[ERROR] Failed to generate world map: ", e$message)
+  })
+
+  # Reset parameters and close device
+  par(cex.main = 1, cex.axis = 1, cex.lab = 1)
+  dev.off()
+
+  # Log success
+  message("[INFO] World map saved successfully at: ", png_filename)
+}
+
