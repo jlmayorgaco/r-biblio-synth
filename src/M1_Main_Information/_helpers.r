@@ -238,3 +238,48 @@ calculate_gini <- function(cumulative_x, cumulative_y) {
   area_under_curve <- sum(area_trapezoids)
   return(1 - 2 * area_under_curve)
 }
+
+
+preprocess_data <- function(data, required_columns) {
+  # Ensure unique column names
+  colnames(data) <- make.unique(colnames(data))
+
+  # Validate required columns
+  missing_cols <- setdiff(required_columns, colnames(data))
+  if (length(missing_cols) > 0) {
+    stop("[ERROR] Missing required columns: ", paste(missing_cols, collapse = ", "))
+  }
+
+  # Convert necessary columns to numeric
+  data$Articles <- suppressWarnings(as.numeric(data$Articles))
+  data <- data[complete.cases(data), ]
+
+  if (nrow(data) == 0) {
+    stop("[ERROR] No valid rows in the dataset after cleaning.")
+  }
+
+  return(data)
+}
+
+
+get_top_countries <- function(data, top_n = 10) {
+  top_countries <- data[order(-data$Articles), ]
+  top_countries <- head(top_countries, top_n)
+
+  # Calculate cumulative percentages for threshold functionality
+  top_countries$cumulative_percentage <- cumsum(top_countries$Articles) / sum(top_countries$Articles)
+  return(top_countries)
+}
+
+prepare_map_data <- function(data, country_col, value_col, map = world_map) {
+  # Normalize country names
+  data$Country <- normalize_country_names(data[[country_col]])
+
+  # Merge with map data
+  map_data <- merge(map, data, by.x = "name", by.y = "Country", all.x = TRUE)
+
+  # Fill missing values with 0
+  map_data[is.na(map_data[[value_col]]), value_col] <- 0
+
+  return(map_data)  
+}
