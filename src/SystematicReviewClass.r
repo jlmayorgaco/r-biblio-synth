@@ -17,12 +17,13 @@ install_and_load <- function(packages) {
 }
 
 # List of required packages
-packages <- c("bibliometrix", "rworldmap", "ggwordcloud", "ggsci", "changepoint", "lomb", "WaveletComp", "kableExtra", "jsonlite", 
+packages <- c("bibliometrix", "rworldmap",  "maps", "ggwordcloud", "ggsci", "changepoint", "lomb", "WaveletComp", "kableExtra", "jsonlite", 
               "pander", "rlang", "dplyr", "broom", "Metrics", "knitr", "ggplot2",  "tidyr",
               "plotly", "webshot", "gridExtra", "igraph", "nls2", "reshape2", "minpack.lm", "htmlwidgets")
 
 # Install and load necessary packages
 install_and_load(packages)
+
 
 # ---------------------------------------------------------------------------- #
 # -- Loading Modules
@@ -203,14 +204,13 @@ SystematicReview <- setRefClass(
       # Most Cited Papers
       fn_m1_mtrc4_analyze_and_plot_most_cited_papers(overview$most_cited_papers)
       fn_m1_mtrc4_analyze_and_plot_citations_per_year(overview$most_cited_papers)
-      #generate_bubble_chart(overview$most_cited_papers, output_dir)
-      #generate_bubble_chart_analysis(overview$most_cited_papers, output_dir)
+      fn_m1_mtrc4_generate_bubble_chart(overview$most_cited_papers)
 
       # Most Productive Countries
-      #analyze_and_plot_most_prod_countries(overview$most_prod_countries, output_dir)
-
+      fn_m1_mtrc5_analyze_and_plot_most_prod_countries(overview$most_prod_countries, output_dir)
       # Total Citations per Country
-      #analyze_and_plot_tc_per_country(overview$tc_per_countries, output_dir)
+      #fn_m1_mtrc5_analyze_and_plot_tc_per_country(overview$tc_per_countries, output_dir)
+
 
       # Most Relevant Sources
       #analyze_and_plot_most_rel_sources(overview$most_rel_sources, output_dir)
