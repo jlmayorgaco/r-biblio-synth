@@ -11,8 +11,11 @@ library(wordcloud2)
 library(htmlwidgets)
 
 
+
+
 source('../../src/M1_Main_Information/_helpers.r')
 source('../../src/M1_Main_Information/_plots.r')
+source('../../src/M1_Main_Information/_report.r')
 
 # ---------------------------------------------------------------------------- #
 # Function: Main Information Analysis
@@ -340,9 +343,9 @@ fn_m1_mtrc3_analyze_and_plot_most_prod_authors <- function(data) {
   
   # Step 2: Calculate metrics
   metrics <- calculate_metrics_top_authors(data)
-  
+ 
   # Step 3: Generate the plot
-  plot <- generate_bar_plot(
+  plot <- generate_bar_plot_horizontal(
     data = metrics,
     title = "Top 10 Most Productive Authors",
     x_label = "Authors",
@@ -351,9 +354,6 @@ fn_m1_mtrc3_analyze_and_plot_most_prod_authors <- function(data) {
     y_var = "Articles"
   )
 
-  message("[INFO] ======>  Most Productive Authors plot generated sucessfuly.")
-  print(plot)
-  
   # Step 4: Save JSON
   save_json(metrics, "most_prod_authors.json")
   
@@ -470,10 +470,6 @@ fn_m1_mtrc4_analyze_and_plot_most_cited_papers <- function(data) {
   message("[INFO] Most Cited Papers analysis completed successfully.")
 }
 
-
-
-
- 
 # ---------------------------------------------------------------------------- #
 # Function: Analyze and Plot Citations per Year
 # ---------------------------------------------------------------------------- #
@@ -486,9 +482,9 @@ fn_m1_mtrc4_analyze_and_plot_citations_per_year <- function(data) {
     message("[INFO] Available columns: ", paste(colnames(data), collapse = ", "))
     stop("[ERROR] 'TCperYear' column is missing in the dataset.")
   }
-  if (!("Paper" %in% colnames(data))) {
+  if (!all(c("Paper", "PaperID") %in% colnames(data))) {
     message("[INFO] Available columns: ", paste(colnames(data), collapse = ", "))
-    stop("[ERROR] 'Paper' column is missing in the dataset.")
+    stop("[ERROR] 'Paper' or 'PaperID' column is missing in the dataset.")
   }
 
   # Step 2: Preprocess the 'TCperYear' column
@@ -508,15 +504,19 @@ fn_m1_mtrc4_analyze_and_plot_citations_per_year <- function(data) {
   top_cited_papers <- data[order(-data$TCperYear), ]
   top_cited_papers <- head(top_cited_papers, 10)
 
-  # Step 4: Plot the data using a helper function
-  plot <- generate_bar_plot(
+  # Verify if there are enough papers to plot
+  if (nrow(top_cited_papers) < 10) {
+    warning("[WARNING] Less than 10 papers available for plotting. Adjusting to available rows.")
+  }
+
+  # Step 4: Plot the data using PaperID for the y-axis
+  plot <- generate_bar_plot_vertical(
     data = top_cited_papers,
     title = "Top 10 Papers by Citations Per Year",
     x_label = "Citations Per Year",
     y_label = "Papers",
     x_var = "TCperYear",
-    y_var = "Paper",
-    file_name = NULL # File name handled later
+    y_var = "PaperID"
   )
 
   # Step 5: Save JSON and plot
@@ -535,204 +535,65 @@ fn_m1_mtrc4_analyze_and_plot_citations_per_year <- function(data) {
 
 
 
-# ---------------------------------------------------------------------------- #
-# Function: Generate Bubble Chart for Most Cited Papers
-# ---------------------------------------------------------------------------- #
 
-generate_bubble_chart_analysis <- function(data, output_path) {
-  # Ensure unique column names
+# ---------------------------------------------------------------------------- #
+# Function: Generate and Save Bubble Chart for Most Cited Papers
+# ---------------------------------------------------------------------------- #
+fn_m1_mtrc4_generate_bubble_chart <- function(data) {
+  # Step 1: Ensure unique column names
   colnames(data) <- make.unique(colnames(data))
 
-  # Validate the required columns
-  citation_col <- "TC"  # Total Citations
-  per_year_col <- "TCperYear"  # Citations per Year
-  normalized_col <- "NTC"  # Normalized Citations
-  paper_col <- "Paper"  # Paper Titles
-
-  # Ensure necessary columns exist
-  missing_cols <- setdiff(c(citation_col, per_year_col, normalized_col, paper_col), colnames(data))
+  # Step 2: Validate the required columns
+  required_cols <- c("TC", "TCperYear", "NTC", "PaperID")
+  missing_cols <- setdiff(required_cols, colnames(data))
   if (length(missing_cols) > 0) {
     stop("[ERROR] Missing required columns: ", paste(missing_cols, collapse = ", "))
   }
 
-  # Convert relevant columns to numeric
-  data[[citation_col]] <- suppressWarnings(as.numeric(data[[citation_col]]))
-  data[[per_year_col]] <- suppressWarnings(as.numeric(data[[per_year_col]]))
-  data[[normalized_col]] <- suppressWarnings(as.numeric(data[[normalized_col]]))
+  # Step 3: Convert relevant columns to numeric
+  numeric_cols <- c("TC", "TCperYear", "NTC")
+  for (col in numeric_cols) {
+    data[[col]] <- suppressWarnings(as.numeric(data[[col]]))
+  }
 
-  # Remove rows with invalid or missing values
-  data <- data[complete.cases(data[c(citation_col, per_year_col, normalized_col)]), ]
-
-  # Ensure there are valid rows remaining
-  if (nrow(data) == 0) {
+  # Step 4: Remove rows with invalid or missing values
+  valid_data <- data[complete.cases(data[numeric_cols]), ]
+  if (nrow(valid_data) == 0) {
     stop("[ERROR] No valid rows in the dataset after cleaning values.")
   }
 
-  # Sort by Citations and select the top 10 papers
-  top_papers <- head(data[order(-data[[citation_col]]), ], 10)
+  # Step 5: Sort by Total Citations and select the top 10 papers
+  top_papers <- head(valid_data[order(-valid_data$TC), ], 10)
 
-  # Generate the bubble chart
-  p <- ggplot(top_papers, aes(
-    x = .data[[per_year_col]],
-    y = .data[[citation_col]],
-    size = .data[[normalized_col]],
-    label = .data[[paper_col]]
-  )) +
-    geom_point(alpha = 0.7, color = THEME_COLORS["DarkBlue"]) +
-    geom_text(hjust = 0.5, vjust = -0.5, size = 3) +
-    labs(
-      title = "Bubble Chart: Most Cited Papers",
-      x = "Citations per Year",
-      y = "Total Citations",
-      size = "Normalized Citations"
-    ) +
-    ieee_theme
+  # Debugging logs for validation
+  message("[DEBUG] Top Papers for Bubble Chart:")
+  print(top_papers)
 
-  # Save the plot
-  save_plot(p, "most_cited_papers_bubble_chart")
+  # Step 6: Generate the bubble chart
+  bubble_chart <- generate_bubble_chart(
+    data = top_papers,
+    x_var = "TCperYear",
+    y_var = "TC",
+    size_var = "NTC",
+    label_var = "PaperID",
+    title = "Bubble Chart: Most Cited Papers",
+    x_label = "Citations per Year",
+    y_label = "Total Citations",
+    size_label = "Normalized Citations"
+  )
 
-  # Generate the analysis report
-# Generate a dynamic report based on the bubble chart analysis
-report <- paste0(
-  "------------------------------------------------------------\n",
-  "Automated Bubble Chart Analysis Report\n",
-  "------------------------------------------------------------\n\n",
-  "### Summary\n",
-  "A total of ", nrow(top_papers), " papers were analyzed to identify the most influential, emerging, and impactful research contributions in the dataset.\n\n",
-  "---\n\n",
-  "### Highlights\n\n",
-  "**1. Top-Cited Paper:**\n",
-  "   - Title: '", top_papers[[paper_col]][1], "'\n",
-  "   - Total Citations: ", top_papers[[citation_col]][1], "\n",
-  "   - Annual Citation Rate: ", top_papers[[per_year_col]][1], " citations per year\n",
-  "   - Insights: This paper has the highest total citations, making it a cornerstone reference in its field.\n\n",
-  "**2. Emerging Paper:**\n",
-  {
-    # Identify the paper with the highest annual citation rate
-    emerging_paper <- top_papers[which.max(top_papers[[per_year_col]]), ]
-    paste0(
-      "   - Title: '", emerging_paper[[paper_col]], "'\n",
-      "   - Annual Citation Rate: ", emerging_paper[[per_year_col]], " citations per year\n",
-      "   - Insights: This paper shows the highest annual citation rate in the dataset. Its recent publication date likely contributes to its growing visibility.\n\n"
-    )
-  },
-  "**3. Sustained Impact Paper:**\n",
-  {
-    # Identify the paper with the highest normalized citations
-    sustained_impact_paper <- top_papers[which.max(top_papers[[normalized_col]]), ]
-    paste0(
-      "   - Title: '", sustained_impact_paper[[paper_col]], "'\n",
-      "   - Total Citations: ", sustained_impact_paper[[citation_col]], "\n",
-      "   - Annual Citation Rate: ", sustained_impact_paper[[per_year_col]], " citations per year\n",
-      "   - Insights: This paper combines consistent relevance and high impact, making it a sustained influence in its field.\n\n"
-    )
-  },
-  "---\n\n",
-  "### Observations\n",
-  {
-    # Generate observations dynamically based on the data
-    observations <- list()
-    if (any(top_papers[[per_year_col]] == 0)) {
-      observations <- c(observations, "Some papers have a zero annual citation rate, which might indicate limited recent impact or data inaccuracies.")
-    }
-    if (any(top_papers[[normalized_col]] > 20)) {
-      observations <- c(observations, "Several papers have high normalized citation scores, highlighting their consistent and widespread influence.")
-    }
-    if (length(observations) == 0) {
-      observations <- c(observations, "Most papers show balanced citation metrics, indicating a mix of recent and long-term impact.")
-    }
-    paste0(
-      paste(seq_along(observations), ". ", observations, collapse = "\n"),
-      "\n\n"
-    )
-  },
-  "### Recommendations\n",
-  {
-    # Generate recommendations dynamically based on the data
-    recommendations <- list()
-    if (any(top_papers[[per_year_col]] > 50)) {
-      recommendations <- c(recommendations, "Highlight emerging papers with high annual citation rates in academic reviews and proposals.")
-    }
-    if (any(top_papers[[normalized_col]] > 25)) {
-      recommendations <- c(recommendations, "Investigate papers with high normalized scores for interdisciplinary insights.")
-    }
-    if (length(recommendations) == 0) {
-      recommendations <- c(recommendations, "Ensure the dataset is comprehensive to capture emerging and impactful papers.")
-    }
-    paste0(
-      paste(seq_along(recommendations), ". ", recommendations, collapse = "\n"),
-      "\n\n"
-    )
-  },
-  "------------------------------------------------------------\n"
-)
+  # Step 7: Save the bubble chart
+  save_plot(
+    plot = bubble_chart,
+    filename_prefix = "M1_G4_MOST_CITED_PAPERS_BUBBLE_CHART",
+    width = 8,
+    height = 6,
+    dpi = 600
+  )
 
-  # Save the report as a .txt file
-  report_path <- file.path(output_path, "bubble_chart_analysis_report.txt")
-  writeLines(report, report_path)
-  message("[INFO] Analysis report saved at: ", report_path)
-
-  message("[INFO] Bubble chart and analysis report generated successfully.")
+  # Log completion
+  message("[INFO] Bubble chart for Most Cited Papers generated and saved successfully.")
 }
-
-generate_bubble_chart <- function(data, output_path) {
-  # Ensure unique column names
-  colnames(data) <- make.unique(colnames(data))
-
-  # Debugging information
- 
-
-  # Validate the required columns
-  citation_col <- "TC"  # Total Citations
-  per_year_col <- "TCperYear"  # Citations per Year
-  normalized_col <- "NTC"  # Normalized Citations
-  paper_col <- "Paper"  # Paper Titles
-
-  # Ensure necessary columns exist
-  missing_cols <- setdiff(c(citation_col, per_year_col, normalized_col, paper_col), colnames(data))
-  if (length(missing_cols) > 0) {
-    stop("[ERROR] Missing required columns: ", paste(missing_cols, collapse = ", "))
-  }
-
-  # Convert relevant columns to numeric
-  data[[citation_col]] <- suppressWarnings(as.numeric(data[[citation_col]]))
-  data[[per_year_col]] <- suppressWarnings(as.numeric(data[[per_year_col]]))
-  data[[normalized_col]] <- suppressWarnings(as.numeric(data[[normalized_col]]))
-
-  # Remove rows with invalid or missing values
-  data <- data[complete.cases(data[c(citation_col, per_year_col, normalized_col)]), ]
-
-  # Ensure there are valid rows remaining
-  if (nrow(data) == 0) {
-    stop("[ERROR] No valid rows in the dataset after cleaning values.")
-  }
-
-  # Sort by Citations and select the top 10 papers
-  top_papers <- head(data[order(-data[[citation_col]]), ], 10)
-
-  # Generate the bubble chart
-  p <- ggplot(top_papers, aes(
-    x = .data[[per_year_col]],
-    y = .data[[citation_col]],
-    size = .data[[normalized_col]],
-    label = .data[[paper_col]]
-  )) +
-    geom_point(alpha = 0.7, color = THEME_COLORS["DarkBlue"]) +
-    geom_text(hjust = 0.5, vjust = -0.5, size = 3) +
-    labs(
-      title = "Bubble Chart: Most Cited Papers",
-      x = "Citations per Year",
-      y = "Total Citations",
-      size = "Normalized Citations"
-    ) +
-    ieee_theme
-
-  # Save the plot
-  save_plot(p, "most_cited_papers_bubble_chart")
-  message("[INFO] Bubble chart for Most Cited Papers generated and saved.")
-}
-
-
 
 
 
@@ -742,74 +603,126 @@ generate_bubble_chart <- function(data, output_path) {
 # ---------------------------------------------------------------------------- #
 # Function: Analyze and Plot Most Productive Countries
 # ---------------------------------------------------------------------------- #
-analyze_and_plot_most_prod_countries <- function(data, output_dir) {
-  # Validate and preprocess input data
-  data <- preprocess_data(data)
+fn_m1_mtrc5_analyze_and_plot_most_prod_countries <- function(data) {
+  # Step 1: Validate and preprocess input data
+  message("[INFO] Validating and preprocessing data for country analysis...")
+  data <- preprocess_data(data, required_columns = c("Country", "Articles", "SCP", "MCP"))
 
-  # Generate bar plot
-  top_countries <- get_top_countries(data, top_n = 15) # Get top 15 countries
-  plot <- generate_bar_plot(
-    data = top_countries, 
-    title = "Top 10 Most Productive Countries",
+  # Step 2: Generate bar plot for top productive countries
+  message("[INFO] Generating bar plot for the most productive countries...")
+  top_countries <- get_top_countries(data, top_n = 15)
+  generate_bar_plot_horizontal(
+    data = top_countries,
+    title = "Top 15 Most Productive Countries",
     x_label = "Country",
     y_label = "Number of Articles",
-    file_name = "M1_MOST_PROD_COUNTRIES_BAR_PLOT",
     x_var = "Country",
     y_var = "Articles",
-    threshold_var = "cumulative_percentage"  # Enables the 80% threshold functionality
+    file_name = "M1_G5_MOST_PROD_COUNTRIES_BAR_PLOT"
   )
 
-  # Generate Lorenz curve
-  generate_inequality_curve(data, output_dir) # Generate Lorenz curve
-
-  # Generate world map
-  map_data <- prepare_map_data(data)  # Prepare map data
-  generate_world_map(map_data, output_dir) # Generate world map
-
-  message("[INFO] Country analysis visualizations (bar, Lorenz, map) generated successfully.")
-}
-
-# ---------------------------------------------------------------------------- #
-# Helper Functions
-# ---------------------------------------------------------------------------- #
-
-
-#
-
-# Prepare map data
-prepare_map_data <- function(data) {
-  map_data <- joinCountryData2Map(data, joinCode = "NAME", nameJoinColumn = "Country")
-  map_data <- map_data[!is.na(map_data@data$NAME) & map_data@data$NAME != "Antarctica", ]
-  return(map_data)
-}
-
-# Generate world map
-generate_world_map <- function(map_data, output_dir) {
-  png_filename <- file.path(output_dir, "figures", "M1_MOST_PROD_COUNTRIES_MAP_GRAYSCALE.png")
-
-  png(png_filename, width = 1200, height = 800, units = "px")
-  par(cex.main = 2, cex.axis = 1.5, cex.lab = 1.5)
-
-  mapCountryData(
-    map_data,
-    nameColumnToPlot = "Articles",
-    mapTitle = "Global Distribution of Scientific Articles by Country (Grayscale)",
-    catMethod = "fixedWidth",
-    colourPalette = grey.colors(5, start = 0.9, end = 0.1),
-    addLegend = TRUE,
-    borderCol = "#000000"
+  # Step 3: Generate Lorenz curve for inequality analysis
+  message("[INFO] Generating Lorenz curve for inequality analysis...")
+  generate_lorenz_curve(
+    data = data,
+    value_col = "Articles",
+    entity_col = "Country",
+    plot_title = "Lorenz Curve: Article Production by Countries",
+    x_label = "Cumulative Percentage of Articles",
+    y_label = "Cumulative Percentage of Countries",
+    file_name = "M1_G5_MOST_PROD_COUNTRIES_LORENZ_CURVE"
   )
 
-  par(cex.main = 1, cex.axis = 1, cex.lab = 1)  # Reset parameters
-  dev.off()
+  # Step 4: Generate world map for article distribution
+  message("[INFO] Generating world map for article production...")
+  tryCatch({
+    generate_world_map(
+      map_data = data,
+      output_dir = "results/M1_Main_Information/figures",
+      value_col = "Articles",
+      map_title = "Global Distribution of Articles",
+      file_name = "M1_G5_MOST_PROD_COUNTRIES_MAP",
+      color_scheme = "greens"
+    )
+  }, error = function(e) {
+    message("[ERROR] Failed to generate world map: ", e$message)
+  })
+
+  data <- data %>%
+    mutate(
+      Country = as.character(Country),          # Convert Country to character
+      Freq = as.numeric(Freq),                  # Convert Freq to numeric
+      SCP = as.numeric(SCP),                    # Convert SCP to numeric
+      MCP = as.numeric(MCP),                    # Convert MCP to numeric
+      MCP_Ratio = as.numeric(MCP_Ratio)         # Convert MCP_Ratio to numeric
+    )
+  generate_treemap(
+    data = data,
+    value_col = "Articles",
+    label_col = "Country",
+    title = "Article Distribution by Country",
+    file_name = "M1_G5_MOST_PROD_COUNTRIES_TREEMAP"
+  )
+
+  # Step 5: Generate the stacked plot for top 10 countries
+  message("[INFO] Generating stacked bar plot for the most productive countries...")
+generate_bar_stacked(
+  data = data, 
+  title = "Most Productive Countries",
+  x_label = "N. of Documents",
+  y_label = "Countries",
+  categorical_var_col = "Country",
+  col_a = "SCP",
+  col_b = "MCP",
+  col_a_label = "SCP",
+  col_b_label = "MCP",
+  file_name = "M1_G5_MOST_PROD_COUNTRIES_STACKED_BAR_PLOT"
+)
+
+  # Step 6: Bar Plot for SCP (Single Country Publications)
+  message("[INFO] Generating bar plot for SCP...")
+  data <- data %>% mutate(SCP = as.numeric(SCP))
+  generate_bar_plot_horizontal(
+    data = data,
+    title = "Single Country Publications (SCP)",
+    x_label = "Country",
+    y_label = "Number of SCP Articles",
+    x_var = "Country",
+    y_var = "SCP",
+    add_threshold_line = FALSE,
+    file_name = "M1_G5_MOST_PROD_COUNTRIES_SCP_BAR_PLOT"
+  )
+
+  # Step 7: Bar Plot for MCP (Multiple Country Publications)
+  message("[INFO] Generating bar plot for MCP...")
+  data <- data %>% mutate(MCP = as.numeric(MCP))
+  generate_bar_plot_horizontal(
+    data = data,
+    title = "Multiple Country Publications (MCP)",
+    x_label = "Country",
+    y_label = "Number of MCP Articles",
+    x_var = "Country",
+    y_var = "MCP",
+    add_threshold_line = FALSE,
+    file_name = "M1_G5_MOST_PROD_COUNTRIES_MCP_BAR_PLOT"
+  )
+
+
+  # Final log message
+  message("[INFO] Most productive countries analysis (bar plot, Lorenz curve, world map, stacked bar plot) completed successfully.")
 }
+
+
+
+
+
 
 
 # ---------------------------------------------------------------------------- #
 # Function: Analyze and Plot Total Citations Per Country
 # ---------------------------------------------------------------------------- #
 
-analyze_and_plot_tc_per_country <- function(data, output_dir) {
+analyze_and_plot_tc_per_country <- function(data ) {
   # Ensure unique column names
   colnames(data) <- make.unique(colnames(data))
 
@@ -891,3 +804,128 @@ analyze_and_plot_bradford_law <- function(data, output_dir) {
   save_json(data, "bradford_law.json")
 }
 
+
+
+
+# ---------------------------------------------------------------------------- #
+# Function: Analyze and Plot Total Citations Per Country
+# ---------------------------------------------------------------------------- #
+# ---------------------------------------------------------------------------- #
+# Function: Analyze and Plot Total Citations Per Country
+# ---------------------------------------------------------------------------- #
+fn_m1_mtrc5_analyze_and_plot_tc_per_country <- function(data) {
+  # Step 1: Validate and preprocess input data
+  message("[INFO] Validating and preprocessing data for citation analysis...")
+  data <- preprocess_data(data, required_columns = c("Country", "Total Citations", "Average Article Citations"))
+
+
+data <- data %>%
+  mutate(
+    `Total Citations` = suppressWarnings(as.numeric(`Total Citations`)),
+    `Average Article Citations` = suppressWarnings(as.numeric(`Average Article Citations`))
+  )
+
+  # Step 2: Generate bar plot for top countries by total citations
+  message("[INFO] Generating bar plot for the countries with the most citations...")
+  top_countries <- get_top_countries(data, column = "Total Citations", top_n = 15)
+
+generate_bar_plot_horizontal(
+    data = top_countries,
+    title = "Top 15 Countries by Total Citations",
+    x_label = "Country",
+    y_label = "Number of Citations",
+    x_var = "Country",
+    y_var = "Total Citations",
+    file_name = "M1_G5_TOP_COUNTRIES_BY_TOTAL_CITATIONS_BAR_PLOT"
+  )
+
+
+  # Step 3: Generate Lorenz curve for inequality analysis based on total citations
+  message("[INFO] Generating Lorenz curve for citation inequality analysis...")
+  generate_lorenz_curve(
+    data = data,
+    value_col = "Total Citations",
+    entity_col = "Country",
+    plot_title = "Lorenz Curve: Citation Distribution by Countries",
+    x_label = "Cumulative Percentage of Citations",
+    y_label = "Cumulative Percentage of Countries",
+    file_name = "M1_G5_TOP_COUNTRIES_BY_TOTAL_CITATIONS_LORENZ_CURVE"
+  )
+
+data <- data %>%
+  rename(Total_Citations = `Total Citations`) %>%
+  mutate(Total_Citations = suppressWarnings(as.numeric(Total_Citations)))
+
+data <- data %>%
+  rename(Average_Article_Citations = `Average Article Citations`) %>%
+  mutate(Average_Article_Citations = suppressWarnings(as.numeric(Average_Article_Citations)))
+
+
+
+  # Step 4: Generate world map for citation distribution
+  message("[INFO] Generating world map for citation distribution...")
+  tryCatch({
+    generate_world_map(
+      map_data = data,
+      output_dir = "results/M1_Main_Information/figures",
+      value_col = "Total_Citations",
+      map_title = "Global Distribution of Citations",
+      file_name = "M1_G5_TOP_COUNTRIES_BY_TOTAL_CITATIONS_MAP",
+      color_scheme = "blues"
+    )
+  }, error = function(e) {
+    message("[ERROR] Failed to generate world map: ", e$message)
+  })
+
+
+  data <- data %>%
+    mutate(
+      Country = as.character(Country),
+      Total_Citations = as.numeric(Total_Citations),
+      Average_Article_Citations = as.numeric(Average_Article_Citations)
+    )
+
+  # Step 5: Generate treemap for citation distribution
+  message("[INFO] Generating treemap for citation distribution...")
+  generate_treemap(
+    data = data,
+    value_col = "Total_Citations",
+    label_col = "Country",
+    title = "Citation Distribution by Country",
+    file_name = "M1_G5_TOP_COUNTRIES_BY_TOTAL_CITATIONS_TREEMAP"
+  )
+
+
+
+  # Step 6: Generate stacked bar plot for the most cited countries
+  message("[INFO] Generating stacked bar plot for the countries with most citations...")
+generate_bar_stacked(
+    data = data,
+    title = "Most Cited Countries",
+    x_label = "Number of Citations",
+    y_label = "Countries",
+    file_name = "M1_G5_TOP_COUNTRIES_BY_TOTAL_CITATIONS_STACKED_BAR_PLOT",
+    categorical_var_col = "Country",
+    col_a = "Total_Citations",
+    col_b = "Average_Article_Citations",
+    col_a_label = "Total Citations",
+    col_b_label = "Average Citations"
+)
+
+  # Step 7: Bar Plot for Average Citations per Article
+  message("[INFO] Generating bar plot for average citations per article...")
+  generate_bar_plot_horizontal(
+    data = data,
+    title = "Average Citations per Article",
+    x_label = "Country",
+    y_label = "Average Citations",
+    x_var = "Country",
+    y_var = "Average_Article_Citations",
+    add_threshold_line = FALSE,
+    file_name = "M1_G5_TOP_COUNTRIES_BY_AVERAGE_CITATIONS_BAR_PLOT"
+  )
+
+
+  # Final log message
+  message("[INFO] Citation analysis (bar plot, Lorenz curve, world map, stacked bar plot) completed successfully.")
+}
