@@ -1,62 +1,3 @@
-# ---------------------------------------------------------------------------- #
-# Function: Save Plot
-# ---------------------------------------------------------------------------- #
-save_plot <- function(plot, filename_prefix, width = 4, height = 3, dpi = 300, aspect_ratio = NULL) {
-
-  # Define the output directory
-  output_dir <- "results/M1_Main_Information/figures"
-  dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
-
-  # Adjust height based on aspect ratio if specified
-  if (!is.null(aspect_ratio)) {
-    height <- width * aspect_ratio
-  }
-
-  # Save as PNG
-  tryCatch({
-    ggsave(
-      filename = file.path(output_dir, paste0(filename_prefix, "_PNG.png")),
-      plot = plot,
-      width = width,
-      height = height,
-      dpi = dpi,
-      device = "png"
-    )
-    message("[INFO] PNG plot saved: ", file.path(output_dir, paste0(filename_prefix, "_PNG.png")))
-  }, error = function(e) {
-    warning("[WARNING] Failed to save PNG plot: ", e$message)
-  })
-
-  # Save as SVG
-  tryCatch({
-    ggsave(
-      filename = file.path(output_dir, paste0(filename_prefix, "_SVG.svg")),
-      plot = plot,
-      width = width,
-      height = height,
-      dpi = dpi,
-      device = "svg"
-    )
-    message("[INFO] SVG plot saved: ", file.path(output_dir, paste0(filename_prefix, "_SVG.svg")))
-  }, error = function(e) {
-    warning("[WARNING] Failed to save SVG plot: ", e$message)
-  })
-
-  # Save as EPS
-  tryCatch({
-    ggsave(
-      filename = file.path(output_dir, paste0(filename_prefix, "_EPS.eps")),
-      plot = plot,
-      width = width,
-      height = height,
-      dpi = dpi,
-      device = "eps"
-    )
-    message("[INFO] EPS plot saved: ", file.path(output_dir, paste0(filename_prefix, "_EPS.eps")))
-  }, error = function(e) {
-    warning("[WARNING] Failed to save EPS plot: ", e$message)
-  })
-}
 
 
 
@@ -109,13 +50,35 @@ save_json <- function(data, filename, path = "results/M1_Main_Information/jsons/
 
 
 # Preprocess input data
-preprocess_data <- function(data) {
-  colnames(data) <- make.unique(colnames(data))
-  data$Articles <- suppressWarnings(as.numeric(data$Articles))
-  if (any(is.na(data$Articles))) {
-    stop("[ERROR] 'Articles' column contains non-numeric or missing values.")
+preprocess_data <- function(data, required_columns = NULL) {
+  if (!is.null(required_columns)) {
+    message("[DEBUG] Checking for required columns...")
+    print(required_columns)
+    print(names(data))
+
+    # Check for missing columns
+    missing_cols <- setdiff(required_columns, names(data))
+    if (length(missing_cols) > 0) {
+      stop("[ERROR] Missing required columns: ", paste(missing_cols, collapse = ", "))
+    }
   }
-  data$Country <- normalize_country_names(data$Country)
+
+  # Ensure unique column names
+  colnames(data) <- make.unique(colnames(data))
+
+  # Convert 'Articles' column to numeric if it exists
+  if ("Articles" %in% colnames(data)) {
+    data$Articles <- suppressWarnings(as.numeric(data$Articles))
+    if (any(is.na(data$Articles))) {
+      stop("[ERROR] 'Articles' column contains non-numeric or missing values.")
+    }
+  }
+
+  # Normalize country names if 'Country' column exists
+  if ("Country" %in% colnames(data)) {
+    data$Country <- normalize_country_names(data$Country)
+  }
+
   return(data)
 }
 
@@ -131,11 +94,25 @@ normalize_country_names <- function(country) {
   )
 }
 
-# Get top N countries by articles
-get_top_countries <- function(data, top_n = 10) {
-  top_countries <- data[order(-data$Articles), ]
+# Get top N countries by a specified column
+get_top_countries <- function(data, column = "Articles", top_n = 10) {
+  if (!column %in% colnames(data)) {
+    stop("[ERROR] Specified column not found in data: ", column)
+  }
+
+  if (!is.numeric(data[[column]])) {
+    stop("[ERROR] Specified column is not numeric: ", column)
+  }
+
+  # Sort data by the specified column in descending order
+  top_countries <- data[order(-data[[column]]), ]
+
+  # Select the top N rows
   top_countries <- head(top_countries, top_n)
-  top_countries$cumulative_percentage <- cumsum(top_countries$Articles) / sum(top_countries$Articles)
+
+  # Calculate cumulative percentages for threshold functionality
+  top_countries$cumulative_percentage <- cumsum(top_countries[[column]]) / sum(top_countries[[column]])
+
   return(top_countries)
 }
 
@@ -240,36 +217,8 @@ calculate_gini <- function(cumulative_x, cumulative_y) {
 }
 
 
-preprocess_data <- function(data, required_columns) {
-  # Ensure unique column names
-  colnames(data) <- make.unique(colnames(data))
-
-  # Validate required columns
-  missing_cols <- setdiff(required_columns, colnames(data))
-  if (length(missing_cols) > 0) {
-    stop("[ERROR] Missing required columns: ", paste(missing_cols, collapse = ", "))
-  }
-
-  # Convert necessary columns to numeric
-  data$Articles <- suppressWarnings(as.numeric(data$Articles))
-  data <- data[complete.cases(data), ]
-
-  if (nrow(data) == 0) {
-    stop("[ERROR] No valid rows in the dataset after cleaning.")
-  }
-
-  return(data)
-}
 
 
-get_top_countries <- function(data, top_n = 10) {
-  top_countries <- data[order(-data$Articles), ]
-  top_countries <- head(top_countries, top_n)
-
-  # Calculate cumulative percentages for threshold functionality
-  top_countries$cumulative_percentage <- cumsum(top_countries$Articles) / sum(top_countries$Articles)
-  return(top_countries)
-}
 
 prepare_map_data <- function(data, country_col, value_col, map = world_map) {
   # Normalize country names
