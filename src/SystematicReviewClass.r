@@ -17,7 +17,7 @@ install_and_load <- function(packages) {
 }
 
 # List of required packages
-packages <- c("bibliometrix", "rworldmap",  "maps", "ggwordcloud", "ggsci", "changepoint", "lomb", "WaveletComp", "kableExtra", "jsonlite", 
+packages <- c("bibliometrix", "rworldmap", "RColorBrewer", "countrycode","treemapify", "maps", "ggwordcloud", "ggsci", "changepoint", "lomb", "WaveletComp", "kableExtra", "jsonlite", 
               "pander", "rlang", "dplyr", "broom", "Metrics", "knitr", "ggplot2",  "tidyr",
               "plotly", "webshot", "gridExtra", "igraph", "nls2", "reshape2", "minpack.lm", "htmlwidgets")
 
@@ -207,13 +207,13 @@ SystematicReview <- setRefClass(
       fn_m1_mtrc4_generate_bubble_chart(overview$most_cited_papers)
 
       # Most Productive Countries
-      fn_m1_mtrc5_analyze_and_plot_most_prod_countries(overview$most_prod_countries, output_dir)
-      # Total Citations per Country
-      #fn_m1_mtrc5_analyze_and_plot_tc_per_country(overview$tc_per_countries, output_dir)
+      fn_m1_mtrc5_analyze_and_plot_most_prod_countries(overview$most_prod_countries )
+      fn_m1_mtrc5_analyze_and_plot_tc_per_country(overview$tc_per_countries )
+      
 
 
       # Most Relevant Sources
-      #analyze_and_plot_most_rel_sources(overview$most_rel_sources, output_dir)
+      analyze_and_plot_most_rel_sources(overview$most_rel_sources, output_dir)
 
       #word_counts <- create_wordcloud_from_text(overview$extracted_data, "results/M1_Main_Information/figures")
 
