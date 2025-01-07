@@ -811,12 +811,20 @@ generate_treemap <- function(data, value_col, label_col, title = "Global Distrib
                               file_name = "M1_G5_MOST_PROD_COUNTRIES_TREEMAP") {
   tryCatch({
  
-   # Sort data so the largest value starts at the top-left
-    data <- data %>%
-      arrange(desc(.data[[value_col]])) %>%
-      mutate(
-        label_text = paste0(.data[[label_col]], "\n", .data[[value_col]])
+ 
+  # Sort data so the largest value starts at the top-left
+  data <- data %>%
+    arrange(desc(.data[[value_col]])) %>%
+    mutate(
+      label_text = paste0(
+        stringr::str_replace_all(
+          stringr::str_to_title(.data[[label_col]]),  # Capitalize all words
+          "\\s+",                                    # Replace space
+          "\n"                                       # With a newline
+        ),
+        "\n", .data[[value_col]]                     # Add the numeric value on a new line
       )
+    )
 
 
     # Generate the treemap
@@ -828,14 +836,14 @@ generate_treemap <- function(data, value_col, label_col, title = "Global Distrib
       geom_treemap_text(
         aes(label = label_text), # Use the generated label column
         fontface = "bold", # Set label to bold
-        colour = "black",
+        colour = "white",
         place = "bottomleft",
         grow = FALSE,
         size = 12, # Adjust size for better readability
         padding.x = grid::unit(3, "mm"), # Add horizontal margin
         padding.y = grid::unit(3, "mm")  # Add vertical margin
       ) +
-      scale_fill_brewer(palette = "Spectral") +
+      scale_fill_brewer(palette = "Dark2") +
       labs(
         title = title,
         fill = NULL # Remove unnecessary legend title
