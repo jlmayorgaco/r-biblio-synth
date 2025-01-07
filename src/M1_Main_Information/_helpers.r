@@ -87,9 +87,9 @@ preprocess_data <- function(data, required_columns = NULL) {
 # Normalize country names to match map dataset
 normalize_country_names <- function(country) {
   dplyr::case_when(
-    country == "USA" ~ "United States",
-    country == "KOREA" ~ "South Korea",
-    country == "UNITED KINGDOM" ~ "United Kingdom",
+    country == "USA" ~ "UNITED STATES",
+    country == "KOREA" ~ "SOUTH KOREA",
+    country == "UNITED KINGDOM" ~ "UNITED KINGDOM",
     TRUE ~ country  # Default: keep as is
   )
 }
