@@ -367,42 +367,51 @@ fn_m1_mtrc3_analyze_and_plot_most_prod_authors <- function(data) {
 # Function: Generate Lorenz Curve for Author Contributions with Debug Logs
 # ---------------------------------------------------------------------------- #
 fn_m1_mtrc3_generate_lorenz_curve <- function(data, output_dir) {
-  # Validate input data
-  validate_data(data, c("Authors", "Articles"))
+  tryCatch({
+    # Validate input data
+    validate_data(data, c("Authors", "Articles"))
 
-  # Check for NA in 'Authors' column
-  if (any(is.na(data$Authors))) {
-    warning("[DEBUG] The following rows have NA in 'Authors':")
-    print(data[is.na(data$Authors), ])
-  }
+    # Check for NA in 'Authors' column
+    if (any(is.na(data$Authors))) {
+      warning("[DEBUG] The following rows have NA in 'Authors':")
+      print(data[is.na(data$Authors), ])
+    }
 
-  # Check for NA or non-numeric values in 'Articles' column
-  data$Articles <- suppressWarnings(as.numeric(data$Articles))
-  if (any(is.na(data$Articles))) {
-    warning("[DEBUG] The following rows have NA or non-numeric values in 'Articles':")
-    print(data[is.na(data$Articles), ])
-  }
+    # Check for NA or non-numeric values in 'Articles' column
+    data$Articles <- suppressWarnings(as.numeric(data$Articles))
+    if (any(is.na(data$Articles))) {
+      warning("[DEBUG] The following rows have NA or non-numeric values in 'Articles':")
+      print(data[is.na(data$Articles), ])
+    }
 
-  # Stop execution if invalid data exists
-  if (any(is.na(data$Authors)) || any(is.na(data$Articles))) {
-    stop("[ERROR] 'Authors' or 'Articles' column contains NA or non-numeric values. Please fix the data.")
-  }
+    # Stop execution if invalid data exists
+    if (any(is.na(data$Authors)) || any(is.na(data$Articles))) {
+      stop("[ERROR] 'Authors' or 'Articles' column contains NA or non-numeric values. Please fix the data.")
+    }
 
-  # Call the generic Lorenz curve generation function
-  gini <- generate_lorenz_curve(
-    data = data, 
-    value_col = "Articles",
-    entity_col = "Authors",
-    plot_title = "Lorenz Curve: Author Contributions",
-    x_label = "Cumulative Percentage of Articles",
-    y_label = "Cumulative Percentage of Authors",
-    file_name = "M1_G3_AUTHOR_CONTRIBUTIONS_LORENZ_PLOT"
-  )
+    # Ensure that Articles are sorted in descending order
+    data <- data[order(-data$Articles), ]
 
-  # Log the Gini coefficient for reporting
-  message("[INFO] Gini Coefficient for Author Contributions: ", round(gini, 3))
-  message("[INFO] Lorenz Curve for Author Contributions generated and saved successfully.")
+    # Call the generic Lorenz curve generation function
+    gini <- generate_lorenz_curve(
+      data = data, 
+      value_col = "Articles",
+      entity_col = "Authors",
+      plot_title = "Lorenz Curve: Author Contributions",
+      x_label = "Cumulative Percentage of Articles",
+      y_label = "Cumulative Percentage of Authors",
+      file_name = file.path(output_dir, "M1_G3_AUTHOR_CONTRIBUTIONS_LORENZ_PLOT"),
+      theme_colors = THEME_COLORS
+    )
+
+    # Log the Gini coefficient for reporting
+    message("[INFO] Gini Coefficient for Author Contributions: ", round(gini, 3))
+    message("[INFO] Lorenz Curve for Author Contributions generated and saved successfully.")
+  }, error = function(e) {
+    message("[ERROR] Failed to generate Lorenz Curve: ", e$message)
+  })
 }
+
 
 
 
@@ -411,64 +420,74 @@ fn_m1_mtrc3_generate_lorenz_curve <- function(data, output_dir) {
 # Function: Analyze and Plot Most Cited Papers
 # ---------------------------------------------------------------------------- #
 fn_m1_mtrc4_analyze_and_plot_most_cited_papers <- function(data) {
-  # Step 1: Validate required columns
-  colnames(data) <- make.unique(colnames(data)) # Ensure unique column names
+  tryCatch({
+    # Step 1: Validate required columns
+    colnames(data) <- make.unique(colnames(data)) # Ensure unique column names
 
-  citation_col <- if ("Citations" %in% colnames(data)) {
-    "Citations"
-  } else if ("TC" %in% colnames(data)) {
-    "TC"  # Total Citations (common abbreviation)
-  } else {
-    stop("[ERROR] Missing column for citations (e.g., 'Citations' or 'TC').")
-  }
+    citation_col <- if ("Citations" %in% colnames(data)) {
+      "Citations"
+    } else if ("TC" %in% colnames(data)) {
+      "TC"  # Total Citations (common abbreviation)
+    } else {
+      stop("[ERROR] Missing column for citations (e.g., 'Citations' or 'TC').")
+    }
 
-  if (!all(c("Paper", "PaperID") %in% colnames(data))) {
-    stop("[ERROR] Missing 'Paper' or 'PaperID' column in the dataset.")
-  }
+    if (!all(c("Paper", "PaperID") %in% colnames(data))) {
+      stop("[ERROR] Missing 'Paper' or 'PaperID' column in the dataset.")
+    }
 
-  # Step 2: Clean and preprocess data
-  data[[citation_col]] <- suppressWarnings(as.numeric(data[[citation_col]]))
-  if ("TCperYear" %in% colnames(data)) {
-    data$TCperYear <- suppressWarnings(as.numeric(data$TCperYear))
-  }
-  if (any(is.na(data[[citation_col]]))) {
-    message("[INFO] Removing rows with invalid citation values.")
-    data <- data[!is.na(data[[citation_col]]), ]
-  }
+    # Step 2: Clean and preprocess data
+    data[[citation_col]] <- suppressWarnings(as.numeric(data[[citation_col]]))
+    if ("TCperYear" %in% colnames(data)) {
+      data$TCperYear <- suppressWarnings(as.numeric(data$TCperYear))
+    }
+    if (any(is.na(data[[citation_col]]))) {
+      message("[INFO] Removing rows with invalid citation values.")
+      data <- data[!is.na(data[[citation_col]]), ]
+    }
 
-  if (nrow(data) == 0) {
-    stop("[ERROR] No valid rows in the dataset after cleaning citation values.")
-  }
+    if (nrow(data) == 0) {
+      stop("[ERROR] No valid rows in the dataset after cleaning citation values.")
+    }
 
-  # Step 3: Sort and select top 10 most cited papers
-  top_cited_papers <- data[order(-data[[citation_col]]), ]
-  top_cited_papers <- head(top_cited_papers, 10)
+    # Step 3: Sort and select top 10 most cited papers
+    top_cited_papers <- data[order(-data[[citation_col]]), ]
+    top_cited_papers <- head(top_cited_papers, 10)
 
-  # Step 4: Generate the dual-axis plot
-  dual_plot <- generate_bar_plot_with_line(
-    data = top_cited_papers,
-    title = "Top 10 Most Cited Papers with TC per Year",
-    x_label = "Papers",
-    y_label = "Number of Citations",
-    secondary_y_label = "Citations per Year",
-    x_var = "PaperID",
-    y_var = citation_col,
-    line_var = "TCperYear" # Include the line for TCperYear
-  )
+    # Step 4: Generate the dual-axis plot
+    dual_plot <- generate_bar_plot_with_line(
+      data = top_cited_papers,
+      title = "Top 10 Most Cited Papers with TC per Year",
+      x_label = "Papers",
+      y_label = "Number of Citations",
+      secondary_y_label = "Citations per Year",
+      x_var = "PaperID",
+      y_var = citation_col,
+      line_var = "TCperYear" # Include the line for TCperYear
+    )
 
-  # Step 5: Save JSON and plot
-  save_json(top_cited_papers, "most_cited_papers.json")
-  save_plot(
-    dual_plot,
-    "M1_G4_MOST_CITED_PAPERS_DUAL_PLOT",
-    width = 8,
-    height = 6,
-    dpi = 600
-  )
+    # Debug: Check the generated plot object
+    if (!inherits(dual_plot, "ggplot")) {
+      stop("[ERROR] Generated plot is not a valid ggplot object.")
+    }
 
-  # Log completion
-  message("[INFO] Most Cited Papers analysis completed successfully.")
+    # Step 5: Save JSON and plot
+    save_json(top_cited_papers, "most_cited_papers.json")
+    save_plot(
+      dual_plot,
+      "M1_G4_MOST_CITED_PAPERS_DUAL_PLOT",
+      width = 8,
+      height = 6,
+      dpi = 600
+    )
+
+    # Log completion
+    message("[INFO] Most Cited Papers analysis completed successfully.")
+  }, error = function(e) {
+    message("[ERROR] An error occurred in fn_m1_mtrc4_analyze_and_plot_most_cited_papers: ", e$message)
+  })
 }
+
 
 # ---------------------------------------------------------------------------- #
 # Function: Analyze and Plot Citations per Year
@@ -540,59 +559,80 @@ fn_m1_mtrc4_analyze_and_plot_citations_per_year <- function(data) {
 # Function: Generate and Save Bubble Chart for Most Cited Papers
 # ---------------------------------------------------------------------------- #
 fn_m1_mtrc4_generate_bubble_chart <- function(data) {
-  # Step 1: Ensure unique column names
-  colnames(data) <- make.unique(colnames(data))
+  tryCatch({
+    # Step 1: Ensure unique column names
+    colnames(data) <- make.unique(colnames(data))
 
-  # Step 2: Validate the required columns
-  required_cols <- c("TC", "TCperYear", "NTC", "PaperID")
-  missing_cols <- setdiff(required_cols, colnames(data))
-  if (length(missing_cols) > 0) {
-    stop("[ERROR] Missing required columns: ", paste(missing_cols, collapse = ", "))
-  }
+    # Step 2: Validate the required columns
+    required_cols <- c("TC", "TCperYear", "NTC", "PaperID")
+    missing_cols <- setdiff(required_cols, colnames(data))
+    if (length(missing_cols) > 0) {
+      stop("[ERROR] Missing required columns: ", paste(missing_cols, collapse = ", "))
+    }
 
-  # Step 3: Convert relevant columns to numeric
-  numeric_cols <- c("TC", "TCperYear", "NTC")
-  for (col in numeric_cols) {
-    data[[col]] <- suppressWarnings(as.numeric(data[[col]]))
-  }
+    # Step 3: Convert relevant columns to numeric
+    numeric_cols <- c("TC", "TCperYear", "NTC")
+    for (col in numeric_cols) {
+      data[[col]] <- suppressWarnings(as.numeric(data[[col]]))
+    }
 
-  # Step 4: Remove rows with invalid or missing values
-  valid_data <- data[complete.cases(data[numeric_cols]), ]
-  if (nrow(valid_data) == 0) {
-    stop("[ERROR] No valid rows in the dataset after cleaning values.")
-  }
+    # Step 4: Remove rows with invalid or missing values
+    valid_data <- data[complete.cases(data[numeric_cols]), ]
+    if (nrow(valid_data) == 0) {
+      stop("[ERROR] No valid rows in the dataset after cleaning values.")
+    }
 
-  # Step 5: Sort by Total Citations and select the top 10 papers
-  top_papers <- head(valid_data[order(-valid_data$TC), ], 10)
+    # Step 5: Sort by Total Citations and select the top 10 papers
+    top_papers <- head(valid_data[order(-valid_data$TC), ], 10)
 
-  # Debugging logs for validation
-  message("[DEBUG] Top Papers for Bubble Chart:")
-  print(top_papers)
+    # Debug: Print top papers
+    message("[DEBUG] Top papers selected for bubble chart:")
+    print(top_papers)
 
-  # Step 6: Generate the bubble chart
-  bubble_chart <- generate_bubble_chart(
-    data = top_papers,
-    x_var = "TCperYear",
-    y_var = "TC",
-    size_var = "NTC",
-    label_var = "PaperID",
-    title = "Bubble Chart: Most Cited Papers",
-    x_label = "Citations per Year",
-    y_label = "Total Citations",
-    size_label = "Normalized Citations"
-  )
+    # Step 6: Generate the bubble chart
+    bubble_chart <- ggplot(top_papers, aes(
+      x = TCperYear,
+      y = TC,
+      size = NTC,
+      label = PaperID
+    )) +
+      geom_point(alpha = 0.7, color = THEME_COLORS$Main[1]) + # Single color for bubbles
+      geom_text_repel(aes(label = PaperID), size = 3, fontface = "bold") +
+      labs(
+        title = "Bubble Chart: Most Cited Papers",
+        x = "Citations per Year",
+        y = "Total Citations",
+        size = "Normalized Citations"
+      ) +
+      theme_minimal() +
+      theme(
+        plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+        axis.title = element_text(size = 12),
+        legend.position = "right",
+        panel.background = element_rect(fill = "white"),
+        panel.grid.major = element_line(color = "gray70"),
+        panel.grid.minor = element_line(color = "gray90")
+      )
 
-  # Step 7: Save the bubble chart
-  save_plot(
-    plot = bubble_chart,
-    filename_prefix = "M1_G4_MOST_CITED_PAPERS_BUBBLE_CHART",
-    width = 8,
-    height = 6,
-    dpi = 600
-  )
+    # Debug: Check if the plot is a valid ggplot object
+    if (!inherits(bubble_chart, "ggplot")) {
+      stop("[ERROR] Generated bubble chart is not a valid ggplot object.")
+    }
 
-  # Log completion
-  message("[INFO] Bubble chart for Most Cited Papers generated and saved successfully.")
+    # Step 7: Save the bubble chart
+    save_plot(
+      plot = bubble_chart,
+      filename_prefix = "M1_G4_MOST_CITED_PAPERS_BUBBLE_CHART",
+      width = 8,
+      height = 6,
+      dpi = 600
+    )
+
+    # Log completion
+    message("[INFO] Bubble chart for Most Cited Papers generated and saved successfully.")
+  }, error = function(e) {
+    message("[ERROR] An error occurred in fn_m1_mtrc4_generate_bubble_chart: ", e$message)
+  })
 }
 
 
@@ -630,7 +670,8 @@ fn_m1_mtrc5_analyze_and_plot_most_prod_countries <- function(data) {
     plot_title = "Lorenz Curve: Article Production by Countries",
     x_label = "Cumulative Percentage of Articles",
     y_label = "Cumulative Percentage of Countries",
-    file_name = "M1_G5_MOST_PROD_COUNTRIES_LORENZ_CURVE"
+    file_name = "M1_G5_MOST_PROD_COUNTRIES_LORENZ_CURVE",
+    theme_colors = THEME_COLORS
   )
 
   # Step 4: Generate world map for article distribution
@@ -749,35 +790,73 @@ analyze_and_plot_tc_per_country <- function(data ) {
   save_plot(p, "tc_per_country")
   save_json(top_countries, "tc_per_country.json")
 }
-
 # ---------------------------------------------------------------------------- #
 # Function: Analyze and Plot Most Relevant Sources
 # ---------------------------------------------------------------------------- #
-analyze_and_plot_most_rel_sources <- function(data, output_dir) {
-  # Ensure unique column names
-  colnames(data) <- make.unique(colnames(data))
+fn_m1_mtrc6_analyze_and_plot_most_rel_sources <- function(data, output_dir) {
+  tryCatch({
+    # Ensure unique column names
+    colnames(data) <- make.unique(colnames(data))
 
-  # Convert Articles to numeric
-  data$Articles <- as.numeric(data$Articles)
+    # Convert Articles to numeric
+    data$Articles <- suppressWarnings(as.numeric(data$Articles))
 
-  # Sort by Articles and get the top 10
-  top_sources <- data[order(-data$Articles), ]
-  top_sources <- head(top_sources, 10)
+    # Log data structure
+    message("[DEBUG] Data structure before processing:")
+    print(head(data))
+    str(data)
 
-  # Create bar plot
-  p <- ggplot(top_sources, aes(x = reorder(Sources, Articles), y = Articles)) +
-    geom_bar(stat = "identity", fill = THEME_COLORS["Orange"]) +
-    coord_flip() +
-    labs(
-      title = "Top 10 Most Relevant Sources",
-      x = "Source",
-      y = "Number of Articles"
-    ) +
-    ieee_theme
+    # Validate Sources and Articles columns
+    if (!"Sources" %in% colnames(data)) {
+      stop("[ERROR] 'Sources' column is missing in the data.")
+    }
+    if (!"Articles" %in% colnames(data)) {
+      stop("[ERROR] 'Articles' column is missing in the data.")
+    }
+    if (any(is.na(data$Articles))) {
+      stop("[ERROR] 'Articles' column contains non-numeric or NA values.")
+    }
 
-  # Save plot
-  save_plot(p, "most_rel_sources")
-  save_json(top_sources, "most_rel_sources.json")
+    # Sort by Articles and get the top 10
+    top_sources <- data[order(-data$Articles), ]
+    top_sources <- head(top_sources, 10)
+
+    # Log top sources
+    message("[DEBUG] Top 10 sources:")
+    print(top_sources)
+
+    # Define colors
+    if (!"Orange" %in% names(THEME_COLORS)) {
+      stop("[ERROR] 'Orange' color is not defined in THEME_COLORS.")
+    }
+    fill_color <- THEME_COLORS["Orange"]
+
+    # Create bar plot
+    p <- ggplot(top_sources, aes(x = reorder(Sources, Articles), y = Articles)) +
+      geom_bar(stat = "identity", fill = fill_color) +
+      coord_flip() +
+      labs(
+        title = "Top 10 Most Relevant Sources",
+        x = "Source",
+        y = "Number of Articles"
+      ) +
+      ieee_theme
+
+    # Log plot object
+    if (!inherits(p, "ggplot")) {
+      stop("[ERROR] Plot object is not a valid ggplot object.")
+    } else {
+      message("[DEBUG] Plot object created successfully.")
+    }
+
+    # Save plot
+    save_plot(p, "most_rel_sources", output_dir)
+    save_json(top_sources, file.path(output_dir, "most_rel_sources.json"))
+    message("[INFO] Analysis and plotting of most relevant sources completed successfully.")
+
+  }, error = function(e) {
+    message("[ERROR] Failed to analyze and plot most relevant sources: ", e$message)
+  })
 }
 
 # ---------------------------------------------------------------------------- #
@@ -849,7 +928,8 @@ generate_bar_plot_horizontal(
     plot_title = "Lorenz Curve: Citation Distribution by Countries",
     x_label = "Cumulative Percentage of Citations",
     y_label = "Cumulative Percentage of Countries",
-    file_name = "M1_G5_TOP_COUNTRIES_BY_TOTAL_CITATIONS_LORENZ_CURVE"
+    file_name = "M1_G5_TOP_COUNTRIES_BY_TOTAL_CITATIONS_LORENZ_CURVE",
+    theme_colors = THEME_COLORS
   )
 
 data <- data %>%
