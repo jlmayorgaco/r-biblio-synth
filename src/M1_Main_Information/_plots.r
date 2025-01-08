@@ -2,6 +2,7 @@
 # File: plots.R
 # Description: Refactored functions for generating and saving various types of plots
 # ---------------------------------------------------------------------------- #
+
 library(ggplot2)
 library(dplyr)
 library(forcats)
@@ -13,11 +14,28 @@ library(rnaturalearth)
 library(dplyr)
 library(countrycode)
 library(treemapify)
+library(extrafont)
+
+extrafont::font_import()
+extrafont::loadfonts(device = "postscript")
+
+postscriptFonts()
+
 
 # ---------------------------------------------------------------------------- #
 # Function: Save Plot
 # ---------------------------------------------------------------------------- #
 save_plot <- function(plot, filename_prefix, width = 4, height = 3, dpi = 300, aspect_ratio = NULL) {
+
+
+    message("[DEBUG] Inside save_plot function...")
+    message("[DEBUG] Filename prefix: ", filename_prefix)
+    message("[DEBUG] Width: ", width)
+    message("[DEBUG] Height: ", height)
+    message("[DEBUG] DPI: ", dpi)
+    message("[DEBUG] plot: ")
+    print(plot)
+     message("[DEBUG] end.plot: ")
 
   # Define the output directory
   output_dir <- "results/M1_Main_Information/figures"
@@ -26,6 +44,14 @@ save_plot <- function(plot, filename_prefix, width = 4, height = 3, dpi = 300, a
   # Adjust height based on aspect ratio if specified
   if (!is.null(aspect_ratio)) {
     height <- width * aspect_ratio
+  }
+
+  # Ensure the filename is valid
+  filename_prefix <- gsub("[^A-Za-z0-9_-]", "_", filename_prefix)
+
+  # Validate the plot object
+  if (!inherits(plot, "gg")) {
+    stop("[ERROR] The plot object is not a valid ggplot object.")
   }
 
   # Save as PNG
@@ -40,7 +66,13 @@ save_plot <- function(plot, filename_prefix, width = 4, height = 3, dpi = 300, a
     )
     message("[INFO] PNG plot saved: ", file.path(output_dir, paste0(filename_prefix, "_PNG.png")))
   }, error = function(e) {
-    warning("[WARNING] Failed to save PNG plot: ", e$message)
+    message(' ')
+    message(' ')
+    message(' [ERROR SAVING PNG]')
+    message("[ERROR] Failed to save PNG plot: ", e$message)
+    message(' ')
+    message(' ')
+    message(' ')
   })
 
   # Save as SVG
@@ -55,24 +87,26 @@ save_plot <- function(plot, filename_prefix, width = 4, height = 3, dpi = 300, a
     )
     message("[INFO] SVG plot saved: ", file.path(output_dir, paste0(filename_prefix, "_SVG.svg")))
   }, error = function(e) {
-    warning("[WARNING] Failed to save SVG plot: ", e$message)
+    message("[ERROR] Failed to save SVG plot: ", e$message)
   })
 
-  # Save as EPS
   tryCatch({
     ggsave(
       filename = file.path(output_dir, paste0(filename_prefix, "_EPS.eps")),
       plot = plot,
       width = width,
       height = height,
-      dpi = dpi,
-      device = "eps"
+      dpi = 300,
+      device = cairo_ps,
+      family = "Helvetica" # Use a compatible font
     )
     message("[INFO] EPS plot saved: ", file.path(output_dir, paste0(filename_prefix, "_EPS.eps")))
   }, error = function(e) {
-    warning("[WARNING] Failed to save EPS plot: ", e$message)
+    message("[ERROR] Failed to save EPS plot: ", e$message)
   })
 }
+
+
 # ---------------------------------------------------------------------------- #
 # Function: Generate Bar Plot
 # ---------------------------------------------------------------------------- #
@@ -180,21 +214,6 @@ generate_bar_plot_vertical <- function(data, title, x_label, y_label, x_var, y_v
   # Define threshold for the cumulative percentage
   threshold_value <- 0.8
 
-  # Log input parameters for debugging
-  message("[DEBUG] Entering generate_bar_plot_horizontal2 function")
-  message("[DEBUG] Function input parameters:")
-  message("       Title: ", title)
-  message("       x_label: ", x_label)
-  message("       y_label: ", y_label)
-  message("       x_var: ", x_var)
-  message("       y_var: ", y_var)
-  message("       add_threshold_line: ", add_threshold_line)
-
-  # Inspect input data
-  message("[DEBUG] Inspecting input data:")
-  print(head(data))
-  message("[DEBUG] Data column types:")
-  print(sapply(data, class))
 
   # Ensure x_var and y_var exist in the data
   if (!x_var %in% colnames(data)) {
@@ -312,7 +331,6 @@ generate_lorenz_curve <- function(
   aspect_ratio = 1,
   theme_colors = THEME_COLORS
 ) {
-
   # Validate required columns
   if (!all(c(value_col, entity_col) %in% colnames(data))) {
     stop("[ERROR] Missing required columns: ", value_col, " and ", entity_col)
@@ -339,37 +357,35 @@ generate_lorenz_curve <- function(
     CumulativeValues = c(0, cumulative_values, 1),
     CumulativeEntities = c(0, cumulative_entities, 1)
   )
-  
-# Generate Lorenz plot
-lorenz_plot <- ggplot(lorenz_data, aes(x = CumulativeValues, y = CumulativeEntities)) +
-  geom_line(color = theme_colors$Main[1], linewidth = 1.2) +
-  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = theme_colors$Grayscale$Gray) +
-  labs(
-    title = plot_title,
-    x = x_label,
-    y = y_label
-  ) +
-  scale_x_continuous(limits = c(0, 1), expand = c(0, 0)) +
-  scale_y_continuous(limits = c(0, 1), expand = c(0, 0)) +
-  coord_fixed(ratio = aspect_ratio) +
-  annotate(
-    "text", x = 0.2, y = 0.8, 
-    label = paste0("Gini Coefficient: ", round(gini, 3)),
-    color = theme_colors$Text$Body, size = 4, hjust = 0
-  ) +
-  ieee_theme +
-  theme(
-    plot.title = element_text(size = 14, margin = margin(b = 15, t = 15), color = theme_colors$Text$Title),
-    axis.title.x = element_text(size = 10, margin = margin(t = 15, b = 5), color = theme_colors$Text$Body),
-    axis.title.y = element_text(size = 10, margin = margin(r = 15, l = 5), color = theme_colors$Text$Body),
-    axis.text = element_text(size = 8, color = theme_colors$Text$Body),
-    panel.background = element_rect(fill = "white", color = NA),
-    plot.background = element_rect(fill = "transparent", color = NA)
-  )
 
+  # Generate Lorenz plot
+  lorenz_plot <- ggplot(lorenz_data, aes(x = CumulativeValues, y = CumulativeEntities)) +
+    geom_line(color = theme_colors$Main[1], linewidth = 1.2) +
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = theme_colors$Grayscale$Gray) +
+    labs(
+      title = plot_title,
+      x = x_label,
+      y = y_label
+    ) +
+    scale_x_continuous(limits = c(0, 1), expand = c(0, 0)) +
+    scale_y_continuous(limits = c(0, 1), expand = c(0, 0)) +
+    coord_fixed(ratio = aspect_ratio) +
+    annotate(
+      "text", x = 0.2, y = 0.8, 
+      label = paste0("Gini Coefficient: ", round(gini, 3)),
+      color = theme_colors$Text$Body, size = 4, hjust = 0
+    ) +
+    ieee_theme +
+    theme(
+      plot.title = element_text(size = 14, margin = margin(b = 15, t = 15), color = theme_colors$Text$Title),
+      axis.title.x = element_text(size = 10, margin = margin(t = 15, b = 5), color = theme_colors$Text$Body),
+      axis.title.y = element_text(size = 10, margin = margin(r = 15, l = 5), color = theme_colors$Text$Body),
+      axis.text = element_text(size = 8, color = theme_colors$Text$Body),
+      panel.background = element_rect(fill = "white", color = NA),
+      plot.background = element_rect(fill = "transparent", color = NA)
+    )
 
-
-  # Save the plot 
+  # Save the plot
   save_plot(
     lorenz_plot, 
     file_name,
