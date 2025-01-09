@@ -361,7 +361,12 @@ generate_lorenz_curve <- function(
   # Generate Lorenz plot
   lorenz_plot <- ggplot(lorenz_data, aes(x = CumulativeValues, y = CumulativeEntities)) +
     geom_line(color = theme_colors$Main[1], linewidth = 1.2) +
-    geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = theme_colors$Grayscale$Gray) +
+    geom_abline(
+      slope = 1,
+      intercept = 0,
+      linetype = "dashed",
+      color = theme_colors$Grayscale$MediumGray
+    ) +
     labs(
       title = plot_title,
       x = x_label,
@@ -373,7 +378,7 @@ generate_lorenz_curve <- function(
     annotate(
       "text", x = 0.2, y = 0.8, 
       label = paste0("Gini Coefficient: ", round(gini, 3)),
-      color = theme_colors$Text$Body, size = 4, hjust = 0
+      color = theme_colors$Text$Caption, size = 4, hjust = 0
     ) +
     ieee_theme +
     theme(
@@ -385,6 +390,9 @@ generate_lorenz_curve <- function(
       plot.background = element_rect(fill = "transparent", color = NA)
     )
 
+  # Debugging log for the plot
+  message("[DEBUG] Lorenz plot object created: ", lorenz_plot)
+
   # Save the plot
   save_plot(
     lorenz_plot, 
@@ -395,6 +403,7 @@ generate_lorenz_curve <- function(
   message("[INFO] Lorenz Curve generated and saved successfully.")
   return(gini)
 }
+
 
 
 # ---------------------------------------------------------------------------- #
