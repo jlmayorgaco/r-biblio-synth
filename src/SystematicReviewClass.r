@@ -29,10 +29,12 @@ install_and_load(packages)
 # -- Loading Modules
 # ---------------------------------------------------------------------------- #
 # Load inner libraries and functions
+source('../../src/Config/PaletteGenerator.r')
 source('../../src/Config/PlotThemes.r')
 source('../../src/M1_Main_Information/M1_Main_Information.r')
 #source('../../src/M2_Annual_Production/M2_Annual_Production.r')
 #source('../../src/M3_Most_Prod_Authors/M3_Most_Prod_Authors.r')
+
 
 # ---------------------------------------------------------------------------- #
 # -- Class Definition
@@ -226,11 +228,19 @@ SystematicReview <- setRefClass(
       tc_per_country <- overview$tc_per_countries
 
       # Call Function 1: Bubble Chart (Productivity vs. Total Citations)
-      plot_bubble_chart(
+      fn_m1_mtrc5_countries_tp_vs_tc_plot_bubble_chart(
         most_prod_countries = most_prod_countries,
         tc_per_country = tc_per_country
       )
 
+      # Call Function 2: Dual-axis Bar Chart
+      plot_dual_axis_bar_chart( most_prod_countries = most_prod_countries,tc_per_country = tc_per_country)
+
+      # Call Function 3: Lorenz Curve Overlay
+      #plot_lorenz_curve_overlay(most_prod_countries = most_prod_countries,tc_per_country = tc_per_country)
+
+      # Call Function 4: Treemap with Combined Metrics
+      #plot_combined_treemap( most_prod_countries = most_prod_countries, tc_per_country = tc_per_country)
 
 
 
