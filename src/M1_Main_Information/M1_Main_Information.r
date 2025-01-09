@@ -790,10 +790,7 @@ analyze_and_plot_tc_per_country <- function(data ) {
   save_plot(p, "tc_per_country")
   save_json(top_countries, "tc_per_country.json")
 }
-# ---------------------------------------------------------------------------- #
-# Function: Analyze and Plot Most Relevant Sources
-# ---------------------------------------------------------------------------- #
-fn_m1_mtrc6_analyze_and_plot_most_rel_sources <- function(data, output_dir) {
+fn_m1_mtrc6_analyze_and_plot_most_rel_sources <- function(data) {
   tryCatch({
     # Ensure unique column names
     colnames(data) <- make.unique(colnames(data))
@@ -825,33 +822,52 @@ fn_m1_mtrc6_analyze_and_plot_most_rel_sources <- function(data, output_dir) {
     message("[DEBUG] Top 10 sources:")
     print(top_sources)
 
-    # Define colors
-    if (!"Orange" %in% names(THEME_COLORS)) {
-      stop("[ERROR] 'Orange' color is not defined in THEME_COLORS.")
+    # Define colors using THEME_COLORS object
+    if (!"Main" %in% names(THEME_COLORS)) {
+      stop("[ERROR] 'Main' colors are not defined in THEME_COLORS.")
     }
-    fill_color <- THEME_COLORS["Orange"]
+    fill_color <- THEME_COLORS$Main[2]  # Use the second main color (e.g., orange)
 
-    # Create bar plot
-    p <- ggplot(top_sources, aes(x = reorder(Sources, Articles), y = Articles)) +
-      geom_bar(stat = "identity", fill = fill_color) +
-      coord_flip() +
-      labs(
-        title = "Top 10 Most Relevant Sources",
-        x = "Source",
-        y = "Number of Articles"
-      ) +
-      ieee_theme
+    # Determine the maximum x-axis limit
+    max_articles <- max(top_sources$Articles, na.rm = TRUE)
+    x_max <- max_articles * 1.5
+
+  # Create bar plot
+  p <- ggplot(top_sources, aes(x = reorder(Sources, Articles), y = Articles)) +
+    geom_bar(stat = "identity", fill = fill_color, color = "black") + # Add black border
+    coord_flip() +
+    scale_y_continuous(limits = c(0, x_max)) +  # Set the x-axis limit
+    labs(
+      title = "Top 10 Most Relevant Sources",
+      x = "Source",
+      y = "Number of Articles"
+    ) +
+    ieee_theme
 
     # Log plot object
     if (!inherits(p, "ggplot")) {
       stop("[ERROR] Plot object is not a valid ggplot object.")
     } else {
-      message("[DEBUG] Plot object created successfully.")
+      message("[DEBUG] Bar plot object created successfully.")
     }
 
-    # Save plot
-    save_plot(p, "most_rel_sources", output_dir)
-    save_json(top_sources, file.path(output_dir, "most_rel_sources.json"))
+    # Save bar plot
+    save_plot(p, "M1_G6_MOST_RELEVANT_SOURCES", width = 9, height = 3.5, dpi = 300)
+    save_json(top_sources,"M1_G6_MOST_RELEVANT_SOURCES")
+
+    # Generate Lorenz curve
+    message("[DEBUG] Generating Lorenz curve for most relevant sources...")
+    gini_coefficient <- generate_lorenz_curve(
+      data = top_sources,
+      value_col = "Articles",
+      entity_col = "Sources",
+      plot_title = "Lorenz Curve: Article Distribution by Source",
+      x_label = "Cumulative Percentage of Articles",
+      y_label = "Cumulative Percentage of Sources",
+      file_name = "M1_G6_MOST_RELEVANT_SOURCES_LORENZT"
+    )
+
+    message("[INFO] Lorenz curve generated successfully with Gini coefficient: ", round(gini_coefficient, 3))
     message("[INFO] Analysis and plotting of most relevant sources completed successfully.")
 
   }, error = function(e) {
@@ -1008,4 +1024,129 @@ generate_bar_stacked(
 
   # Final log message
   message("[INFO] Citation analysis (bar plot, Lorenz curve, world map, stacked bar plot) completed successfully.")
+}
+
+
+
+
+fn_m1_mtrc5_countries_tp_vs_tc_plot_bubble_chart <- function(most_prod_countries, tc_per_country) {
+  tryCatch({
+    # Combine data
+    combined_data <- merge(most_prod_countries, tc_per_country, by = "Country") %>%
+      dplyr::mutate(
+        `Total Citations` = as.numeric(`Total Citations`), # Convert to numeric
+        Articles = as.numeric(Articles),                 # Convert to numeric
+        AverageCitations = `Total Citations` / Articles  # Compute average citations
+      )
+
+    # Initial linear fit
+    initial_fit <- lm(`Total Citations` ~ Articles, data = combined_data)
+    residuals <- abs(resid(initial_fit))
+    threshold <- mean(residuals) + 2 * sd(residuals)  # Threshold to identify outliers
+
+    # Exclude outliers
+    non_outlier_data <- combined_data[residuals <= threshold, ]
+
+    # Fit linear regression on non-outlier data
+    refined_fit <- lm(`Total Citations` ~ Articles, data = non_outlier_data)
+    slope <- coef(refined_fit)["Articles"]
+    intercept <- coef(refined_fit)["(Intercept)"]
+
+    # Adjust intercept for upper and lower bounds (+50% and -50%)
+    upper_intercept <- intercept * 1.5
+    lower_intercept <- intercept * 0.5
+
+    # Add y-values for the upper and lower bounds and classify points
+    combined_data <- combined_data %>%
+      dplyr::mutate(
+        UpperBound = slope * Articles + upper_intercept,
+        LowerBound = slope * Articles + lower_intercept,
+        PointColor = case_when(
+          `Total Citations` > UpperBound ~ "High TC (Green)",  # Green for above upper bound
+          `Total Citations` < LowerBound ~ "Low TC (Red)",     # Red for below lower bound
+          TRUE ~ "Average TC (Blue)"                           # Blue for in-between
+        )
+      )
+
+    # Calculate midpoints for the dashed lines
+    mid_x <- median(combined_data$Articles, na.rm = TRUE)
+    mid_y <- median(combined_data$`Total Citations`, na.rm = TRUE)
+
+    # Determine annotation position dynamically
+    max_x <- max(combined_data$Articles, na.rm = TRUE)
+    max_y <- max(combined_data$`Total Citations`, na.rm = TRUE)
+    annotate_x <- max_x * 0.5
+    annotate_y <- max_y * 0.5
+
+    # Create bubble chart
+    bubble_chart <- ggplot(combined_data, aes(
+      x = Articles,
+      y = `Total Citations`,
+      size = AverageCitations,
+      label = Country,
+      color = PointColor
+    )) +
+      geom_point(alpha = 1) + # Use PointColor for bubbles
+      geom_text_repel(size = 4, fontface = "bold") +
+      geom_vline(xintercept = mid_x, linetype = "longdash", color = THEME_COLORS$Grayscale$MediumGray, linewidth = 0.8) +
+      geom_hline(yintercept = mid_y, linetype = "longdash", color = THEME_COLORS$Grayscale$MediumGray, linewidth = 0.8) +
+      geom_ribbon(
+        aes(x = Articles, ymin = LowerBound, ymax = UpperBound),
+        fill = THEME_COLORS$Main[2], alpha = 0.5, inherit.aes = FALSE
+      ) +
+      geom_abline(
+        slope = slope, intercept = intercept,
+        linetype = "dashed",  # Trend line
+        color = THEME_COLORS$Main[4],
+        linewidth = 0.85
+      ) +
+      annotate(
+        "text", x = annotate_x, y = annotate_y,
+        label = paste0("Trend line: y = ", round(intercept, 2), " + ", round(slope, 2), "x"),
+        color = THEME_COLORS$Text$Caption, size = 6, hjust = 0
+      ) +
+      coord_cartesian(clip = "off") + # Ensure no clipping
+      labs(
+        title = "Productivity vs. Impact by Country",
+        x = "Number of Articles",
+        y = "Total Citations",
+        color = "Citation Levels"  # Legend title for color
+      ) +
+      scale_color_manual(
+        values = c(
+          "High TC (Green)" = THEME_COLORS$Main[5],
+          "Low TC (Red)" = THEME_COLORS$Main[3],
+          "Average TC (Blue)" = THEME_COLORS$Main[1]
+        )
+      ) +
+      theme_minimal() +
+      theme(
+        plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+        axis.title = element_text(size = 12),
+        axis.line = element_line(color = "black"),
+        panel.background = element_rect(fill = "white", color = NA), # White background
+        plot.background = element_rect(fill = "transparent", color = NA), # Transparent plot background
+        legend.position = "right",
+        legend.box.background = element_rect(fill = "white", color = THEME_COLORS$Grayscale$DarkGray), # White background for legend
+        panel.grid.major = element_line(color = THEME_COLORS$Grayscale$LightGray),  # Major gridlines in light gray
+        panel.grid.minor = element_line(color = THEME_COLORS$Grayscale$VeryLightGray)   # Minor gridlines in very light gray
+      )
+
+    # Save plot
+    save_plot(bubble_chart, "M1_G5_TOP_COUNTRIES_Productivity_vs_Impact_Bubble_Chart_With_Color_Legend", width = 12, height = 8, dpi = 400)
+
+    # Save insights
+    insight <- paste(
+      "Dashed lines divide the chart into quadrants, highlighting countries with high/low productivity and high/low impact.",
+      "The trend line (dashed) represents the refined line of best fit (y = ", 
+      round(intercept, 2), " + ", round(slope, 2), "x).",
+      "Points are colored based on citation levels: green (above upper bound), red (below lower bound), and blue (average)."
+    )
+    write(insight, file = "results/Productivity_vs_Impact_Color_Legend_Insights.txt")
+
+    return(bubble_chart)
+  }, error = function(e) {
+    message("[ERROR] Failed to create bubble chart: ", e$message)
+    return(NULL)
+  })
 }
