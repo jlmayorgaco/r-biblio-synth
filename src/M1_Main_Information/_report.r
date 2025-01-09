@@ -171,118 +171,92 @@ The distribution of document types is visualized in the accompanying pie chart:
 
 
 
-plot_bubble_chart <- function(most_prod_countries, tc_per_country) {
+plot_dual_axis_bar_chart <- function(most_prod_countries, tc_per_country) {
   tryCatch({
-    # Combine data
-    combined_data <- merge(most_prod_countries, tc_per_country, by = "Country") %>%
-      dplyr::mutate(
-        `Total Citations` = as.numeric(`Total Citations`), # Convert to numeric
-        Articles = as.numeric(Articles),                 # Convert to numeric
-        AverageCitations = `Total Citations` / Articles  # Compute average citations
+    # Step 1: Combine Data
+    message("[DEBUG] Combining data...")
+    combined_data <- merge(most_prod_countries, tc_per_country, by = "Country", all = TRUE) %>%
+      mutate(
+        Articles = suppressWarnings(as.numeric(Articles)),
+        `Total Citations` = suppressWarnings(as.numeric(`Total Citations`))
       )
 
-    # Initial linear fit
-    initial_fit <- lm(`Total Citations` ~ Articles, data = combined_data)
-    residuals <- abs(resid(initial_fit))
-    threshold <- mean(residuals) + 2 * sd(residuals)  # Threshold to identify outliers
+    # Step 2: Check for Missing or Invalid Data
+    if (any(is.na(combined_data$Articles)) || any(is.na(combined_data$`Total Citations`))) {
+      message("[INFO] Removing rows with NA in 'Articles' or 'Total Citations'.")
+      combined_data <- combined_data[complete.cases(combined_data[, c("Articles", "Total Citations")]), ]
+    }
 
-    # Exclude outliers
-    non_outlier_data <- combined_data[residuals <= threshold, ]
+    # Ensure there is valid data
+    if (nrow(combined_data) == 0) {
+      stop("[ERROR] No valid data available for plotting after cleaning.")
+    }
 
-    # Fit linear regression on non-outlier data
-    refined_fit <- lm(`Total Citations` ~ Articles, data = non_outlier_data)
-    slope <- coef(refined_fit)["Articles"]
-    intercept <- coef(refined_fit)["(Intercept)"]
+    # Step 3: Reshape Data
+    message("[DEBUG] Reshaping data for plotting...")
+    combined_long <- combined_data %>%
+      pivot_longer(cols = c(Articles, `Total Citations`), names_to = "Metric", values_to = "Value") %>%
+      mutate(Value = suppressWarnings(as.numeric(Value)))
 
-    # Calculate midpoints for the dashed lines
-    mid_x <- median(combined_data$Articles, na.rm = TRUE)
-    mid_y <- median(combined_data$`Total Citations`, na.rm = TRUE)
 
-    # Create bubble chart
-    bubble_chart <- ggplot(combined_data, aes(
-      x = Articles,
-      y = `Total Citations`,
-      size = AverageCitations,
-      label = Country
-    )) +
-      geom_point(alpha = 0.7, color = THEME_COLORS$Main[1]) + # Single color for bubbles
-      geom_text_repel(size = 3, fontface = "bold") +
-      geom_vline(xintercept = mid_x, linetype = "dashed", color = "gray50", linewidth = 0.8) +
-      geom_hline(yintercept = mid_y, linetype = "dashed", color = "gray50", linewidth = 0.8) +
-      geom_abline(slope = slope, intercept = intercept, linetype = "solid", color = "blue", linewidth = 0.8) + # Line of best fit
+    # Check for Invalid Values
+    if (any(is.na(combined_long$Value))) {
+      message("[INFO] Removing rows with NA in 'Value' column.")
+      combined_long <- combined_long[!is.na(combined_long$Value), ]
+    }
+
+    # Ensure there is valid data to plot
+    if (nrow(combined_long) == 0) {
+      stop("[ERROR] No valid data available for plotting after reshaping.")
+    }
+
+    # Step 4: Define Colors for the Metrics
+    metric_colors <- c("Articles" = THEME_COLORS$Main[1], "Total Citations" = THEME_COLORS$Main[2])
+
+    # Step 5: Create Dual-axis Bar Chart
+    message("[DEBUG] Creating dual-axis bar chart...")
+    dual_bar_chart <- ggplot(combined_long, aes(x = reorder(Country, -Value), y = Value, fill = Metric)) +
+      geom_bar(stat = "identity", position = "dodge", width = 0.7) +
+      scale_fill_manual(values = metric_colors) +
       labs(
-        title = "Productivity vs. Impact by Country",
-        x = "Number of Articles",
-        y = "Total Citations"
+        title = "Comparison of Productivity and Total Citations",
+        x = "Country",
+        y = "Value"
       ) +
       theme_minimal() +
       theme(
         plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+        axis.text.x = element_text(angle = 45, hjust = 1),
         axis.title = element_text(size = 12),
-        axis.line = element_line(color = "black"),
-        panel.background = element_rect(fill = "white", color = NA), # White background
-        plot.background = element_rect(fill = "transparent", color = NA), # Transparent plot background
-        legend.position = "right",
-        legend.box.background = element_rect(fill = "white", color = "black"), # White background for legend
-        panel.grid.major = element_line(color = "gray70"),  # Major gridlines in gray
-        panel.grid.minor = element_line(color = "gray90")   # Minor gridlines in lighter gray
-      ) +
-      guides(color = "none") # Remove gradient color legend
+        legend.title = element_blank(),
+        legend.position = "top"
+      )
 
-    # Save plot
-    save_plot(bubble_chart, "PT_3_Productivity_vs_Impact_Bubble_Chart_With_Refined_Best_Fit_Line", width = 10, height = 6, dpi = 300)
+    # Debug: Validate Plot Object
+    if (!inherits(dual_bar_chart, "ggplot")) {
+      stop("[ERROR] Generated object is not a valid ggplot object.")
+    } else {
+      message("[DEBUG] Dual-axis bar chart object created successfully.")
+    }
 
-    # Save insights
-    insight <- paste(
-      "Dashed lines divide the chart into quadrants, highlighting countries with high/low productivity and high/low impact.",
-      "The blue solid line represents the refined line of best fit (y = ", round(intercept, 2), " + ", round(slope, 2), "x) excluding outliers."
-    )
-    write(insight, file = "results/Productivity_vs_Impact_Refined_Best_Fit_Insights.txt")
+    # Step 6: Save Plot
+    message("[DEBUG] Saving dual-axis bar chart...")
+    save_plot(dual_bar_chart, "PT_3_Comparison_Productivity_vs_Impact_Bar_Chart", width = 10, height = 6, dpi = 300)
 
-    return(bubble_chart)
+    # Step 7: Save Insights
+    insight <- "This chart highlights which countries have a balance or imbalance between their productivity and total citations."
+    write(insight, file = "results/Comparison_Productivity_vs_Impact_Insights.txt")
+
+    message("[INFO] Dual-axis bar chart created successfully.")
+    return(dual_bar_chart)
   }, error = function(e) {
-    message("[ERROR] Failed to create bubble chart: ", e$message)
+    message("[ERROR] Failed to create dual-axis bar chart: ", e$message)
     return(NULL)
   })
 }
 
 
 
-
-
-# Function 2: Dual-axis Bar Chart
-plot_dual_axis_bar_chart <- function(most_prod_countries, tc_per_country) {
-  # Combine data
-  combined_data <- merge(most_prod_countries, tc_per_country, by = "Country")
-
-  # Reshape data
-  combined_long <- combined_data %>%
-    pivot_longer(cols = c(Articles, `Total Citations`), names_to = "Metric", values_to = "Value")
-
-  # Create dual-axis bar chart
-  dual_bar_chart <- ggplot(combined_long, aes(x = Country, y = Value, fill = Metric)) +
-    geom_bar(stat = "identity", position = "dodge") +
-    scale_fill_manual(values = c("Articles" = "#1b9e77", "Total Citations" = "#7570b3")) +
-    labs(
-      title = "Comparison of Productivity and Total Citations",
-      x = "Country",
-      y = "Value"
-    ) +
-    theme_minimal() +
-    theme(
-      plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
-      axis.text.x = element_text(angle = 45, hjust = 1)
-    )
-
-  # Save plot
-  save_plot("PT_3_Comparison_Productivity_vs_Impact_Bar_Chart", dual_bar_chart, width = 10, height = 6, dpi = 300)
-
-  # Save insights
-  insight <- "This chart highlights which countries have a balance or imbalance between their productivity and total citations."
-  write(insight, file = "results/Comparison_Productivity_vs_Impact_Insights.txt")
-
-  return(dual_bar_chart)
-}
 
 # Function 3: Lorenz Curve Overlay
 plot_lorenz_curve_overlay <- function(most_prod_countries, tc_per_country) {
