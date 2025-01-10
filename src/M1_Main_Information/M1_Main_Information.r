@@ -826,23 +826,36 @@ fn_m1_mtrc6_analyze_and_plot_most_rel_sources <- function(data) {
     if (!"Main" %in% names(THEME_COLORS)) {
       stop("[ERROR] 'Main' colors are not defined in THEME_COLORS.")
     }
-    fill_color <- THEME_COLORS$Main[21]  # Use the second main color (e.g., orange)
+    fill_color <- THEME_COLORS$Main[1]
 
     # Determine the maximum x-axis limit
     max_articles <- max(top_sources$Articles, na.rm = TRUE)
-    x_max <- max_articles * 1.5
+    x_max <- max_articles * 2
 
-  # Create bar plot
-  p <- ggplot(top_sources, aes(x = reorder(Sources, Articles), y = Articles)) +
-    geom_bar(stat = "identity", fill = fill_color, color = "black") + # Add black border
-    coord_flip() +
-    scale_y_continuous(limits = c(0, x_max)) +  # Set the x-axis limit
-    labs(
-      title = "Top 10 Most Relevant Sources",
-      x = "Source",
-      y = "Number of Articles"
-    ) +
-    ieee_theme
+    # Create bar plot
+    p <- ggplot(top_sources, aes(x = reorder(Sources, Articles), y = Articles)) +
+      geom_bar(stat = "identity", fill = fill_color, color = "black", size = 0.5) + # Thin black border
+      coord_flip() +
+      scale_y_continuous(
+        limits = c(0, x_max),
+        breaks = seq(0, x_max, by = max_articles / 5)
+      ) +
+      labs(
+        title = "Top 10 Most Relevant Sources",
+        subtitle = "A quantitative analysis of article distribution by source",
+        x = "Source",
+        y = "Number of Articles"
+      ) +
+      ieee_theme +
+      theme(
+        text = element_text(size = 10), # Adjust text size for readability
+        axis.title = element_text(size = 12, face = "bold"),
+        axis.text = element_text(size = 10),
+        plot.title = element_text(size = 14, hjust = 0.5, face = "bold"),
+        plot.subtitle = element_text(size = 12, hjust = 0.5, face = "italic"),
+        plot.margin = margin(10, 10, 20, 10), # Add space around the plot
+        legend.position = "none" # Remove unnecessary legend
+      )
 
     # Log plot object
     if (!inherits(p, "ggplot")) {
@@ -853,7 +866,7 @@ fn_m1_mtrc6_analyze_and_plot_most_rel_sources <- function(data) {
 
     # Save bar plot
     save_plot(p, "M1_G6_MOST_RELEVANT_SOURCES", width = 9, height = 3.5, dpi = 600)
-    save_json(top_sources,"M1_G6_MOST_RELEVANT_SOURCES")
+    save_json(top_sources, "M1_G6_MOST_RELEVANT_SOURCES")
 
     # Generate Lorenz curve
     message("[DEBUG] Generating Lorenz curve for most relevant sources...")
@@ -874,6 +887,7 @@ fn_m1_mtrc6_analyze_and_plot_most_rel_sources <- function(data) {
     message("[ERROR] Failed to analyze and plot most relevant sources: ", e$message)
   })
 }
+
 
 # ---------------------------------------------------------------------------- #
 # Function: Analyze and Visualize Bradford's Law
