@@ -18,7 +18,7 @@ install_and_load <- function(packages) {
 
 # List of required packages
 packages <- c("bibliometrix", "rworldmap", "tibble", "extrafont", "RColorBrewer", "ggrepel", "countrycode","treemapify", "maps", "ggwordcloud", "ggsci", "changepoint", "lomb", "WaveletComp", "kableExtra", "jsonlite", 
-              "pander", "rlang", "dplyr", "broom", "Metrics", "knitr", "ggplot2",  "tidyr",
+              "pander", "rlang", "dplyr", "broom", "Metrics", "knitr", "ggplot2",  "tidyr", "splines",
               "plotly", "webshot", "gridExtra", "igraph", "nls2", "reshape2", "minpack.lm", "htmlwidgets")
 
 # Install and load necessary packages
@@ -212,16 +212,8 @@ SystematicReview <- setRefClass(
       fn_m1_mtrc5_analyze_and_plot_most_prod_countries(overview$most_prod_countries )
       fn_m1_mtrc5_analyze_and_plot_tc_per_country(overview$tc_per_countries )
     
-
       # Most Relevant Sources
       fn_m1_mtrc6_analyze_and_plot_most_rel_sources(overview$most_rel_sources)
-
-      #word_counts <- create_wordcloud_from_text(overview$extracted_data, "results/M1_Main_Information/figures")
-      
-      
-      
-      # Call the functions with the respective datasets
-      # Assuming `overview$most_prod_countries` and `overview$tc_per_countries` are available
 
       # Ensure the data objects are loaded and prepared
       most_prod_countries <- overview$most_prod_countries
@@ -237,7 +229,7 @@ SystematicReview <- setRefClass(
       plot_dual_axis_bar_chart( most_prod_countries = most_prod_countries,tc_per_country = tc_per_country)
 
       # Call Function 3: Lorenz Curve Overlay
-      #plot_lorenz_curve_overlay(most_prod_countries = most_prod_countries,tc_per_country = tc_per_country)
+      plot_lorenz_curve_overlay(most_prod_countries = most_prod_countries,tc_per_country = tc_per_country)
 
       # Call Function 4: Treemap with Combined Metrics
       #plot_combined_treemap( most_prod_countries = most_prod_countries, tc_per_country = tc_per_country)
