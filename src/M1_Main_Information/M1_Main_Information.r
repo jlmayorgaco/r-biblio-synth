@@ -826,7 +826,7 @@ fn_m1_mtrc6_analyze_and_plot_most_rel_sources <- function(data) {
     if (!"Main" %in% names(THEME_COLORS)) {
       stop("[ERROR] 'Main' colors are not defined in THEME_COLORS.")
     }
-    fill_color <- THEME_COLORS$Main[2]  # Use the second main color (e.g., orange)
+    fill_color <- THEME_COLORS$Main[21]  # Use the second main color (e.g., orange)
 
     # Determine the maximum x-axis limit
     max_articles <- max(top_sources$Articles, na.rm = TRUE)
@@ -852,7 +852,7 @@ fn_m1_mtrc6_analyze_and_plot_most_rel_sources <- function(data) {
     }
 
     # Save bar plot
-    save_plot(p, "M1_G6_MOST_RELEVANT_SOURCES", width = 9, height = 3.5, dpi = 300)
+    save_plot(p, "M1_G6_MOST_RELEVANT_SOURCES", width = 9, height = 3.5, dpi = 600)
     save_json(top_sources,"M1_G6_MOST_RELEVANT_SOURCES")
 
     # Generate Lorenz curve
