@@ -257,47 +257,95 @@ plot_dual_axis_bar_chart <- function(most_prod_countries, tc_per_country) {
 
 
 
-
-# Function 3: Lorenz Curve Overlay
+library(ggplot2)
+library(dplyr)
+library(splines)
 plot_lorenz_curve_overlay <- function(most_prod_countries, tc_per_country) {
-  # Combine data
-  combined_data <- merge(most_prod_countries, tc_per_country, by = "Country") %>%
-    mutate(
-      Articles = as.numeric(Articles),               # Ensure Articles is numeric
-      `Total Citations` = as.numeric(`Total Citations`) # Ensure Total Citations is numeric
-    ) %>%
-    arrange(desc(Articles)) %>%
-    mutate(
-      CumArticles = cumsum(Articles) / sum(Articles),
-      CumCitations = cumsum(`Total Citations`) / sum(`Total Citations`),
-      CountryRank = row_number() / n()
+  tryCatch({
+    # Combine data
+    combined_data <- merge(most_prod_countries, tc_per_country, by = "Country") %>%
+      mutate(
+        Articles = as.numeric(Articles),               # Ensure Articles is numeric
+        `Total Citations` = as.numeric(`Total Citations`) # Ensure Total Citations is numeric
+      ) %>%
+      arrange(desc(Articles)) %>%
+      mutate(
+        CumArticles = cumsum(Articles) / sum(Articles),
+        CumCitations = cumsum(`Total Citations`) / sum(`Total Citations`),
+        CountryRank = row_number() / n()
+      )
+
+    # Dynamically extract column names
+    required_columns <- colnames(combined_data)
+
+    # Create endpoint rows with matching columns
+    endpoint_rows <- data.frame(
+      CumArticles = c(0, 1),
+      CumCitations = c(0, 1),
+      CountryRank = c(0, 1)
     )
 
-  # Create Lorenz curve
-  lorenz_curve <- ggplot(combined_data) +
-    geom_line(aes(x = CountryRank, y = CumArticles, color = "Articles"), linewidth = 1) +
-    geom_line(aes(x = CountryRank, y = CumCitations, color = "Citations"), linewidth = 1) +
-    scale_color_manual(values = c("Articles" = "#1b9e77", "Citations" = "#d95f02")) +
-    labs(
-      title = "Lorenz Curve: Articles vs. Citations",
-      x = "Cumulative Proportion of Countries",
-      y = "Cumulative Proportion of Metric"
-    ) +
-    theme_minimal() +
-    theme(
-      plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
-      legend.position = "right"
+    # Add any missing columns to endpoint_rows
+    for (col in setdiff(required_columns, colnames(endpoint_rows))) {
+      endpoint_rows[[col]] <- NA  # Add missing columns with NA
+    }
+
+    # Ensure column order matches
+    endpoint_rows <- endpoint_rows[, required_columns]
+
+    # Append endpoint rows to combined_data
+    combined_data <- rbind(endpoint_rows, combined_data)
+
+    # Ensure data is sorted for monotonic Lorenz curve
+    combined_data <- combined_data %>%
+      arrange(CumArticles, CumCitations, CountryRank)
+
+    # Create Lorenz curve
+    lorenz_curve <- ggplot(combined_data) +
+      geom_line(aes(x = CumArticles, y = CountryRank, color = "Articles"), linewidth = 1) +
+      geom_line(aes(x = CumCitations, y = CountryRank, color = "Citations"), linewidth = 1) +
+      geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "black", linewidth = 0.8) + # 1:1 line
+      scale_color_manual(
+        values = c("Articles" = "#1b9e77", "Citations" = "#d95f02"),
+        labels = c("Articles", "Citations")
+      ) +
+      labs(
+        title = "Lorenz Curve: Articles vs. Citations Distribution",
+        subtitle = "Comparison of cumulative distributions by country",
+        x = "Cumulative Proportion of Metric",
+        y = "Cumulative Proportion of Countries"
+      ) +
+      ieee_theme +
+      theme(
+        plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+        plot.subtitle = element_text(size = 12, hjust = 0.5, face = "italic"),
+        axis.title = element_text(size = 12, face = "bold"),
+        axis.text = element_text(size = 10),
+        legend.position = "right",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 10)
+      )
+
+    # Save the plot
+    save_plot(lorenz_curve, "PT_3_Lorenz_Curve_Comparison", width = 10, height = 6, dpi = 600)
+
+    # Save insights
+    insight <- paste(
+      "The Lorenz curve illustrates the disparity in the distribution of articles and citations among countries.",
+      "The dashed 1:1 line indicates perfect equality. Deviations from this line highlight the degree of inequality."
     )
+    write(insight, file = "results/Lorenz_Curve_Insights.txt")
 
-  # Save plot
-  save_plot("PT_3_Lorenz_Curve_Comparison", lorenz_curve, width = 10, height = 6, dpi = 300)
+    message("[INFO] Lorenz curve plot created successfully.")
+    return(lorenz_curve)
 
-  # Save insights
-  insight <- "The Lorenz curve shows whether citations are more or less equally distributed than the number of articles among countries."
-  write(insight, file = "results/Lorenz_Curve_Insights.txt")
-
-  return(lorenz_curve)
+  }, error = function(e) {
+    message("[ERROR] Failed to create Lorenz curve overlay: ", e$message)
+  })
 }
+
+
+
 
 
 # Function 4: Treemap with Combined Metrics
