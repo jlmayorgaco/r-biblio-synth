@@ -380,3 +380,219 @@ plot_combined_treemap <- function(most_prod_countries, tc_per_country) {
 
   return(combined_treemap)
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+wc_3x3_preprocess_data <- function(extracted_data) {
+  library(dplyr)
+  
+  # Extract years and keywords
+  years <- extracted_data$all_keywords$Years
+  keywords <- extracted_data$all_keywords$Keywords
+  
+  # Create a data frame for easier manipulation
+  data <- data.frame(year = years, keywords = keywords, stringsAsFactors = FALSE)
+  
+  # Define the overall range of years
+  min_year <- floor(min(data$year, na.rm = TRUE)) # Ensure the minimum year is an integer
+  max_year <- ceiling(max(data$year, na.rm = TRUE)) # Ensure the maximum year is an integer
+  
+  # Create 8 evenly distributed year ranges
+  year_breaks <- seq(min_year, max_year, length.out = 9) # 8 ranges -> 9 breaks
+  year_breaks <- unique(floor(year_breaks)) # Remove duplicates after rounding
+
+  # Check if the breaks are still unique
+  if (length(year_breaks) < 9) {
+    # Adjust the sequence to create unique breaks manually
+    year_breaks <- seq(min_year, max_year, length.out = 9)
+    year_breaks <- unique(as.integer(round(year_breaks))) # Convert to integers and remove duplicates
+  }
+
+
+  year_labels <- paste(head(year_breaks, -1), tail(year_breaks, -1) - 1, sep = "-") # Labels like "1965-1971"
+  
+  # Ensure the last range includes the final year
+  year_labels[length(year_labels)] <- paste(
+    year_breaks[length(year_breaks) - 1], year_breaks[length(year_breaks)], sep = "-"
+  )
+  
+  # Assign each year to the appropriate chunk
+  data$chunk <- cut(data$year, breaks = year_breaks, labels = year_labels, include.lowest = TRUE)
+  
+  # Combine all keywords across all chunks
+  all_words <- unlist(strsplit(data$keywords, " "))
+  all_words <- all_words[all_words != ""] # Remove empty strings
+  
+  # Count word frequencies
+  word_freq <- table(all_words)
+  word_freq <- as.data.frame(word_freq, stringsAsFactors = FALSE)
+  colnames(word_freq) <- c("word", "freq")
+  
+  # Get the top 100 most frequent words
+  top_100_words <- word_freq[order(-word_freq$freq), ]$word[1:10]
+  
+  # Debugging: Check the chunks and word frequency
+  message("[DEBUG] Year Ranges for Chunks: ")
+  print(year_labels)
+  message("[DEBUG] Assigned Chunks: ")
+  print(table(data$chunk))
+  message("[DEBUG] Word Frequency: ")
+  print(head(word_freq))
+  message("[DEBUG] Top 100 Words: ")
+  print(top_100_words)
+  
+  # Return data, word_freq, and top_100_words
+  return(list(
+    data = data,
+    word_freq = word_freq,
+    top_100_words = top_100_words
+  ))
+}
+
+
+
+
+
+
+
+wc_3x3_create_wordcloud_data <- function(data, word_freq, top_100_words) {
+  library(wordcloud)
+  library(grid)
+
+  # Initialize lists to store grobs and chunk details
+  grobs <- list()
+  chunks_details <- list()
+
+  # Debugging: Check `word_freq` and `top_100_words`
+  message("[DEBUG] Structure of word_freq:")
+  print(str(word_freq))
+  message("[DEBUG] top_100_words content:")
+  print(top_100_words)
+
+  # Ensure `word_freq` and `top_100_words` are valid
+  if (is.null(word_freq) || nrow(word_freq) == 0) {
+    stop("[ERROR] word_freq is empty or NULL.")
+  }
+
+  if (length(top_100_words) == 0) {
+    stop("[ERROR] top_100_words is empty.")
+  }
+
+  # Process common words once
+  common_word_counts <- word_freq[word_freq$word %in% top_100_words, , drop = FALSE]
+  if (nrow(common_word_counts) == 0) {
+    stop("[ERROR] No common words found in word_freq.")
+  }
+  common_word_counts$freq <- as.numeric(common_word_counts$freq)
+  common_word_counts <- common_word_counts[order(-common_word_counts$freq), ]
+
+  # Create a data frame for common keywords
+  common_keywords_df <- data.frame(
+    word = common_word_counts$word,
+    count = common_word_counts$freq,
+    stringsAsFactors = FALSE
+  )
+
+  # Debugging
+  message("[DEBUG] Sorted common keywords:")
+  print(head(common_keywords_df))
+
+  # Generate word cloud for each chunk
+  chunks_total <- length(levels(data$chunk))
+  for (chunk_index in seq_along(levels(data$chunk))) {
+    chunk <- levels(data$chunk)[chunk_index]
+
+    # Filter data for the current chunk
+    chunk_data <- data[data$chunk == chunk, ]
+
+    # Skip if no keywords are available
+    if (nrow(chunk_data) == 0 || all(is.na(chunk_data$keywords)) || all(chunk_data$keywords == "")) {
+      message(sprintf("[INFO] Skipping chunk %d of %d: %s", chunk_index, chunks_total, chunk))
+      next
+    }
+
+    # Count keyword frequencies
+    keyword_counts <- table(unlist(strsplit(chunk_data$keywords, " ")))
+    keyword_counts <- as.data.frame(keyword_counts, stringsAsFactors = FALSE)
+    colnames(keyword_counts) <- c("word", "freq")
+    keyword_counts$freq <- as.numeric(keyword_counts$freq)
+    keyword_counts <- keyword_counts[order(-keyword_counts$freq), ]
+
+    # Generate word cloud grob in-memory
+    gradient_color <- colorRampPalette(c("white", c("blue", "green", "purple", "orange", "red")[chunk_index]))
+    grobs[[as.character(chunk)]] <- textGrob(paste(keyword_counts$word, collapse = " "),
+                                             gp = gpar(col = gradient_color(1), fontsize = 12))
+
+    # Save chunk details
+    chunks_details[[paste0("chunk_", chunk)]] <- keyword_counts
+
+    # Progress message
+    progress_bar <- paste0("[", paste(rep("=", chunk_index), collapse = ""),
+                           paste(rep(" ", chunks_total - chunk_index), collapse = ""), "]")
+    message(sprintf("[INFO] Processing chunk %d of %d: %s", chunk_index, chunks_total, progress_bar))
+  }
+
+  # Generate the common words word cloud for the center
+  grobs[["center"]] <- textGrob(
+    paste(common_keywords_df$word, collapse = " "),
+    gp = gpar(col = "black", fontsize = 16)
+  )
+  chunks_details[["common_words"]] <- common_keywords_df
+
+  return(list(grobs = grobs, chunks_details = chunks_details))
+}
+
+
+
+
+wc_3x3_plot_and_save_results <- function(grobs, chunks_details) {
+  library(gridExtra)
+  library(jsonlite)
+
+  # Generate correct labels
+  labels <- c(
+    sapply(chunks_details[1:8], function(chunk_df) chunk_df$year_range[1]),
+    "Common Words"
+  )
+
+  message("[DEBUG] Labels for Word Cloud Grid: ")
+  print(labels)
+
+  grid_list <- lapply(seq_along(grobs), function(i) {
+    grob <- grobs[[i]]
+    label <- labels[i]
+    gTree(children = gList(
+      grob,
+      textGrob(label, x = 0.5, y = 0.05, just = "center", gp = gpar(fontsize = 12))
+    ))
+  })
+
+  output_file <- "results/M1_Main_Information/figures/M1_All_Keywords_Wordcloud_Grid.png"
+  png(output_file, width = 1800, height = 1800)
+  grid.arrange(grobs = grid_list, nrow = 3, ncol = 3)
+  dev.off()
+  message("[INFO] 3x3 Wordcloud grid saved successfully at: ", output_file)
+
+  json_file <- "results/M1_Main_Information/figures/M1_All_Keywords_Chunks.json"
+  write_json(chunks_details, json_file, pretty = TRUE)
+  message("[INFO] Chunk details saved successfully at: ", json_file)
+}
+
