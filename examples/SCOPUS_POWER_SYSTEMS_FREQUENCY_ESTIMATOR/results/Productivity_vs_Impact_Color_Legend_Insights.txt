@@ -1,0 +1,1 @@
+Dashed lines divide the chart into quadrants, highlighting countries with high/low productivity and high/low impact. The trend line (dashed) represents the refined line of best fit (y =  344.33  +  10.37 x). Points are colored based on citation levels: green (above upper bound), red (below lower bound), and blue (average).
