@@ -15,6 +15,7 @@ library(dplyr)
 library(countrycode)
 library(treemapify)
 library(extrafont)
+library(patchwork)
 
 extrafont::font_import()
 extrafont::loadfonts(device = "postscript")
@@ -91,15 +92,15 @@ save_plot <- function(plot, filename_prefix, width = 4, height = 3, dpi = 300, a
   })
 
   tryCatch({
-    ggsave(
-      filename = file.path(output_dir, paste0(filename_prefix, "_EPS.eps")),
-      plot = plot,
-      width = width,
-      height = height,
-      dpi = 300,
-      device = cairo_ps,
-      family = "Helvetica" # Use a compatible font
-    )
+    #ggsave(
+    #  filename = file.path(output_dir, paste0(filename_prefix, "_EPS.eps")),
+    #  plot = plot,
+    #  width = width,
+    #  height = height,
+    #  dpi = 300,
+    #  device = cairo_ps,
+    #  family = "Helvetica" # Use a compatible font
+    #)
     message("[INFO] EPS plot saved: ", file.path(output_dir, paste0(filename_prefix, "_EPS.eps")))
   }, error = function(e) {
     message("[ERROR] Failed to save EPS plot: ", e$message)
@@ -181,25 +182,26 @@ generate_bar_plot_horizontal <- function(data, title, x_label, y_label, x_var, y
 
   # Add threshold line and annotation if enabled
   if (add_threshold_line) {
-    bar_plot <- bar_plot +
-      geom_vline(
-        xintercept = threshold_row,  # This defines the vertical line position
-        linetype = "dashed",
-        color = THEME_COLORS$Grayscale$Black,
-        linewidth = 0.8
-      ) +
-      annotate(
-        "text",
-        x = threshold_row, # Dynamically center horizontally
-        y = 0.9 * max(data[[y_var]], na.rm = TRUE), # Slightly above the threshold line
-        label = paste0(threshold_value * 100, "% threshold"),
-        hjust = 0.5, # Center horizontally
-        vjust = -0.5, # Slightly above the line
-        color = THEME_COLORS$Grayscale$Black,
-        size = 4
-      )
+  # Extract factor levels for x-axis
+  x_levels <- levels(factor(data[[x_var]]))
+  message("x_levels:")
+  print(x_levels)
+
+  # Check if threshold_row is within valid range
+  if (threshold_row < 1 || threshold_row > length(x_levels)) {
+    stop("threshold_row is outside the valid range of x-axis factor levels.")
   }
 
+  # Add the vertical line and annotation
+  bar_plot <- bar_plot +
+    geom_vline(
+      xintercept = threshold_row,  # Use numeric index for vertical line
+      linetype = "dashed",
+      color = THEME_COLORS$Grayscale$Black,  # Replace with "black" if invalid
+      linewidth = 0.8
+    )
+
+}
   # Save the plot if file_name is provided
   if (!is.null(file_name)) {
     message("[DEBUG] Saving plot to: ", file_name)
@@ -208,6 +210,242 @@ generate_bar_plot_horizontal <- function(data, title, x_label, y_label, x_var, y
   
   return(bar_plot)
 }
+
+# ---------------------------------------------------------------------------- #
+# Function: Generate Stacked Bar Plot for SCP and MCP
+# ---------------------------------------------------------------------------- #
+generate_dual_bar_plot_horizontal <- function(data, title, x_label, y_label, x_var, y_var_scp, y_var_mcp, file_name = NULL) {
+  
+  # Sort data by Articles in descending order
+  data <- data[order(data$Articles), ]
+  
+  # Ensure y_var_scp and y_var_mcp are numeric
+  data[[y_var_scp]] <- as.numeric(data[[y_var_scp]])
+  data[[y_var_mcp]] <- as.numeric(data[[y_var_mcp]])
+  
+  # Ensure x_var is a factor and reorder based on total publications
+  data$total_documents <- data[[y_var_scp]] + data[[y_var_mcp]]
+  data[[x_var]] <- factor(data[[x_var]], levels = data[[x_var]][order(data$total_documents, decreasing = FALSE)])
+  
+  # Ensure MCP_Ratio exists and is numeric
+  if (!"MCP_Ratio" %in% colnames(data)) {
+    data$MCP_Ratio <- data[[y_var_mcp]] / (data[[y_var_scp]] + data[[y_var_mcp]])
+  }
+  data$MCP_Ratio <- as.numeric(data$MCP_Ratio)
+
+  # Define IEEE-style colors
+  ieee_colors <- c("MCP" = THEME_COLORS$Main[1], "SCP" = THEME_COLORS$Main[2])
+  #ieee_colors <- c("MCP" = "#FF6F61", "SCP" = "#009E73")
+  
+  # Convert data into long format for stacked bars
+  data_long <- data %>%
+    pivot_longer(cols = c(!!sym(y_var_scp), !!sym(y_var_mcp)), names_to = "Type", values_to = "Documents")
+  
+  # Create labels for SCP, MCP, and Ratio
+  data$Ratio <- round(data[[y_var_mcp]] / (data[[y_var_scp]] + data[[y_var_mcp]]), 2)
+  data$Label_SCP_MCP <- paste0("SCP: ", data[[y_var_scp]], "\nMCP: ", data[[y_var_mcp]])
+  data$Label_Ratio <- paste0("Ratio: ", ifelse(is.na(data$MCP_Ratio), "N/A", paste0(round(data$MCP_Ratio * 100, 1), "%")), "\n")
+
+  
+  # Create stacked bar plot
+  max_documents <- max(data$total_documents)
+  bar_plot <- ggplot(data_long, aes(x = .data[[x_var]], y = Documents, fill = Type)) +
+    geom_bar(stat = "identity", color = "black", linewidth = 0.3) +
+    geom_text(data = data, aes(x = .data[[x_var]], y = total_documents + max_documents * 0.02, label = Label_SCP_MCP),
+              inherit.aes = FALSE, hjust = 0, size = 4) +
+    geom_text(data = data, aes(x = .data[[x_var]], y = total_documents + max_documents * 0.15 + 5, label = Label_Ratio),
+              inherit.aes = FALSE, hjust = 0, size = 4) +
+    scale_fill_manual(values = ieee_colors, labels = c("MCP", "SCP")) +
+    coord_flip() +
+    scale_y_continuous(expand = c(0, 0), limits = c(0, max_documents * 1.75)) +
+    labs(title = title, x = x_label, y = y_label) +
+    ieee_theme +
+    theme(
+      plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+      axis.title.x = element_text(size = 14, margin = margin(t = 15)),
+      axis.title.y = element_text(size = 14, margin = margin(r = 15)),
+      axis.text = element_text(size = 12),
+      legend.title = element_blank(),
+      legend.text = element_text(size = 12),
+      panel.grid.major.x = element_line(color = "gray", size = 0.1),
+      panel.grid.minor.x = element_line(color = "lightgray", size = 0.1),
+      panel.grid.major.y = element_line(color = "gray", size = 0.0006),
+      panel.grid.minor.y = element_line(color = "lightgray", size = 0.0013),
+       plot.background = element_rect(
+        fill = "transparent", color = NA
+      ),
+      panel.background = element_rect(
+        fill = THEME_COLORS$Grayscale$White, color = NA
+      )
+    )
+  
+  # Save the plot if file_name is provided
+  if (!is.null(file_name)) {
+    message("[DEBUG] Saving plot to: ", file_name)
+    save_plot(bar_plot, file_name, width = 10, height = 6, dpi = 1000)
+  }
+  
+  return(bar_plot)
+}
+
+# ---------------------------------------------------------------------------- #
+# Function: Generate Stacked Bar Plot for SCP and MCP with Mirrored Area Graph
+# ---------------------------------------------------------------------------- #
+generate_dual_bar_plot_with_mirrored_area <- function(data, title, x_label, y_label, x_var, y_var_scp, y_var_mcp, file_name = NULL) {
+  
+  # Sort data by Articles in descending order
+  data <- data[order(-data$Articles), ]
+  
+  # Ensure numeric values
+  data[[y_var_scp]] <- as.numeric(data[[y_var_scp]])
+  data[[y_var_mcp]] <- as.numeric(data[[y_var_mcp]])
+  
+  # Ensure MCP_Ratio exists and is numeric
+  if (!"MCP_Ratio" %in% colnames(data)) {
+    data$MCP_Ratio <- data[[y_var_mcp]] / (data[[y_var_scp]] + data[[y_var_mcp]])
+  }
+  data$MCP_Ratio <- as.numeric(data$MCP_Ratio)
+  
+  # Ensure x_var is a factor and reorder based on total publications
+  data$total_documents <- data[[y_var_scp]] + data[[y_var_mcp]]
+  data[[x_var]] <- factor(data[[x_var]], levels = data[[x_var]][order(data$total_documents, decreasing = FALSE)])
+
+  # Define colors
+  ieee_colors <- c("MCP" = "#1f78b4", "SCP" = "#ff7f00")
+
+  # Convert data into long format for stacked bars
+  data_long <- data %>%
+    pivot_longer(cols = c(!!sym(y_var_scp), !!sym(y_var_mcp)), names_to = "Type", values_to = "Documents")
+
+  # Create labels for SCP, MCP, and Ratio
+  data$Label_SCP_MCP <- paste0("SCP: ", data[[y_var_scp]], "\nMCP: ", data[[y_var_mcp]])
+  data$Label_Ratio <- paste0("Ratio: ", round(data$MCP_Ratio * 100, 1), "%")
+
+  # Scaling factor for area plot (so it aligns with bars)
+  max_documents <- max(data$total_documents)
+  scale_factor <- max_documents / max(data$MCP_Ratio)
+  max_y = max_documents
+
+  
+
+
+# Ensure x is treated as a factor so both area and bar use the same scale
+data <- data %>%
+  mutate(!!x_var := factor(.data[[x_var]], levels = unique(.data[[x_var]])))
+
+# Compute y-values for area plot
+data_modified <- data %>%
+  arrange(.data[[x_var]]) %>%
+  mutate(
+    y_value = max_documents * 2 - (MCP_Ratio - max_documents)  # Invert the y-values
+  )
+
+# Extract first and last rows
+first_row <- data_modified[1, ]
+last_row <- data_modified[nrow(data_modified), ]
+
+# Force first and last points to exactly match the bars
+first_row[[x_var]] <- - first_row[[x_var]]  # Keep the exact same factor value
+first_row[["y_value"]] <- max_documents  # Set to the same max y-value
+
+last_row[[x_var]] <- - last_row[[x_var]]  # Keep the exact same factor value
+last_row[["y_value"]] <- max_documents  # Set to the same max y-value
+
+# Append modified points
+data_modified <- bind_rows(first_row, data_modified, last_row)
+
+
+
+
+  # Initialize the base plot
+  bar_plot <- ggplot()
+
+  # Add a mirrored area plot to visually represent the ratio of MCP to SCP
+bar_plot <- bar_plot + 
+  geom_area(
+    data = data_modified, 
+    aes(
+      x = .data[[x_var]], 
+      y = y_value, 
+      group = 1  # Ensures it’s treated as a single shape
+    ), 
+    fill = "#6a3d9a", 
+    alpha = 0.5  # Adjust transparency
+  ) + scale_y_continuous(expand = c(0, 0), limits = c(0, max_documents * 2))
+
+  # Add a stacked bar plot to represent SCP and MCP document counts
+  bar_plot <- bar_plot + 
+    geom_bar(
+      data = data_long, 
+      aes(x = .data[[x_var]], y = Documents, fill = Type),
+      stat = "identity",  # Use identity to plot actual values instead of counts
+      color = "black", 
+      linewidth = 0.3
+    )
+
+  # Overlay text labels to indicate SCP, MCP, and Ratio values
+  bar_plot <- bar_plot + 
+    geom_text(
+      data = data, 
+      aes(
+        x = .data[[x_var]], 
+        y = total_documents + max_documents * 0.02, 
+        label = Label_SCP_MCP
+      ),
+      inherit.aes = FALSE, 
+      hjust = 0,  # Align text labels to the left
+      size = 4
+    )
+
+  # Customize the fill color, axis scaling, labels, and overall theme
+  bar_plot <- bar_plot + 
+    scale_fill_manual(values = ieee_colors, labels = c("MCP", "SCP")) +  # Set manual colors for stacked bars
+    #coord_flip() +  # Flip coordinates for better readability
+    scale_y_continuous(expand = c(0, 0), limits = c(0, max_documents * 2)) +  # Set y-axis limits
+    labs(
+      title = title, 
+      x = x_label, 
+      y = y_label
+    ) +
+    theme_minimal() +  # Apply a clean and minimalistic theme
+    theme(
+      plot.title = element_text(size = 16, face = "bold", hjust = 0.5),  # Centered bold title
+      axis.title.x = element_text(size = 14, margin = margin(t = 15)),  # Adjust x-axis title margin
+      axis.title.y = element_text(size = 14, margin = margin(r = 15)),  # Adjust y-axis title margin
+      axis.text = element_text(size = 12),  # Set size for axis labels
+      legend.title = element_blank(),  # Remove legend title
+      legend.text = element_text(size = 12),  # Adjust legend text size
+      panel.grid.major.y = element_line(color = "gray", size = 0.5),  # Customize major grid lines
+      panel.grid.minor.y = element_line(color = "lightgray", size = 0.3)  # Customize minor grid lines
+    )
+
+
+    message(' ')
+    message(' ')
+    message(' ')
+    message(' 2 * max_documents - MCP_Ratio * scale_factor ')
+    print(2 * max_documents - data$MCP_Ratio * scale_factor)
+    message(' ')
+    message(' ')
+    message(' ')
+
+    #bar_plot <- bar_plot + geom_text(data = data, aes(
+    #  x = .data[[x_var]], 
+    #  y = max_documents - MCP_Ratio * scale_factor, 
+    #  label = Label_Ratio
+    #), inherit.aes = FALSE, hjust = 1, size = 4, color = "purple")
+  
+  # Save the plot if file_name is provided
+  if (!is.null(file_name)) {
+    message("[DEBUG] Saving plot to: ", file_name)
+    save_plot(bar_plot, file_name, width = 10, height = 6, dpi = 1000)
+  }
+  return(bar_plot)
+}
+
+
+
+
 
 
 generate_bar_plot_vertical <- function(data, title, x_label, y_label, x_var, y_var, file_name = NULL, add_threshold_line = FALSE) {
@@ -358,6 +596,19 @@ generate_lorenz_curve <- function(
     CumulativeEntities = c(0, cumulative_entities, 1)
   )
 
+    message("[DEBUG] Lorenz data prepared.")
+  print(head(lorenz_data))
+
+  message(' ')
+  message(' ')
+  message(' ')
+  message(' theme_colors$Text$Caption ')
+  message(theme_colors$Text$Caption)
+  message(' ')
+  message(' ')
+  print(paste0("Gini Coefficient: ", round(gini, 3)))
+  
+
   # Generate Lorenz plot
   lorenz_plot <- ggplot(lorenz_data, aes(x = CumulativeValues, y = CumulativeEntities)) +
     geom_line(color = theme_colors$Main[1], linewidth = 1.2) +
@@ -375,11 +626,6 @@ generate_lorenz_curve <- function(
     scale_x_continuous(limits = c(0, 1), expand = c(0, 0)) +
     scale_y_continuous(limits = c(0, 1), expand = c(0, 0)) +
     coord_fixed(ratio = aspect_ratio) +
-    annotate(
-      "text", x = 0.2, y = 0.8, 
-      label = paste0("Gini Coefficient: ", round(gini, 3)),
-      color = theme_colors$Text$Caption, size = 4, hjust = 0
-    ) +
     ieee_theme +
     theme(
       plot.title = element_text(size = 14, margin = margin(b = 15, t = 15), color = theme_colors$Text$Title),
@@ -388,7 +634,15 @@ generate_lorenz_curve <- function(
       axis.text = element_text(size = 8, color = theme_colors$Text$Body),
       panel.background = element_rect(fill = "white", color = NA),
       plot.background = element_rect(fill = "transparent", color = NA)
-    )
+    ) + geom_text(
+    data = data.frame(x = 0.2, y = 0.8, label = paste0("Gini Coefficient: ", round(gini, 3))),
+    aes(x = x, y = y, label = label),
+    inherit.aes = FALSE, 
+    color = theme_colors$Text$Caption,
+    size = 4,
+    hjust = 0
+  )
+      
 
   # Debugging log for the plot
   message("[DEBUG] Lorenz plot object created: ", lorenz_plot)
