@@ -153,26 +153,78 @@ extract_document_types <- function(summary_df) {
     review = as.integer(summary_df[summary_df$Description == "review", "Results"])
   )
 }
-
 extract_bibliographic_data <- function(bib_data, res1) {
   # Extract Author Keywords (DE) and Keywords Plus (ID)
-  author_keywords <- res1$DE
-  keywords_plus <- res1$ID
-  all_keywords <- unique(c(author_keywords, keywords_plus))
-
-  # Extract Titles
+  author_keywords <- bib_data$DE
+  keywords_plus <- bib_data$ID
+    # Extract Titles and Descriptions/Abstracts
   titles <- bib_data$TI
-
-  # Extract Descriptions/Abstracts
   descriptions <- bib_data$AB
+
+  
+  # Combine and deduplicate all keywords
+  all_keywords <- unique(c(author_keywords, keywords_plus))
+  
+  # Create a dataframe associating DE with publication years
+  message("[DEBUG] Splitting DE into individual keywords...")
+
+  keywords_split <- strsplit(bib_data$DE, "; ")
+   all_keywords_combined <- mapply(function(de, id, ti, ab) {
+    paste(c(de, id, ti, ab), collapse = " ")
+  }, bib_data$DE, bib_data$ID, bib_data$TI, bib_data$AB, SIMPLIFY = TRUE)
+  
+# Create a dataframe associating combined keywords with publication years
+  if (length(bib_data$PY) == length(all_keywords_combined)) {
+    message("[DEBUG] Lengths match. Creating dataframe...")
+    all_keywords_df <- data.frame(
+      Keywords = all_keywords_combined,
+      Years = bib_data$PY,
+      stringsAsFactors = FALSE
+    )
+  } else {
+    warning("[WARN] Length mismatch between years and combined keywords. Creating empty dataframe.")
+    all_keywords_df <- data.frame(Keywords = character(), Years = numeric(), stringsAsFactors = FALSE)
+  }
+
+
+
+ 
+# Text cleaning function
+clean_text <- function(text) {
+  text <- gsub("\\b[©|®|™]\\b", "", text) # Remove copyright, registered trademark, and trademark symbols
+  text <- gsub("\\[.*?\\]", "", text)     # Remove content within square brackets
+  text <- gsub("[[:punct:]]", " ", text)  # Remove punctuation
+  text <- gsub("[[:digit:]]", " ", text)  # Remove numbers
+  text <- gsub("\\s+", " ", text)         # Remove extra spaces
+  text <- tolower(text)                   # Convert to lowercase
+  trimws(text)                            # Trim leading/trailing spaces
+}
+
+   # Remove stop words
+remove_stopwords <- function(text) {
+  words <- unlist(strsplit(text, " "))
+  paste(words[!words %in% stopwords::stopwords("en")], collapse = " ")
+}
 
   # Combine into a structured list
   extracted_data <- list(
-    keywords = all_keywords,
-    titles = titles,
-    descriptions = descriptions
+    all_keywords = data.frame(
+      Keywords = clean_text(paste(bib_data$DE, bib_data$ID, bib_data$TI, bib_data$AB, sep = " ")),
+      Years = bib_data$PY,
+      stringsAsFactors = FALSE
+    ),
+    keywords = unique(clean_text(c(bib_data$DE, bib_data$ID))),
+    titles = clean_text(bib_data$TI),
+    descriptions = clean_text(bib_data$AB)
   )
 
+
+# Apply stopword removal
+extracted_data$all_keywords$Keywords <- sapply(
+  extracted_data$all_keywords$Keywords, 
+  remove_stopwords
+)
+  
   return(extracted_data)
 }
 
