@@ -24,6 +24,22 @@ fn_m1_main_information <- function(bib_data) {
   res1 <- biblioAnalysis(bib_data, sep = ";")
   s1 <- summary(res1, pause = FALSE, verbose = FALSE)
 
+
+  message(' ')
+  message(' ')
+  message(' ')
+  message(' ')
+  message(' =======> s1 <======= fn_m1_main_information ')
+  message(' ')
+  print(s1)
+  message(' ')
+  message(' ')
+  message(' ')
+  message(' ')
+  message(' ')
+  message(' ')
+  message(' ')
+
   extracted_data <- extract_bibliographic_data(bib_data, res1)
 
   # Extract and clean additional summary information
@@ -275,64 +291,95 @@ fn_m1_mtrc2_most_rel_keywords_wordcloud2 <- function(most_rel_keywords) {
   htmlwidgets::saveWidget(wordcloud, output_html, selfcontained = FALSE)
   message("[INFO] Wordcloud saved at: ", output_html)
 }
-create_wordcloud_from_text <- function(extracted_data, output_dir) {
-  # Validate extracted_data input
+
+
+
+fn_m1_mtrc2_all_keywords_wordcloud <- function(extracted_data) {
+
+  library(wordcloud2)
+  library(webshot)
+  library(htmlwidgets)
+
   if (is.null(extracted_data$keywords) || is.null(extracted_data$titles) || is.null(extracted_data$descriptions)) {
     stop("[ERROR] Extracted data must include `keywords`, `titles`, and `descriptions`.")
   }
-  
-  # Combine keywords, titles, and descriptions into a single text vector
+
+  # Combine text data
   combined_text <- c(
     unlist(extracted_data$keywords),
     unlist(extracted_data$titles),
     unlist(extracted_data$descriptions)
   )
   
-  # Clean the text
-  cleaned_text <- tolower(combined_text) # Convert to lowercase
-  cleaned_text <- gsub("[[:punct:]]", " ", cleaned_text) # Remove punctuation
-  cleaned_text <- gsub("[[:digit:]]", "", cleaned_text) # Remove numbers
-  cleaned_text <- gsub("\\s+", " ", cleaned_text) # Remove extra whitespace
-  cleaned_text <- trimws(cleaned_text) # Trim leading/trailing spaces
-  
-  # Tokenize the text into words
+  # Clean text data
+  cleaned_text <- tolower(combined_text)
+  cleaned_text <- gsub("[[:punct:]]", " ", cleaned_text)
+  cleaned_text <- gsub("[[:digit:]]", "", cleaned_text)
+  cleaned_text <- gsub("\\s+", " ", cleaned_text)
+  cleaned_text <- trimws(cleaned_text)
+
+  # Tokenize and filter words
   words <- unlist(strsplit(cleaned_text, split = " "))
-  
-  # Remove stopwords (common words like 'the', 'and', etc.)
-  stopwords <- c("the", "and", "of", "in", "to", "for", "on", "with", "by", "a", "an", "is", "this", "that", "it", "as", "at", "from", "are")
+  stopwords <- c(stopwords::stopwords("en"), "also", "however", "therefore", "thus", "hence")
   words <- words[!words %in% stopwords]
-  
-  # Count word frequencies
+  words <- words[nchar(words) > 1]
+
+  # Word frequency
   word_counts <- as.data.frame(table(words))
   colnames(word_counts) <- c("word", "freq")
-  word_counts <- word_counts[order(-word_counts$freq), ] # Sort by frequency
-  
-  # Debugging: Print top words
-  print(head(word_counts, 10))
-  
-  # Create a word cloud
-  p <- ggplot(word_counts, aes(label = word, size = freq)) +
-    geom_text_wordcloud(area_corr = TRUE, color = "darkblue") +
-    scale_size_area(max_size = 10) + # Adjust max size for better visualization
-    labs(
-      title = "Word Cloud from Extracted Data",
-      subtitle = "Based on Keywords, Titles, and Descriptions",
-      caption = "Generated using ggwordcloud"
-    ) +
-    theme_minimal() +
-    theme(
-      plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
-      plot.subtitle = element_text(size = 12, hjust = 0.5),
-      plot.caption = element_text(size = 10, hjust = 0.5)
-    )
-  
-  # Save the plot
-  output_file <- file.path(output_dir, "wordcloud_extracted_data.png")
-  ggsave(output_file, plot = p, width = 8, height = 6, dpi = 300)
-  message("[INFO] Word cloud saved at: ", output_file)
-  
-  return(word_counts) # Return word counts for further analysis
+  word_counts <- word_counts[order(-word_counts$freq), ]
+  word_counts <- head(word_counts, 100)
+
+
+  # Custom color function
+  color_function <- "function(word, weight) {
+      var maxWeight = 4000;  // Replace with approximate maximum frequency
+      var intensity = weight / maxWeight;
+      intensity = Math.min(1, Math.max(0.1, intensity)); // Clamp intensity
+      return `rgba(0, 0, 255, ${intensity})`;  // Blue gradient
+  }"
+
+  # Generate word cloud
+  wordcloud_plot <- wordcloud2::wordcloud2(
+    data = word_counts,
+    size = 1.2,
+    color = htmlwidgets::JS(color_function),
+    shape = "ellipse",
+    gridSize = 10,
+    rotateRatio = 0.015
+  )
+
+
+  # Save word cloud as HTML
+  htmlwidgets::saveWidget(
+    wordcloud_plot,
+    "results/M1_Main_Information/figures/M1_Most_Rel_Keywords_Wordcloud.html",
+    selfcontained = TRUE
+  )
+
+  # Save word cloud as PNG
+  webshot(
+    url = "results/M1_Main_Information/figures/M1_Most_Rel_Keywords_Wordcloud.html",
+    file = "results/M1_Main_Information/figures/M1_Most_Rel_Keywords_Wordcloud.png",
+    delay = 25,
+    vwidth = 2000,
+    vheight = 1200
+  )
+
+  message("[INFO] Word cloud saved as HTML and PNG.")
+  return(word_counts)
 }
+
+
+fn_m1_mtrc2_all_keywords_wordcloud_by_years <- function(extracted_data) {
+  preprocessed <- wc_3x3_preprocess_data(extracted_data)
+  wordcloud_data <- wc_3x3_create_wordcloud_data(preprocessed$data, preprocessed$word_freq, preprocessed$top_100_words)
+  wc_3x3_plot_and_save_results(wordcloud_data$grobs, wordcloud_data$chunks_details)
+}
+
+
+
+
 
 # ---------------------------------------------------------------------------- #
 # Function: Analyze and Plot Most Productive Authors
@@ -343,7 +390,7 @@ fn_m1_mtrc3_analyze_and_plot_most_prod_authors <- function(data) {
   
   # Step 2: Calculate metrics
   metrics <- calculate_metrics_top_authors(data)
- 
+
   # Step 3: Generate the plot
   plot <- generate_bar_plot_horizontal(
     data = metrics,
@@ -400,7 +447,7 @@ fn_m1_mtrc3_generate_lorenz_curve <- function(data, output_dir) {
       plot_title = "Lorenz Curve: Author Contributions",
       x_label = "Cumulative Percentage of Articles",
       y_label = "Cumulative Percentage of Authors",
-      file_name = file.path(output_dir, "M1_G3_AUTHOR_CONTRIBUTIONS_LORENZ_PLOT"),
+      file_name = "M1_G3_AUTHOR_CONTRIBUTIONS_LORENZ_PLOT",
       theme_colors = THEME_COLORS
     )
 
@@ -648,6 +695,9 @@ fn_m1_mtrc5_analyze_and_plot_most_prod_countries <- function(data) {
   message("[INFO] Validating and preprocessing data for country analysis...")
   data <- preprocess_data(data, required_columns = c("Country", "Articles", "SCP", "MCP"))
 
+
+
+
   # Step 2: Generate bar plot for top productive countries
   message("[INFO] Generating bar plot for the most productive countries...")
   top_countries <- get_top_countries(data, top_n = 15)
@@ -660,6 +710,55 @@ fn_m1_mtrc5_analyze_and_plot_most_prod_countries <- function(data) {
     y_var = "Articles",
     file_name = "M1_G5_MOST_PROD_COUNTRIES_BAR_PLOT"
   )
+
+
+  # Ensure SCP and MCP columns are numeric
+  top_countries$SCP <- as.numeric(top_countries$SCP)
+  top_countries$MCP <- as.numeric(top_countries$MCP)
+
+  generate_dual_bar_plot_horizontal(
+    data = top_countries,
+    title = "Top Countries by SCP and MCP",
+    x_label = "Countries",
+    y_label = "N. of Documents",
+    x_var = "Country",
+    y_var_scp = "SCP",
+    y_var_mcp = "MCP",
+    file_name = "M1_G5_MOST_PROD_COUNTRIES_STACKED_BAR_PLOT.png"
+  )
+
+  generate_dual_bar_plot_with_mirrored_area(
+    data = top_countries,
+    title = "Top Countries by SCP and MCP",
+    x_label = "Countries",
+    y_label = "N. of Documents",
+    x_var = "Country",
+    y_var_scp = "SCP",
+    y_var_mcp = "MCP",
+    file_name = "M1_G5_MOST_PROD_COUNTRIES_STACKED_MIRRORED_BAR_PLOT.png"
+  )
+
+
+  message(' ')
+  message(' ')
+  message(' ')
+  message(' ')
+  message(' ')
+  message(' ')
+  message(' ')
+  message(' ===> fn_m1_mtrc5_analyze_and_plot_most_prod_countries top_countries ')
+  message('top_countries')
+  print(top_countries)
+  message(' ')
+  message(' ')
+    message('data')
+  print(data)
+  message(' ')
+  message(' ')
+  message(' ')
+  message(' ')
+  stop('')
+
 
   # Step 3: Generate Lorenz curve for inequality analysis
   message("[INFO] Generating Lorenz curve for inequality analysis...")
@@ -688,6 +787,7 @@ fn_m1_mtrc5_analyze_and_plot_most_prod_countries <- function(data) {
   }, error = function(e) {
     message("[ERROR] Failed to generate world map: ", e$message)
   })
+
 
   data <- data %>%
     mutate(
@@ -1163,4 +1263,60 @@ fn_m1_mtrc5_countries_tp_vs_tc_plot_bubble_chart <- function(most_prod_countries
     message("[ERROR] Failed to create bubble chart: ", e$message)
     return(NULL)
   })
+}
+
+
+
+library(ggplot2)
+library(dplyr)
+library(jsonlite)
+library(scales)
+
+
+analyze_bradford_law <- function(data, output_dir = "results") {
+  # Ensure the output directory exists
+  if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
+  
+  # Prepare Data
+  data <- data %>%
+    mutate(
+      Percent = Freq / sum(Freq) * 100,
+      cumPercent = cumsum(Percent)
+    )
+  
+  # Calculate Gini Coefficient
+  gini_coeff <- {
+    freq_sorted <- sort(data$Freq, decreasing = TRUE)
+    lorenz_curve <- cumsum(rep(1, length(freq_sorted))) / length(freq_sorted)
+    cumulative_freq <- cumsum(freq_sorted) / sum(freq_sorted)
+    1 - 2 * sum(lorenz_curve * cumulative_freq) / sum(cumulative_freq)
+  }
+  
+  # Metrics to Save
+  metrics <- list(
+    total_sources = nrow(data),
+    total_frequency = sum(data$Freq),
+    gini_coefficient = round(gini_coeff, 3),
+    top_5_sources = data %>% arrange(desc(Freq)) %>% head(5) %>% select(SO, Freq)
+  )
+  
+  # Save Metrics
+  save_json(metrics, file.path(output_dir, "bradford_metrics.json"))
+  
+  # Generate Plots
+  plot_bradford_zones <- ggplot(data, aes(x = Rank, y = Freq, fill = Zone)) +
+    geom_bar(stat = "identity") +
+    labs(title = "Bradford's Law Zones", x = "Rank", y = "Frequency", fill = "Zone") +
+    ieee_theme
+  
+  plot_cumulative_frequency <- ggplot(data, aes(x = Rank, y = cumPercent)) +
+    geom_line(color = "blue") +
+    labs(title = "Cumulative Frequency Plot", x = "Rank", y = "Cumulative Frequency (%)") +
+    ieee_theme
+  
+  # Save Plots
+  save_plot(plot_bradford_zones, file.path(output_dir, "bradford_zones"))
+  save_plot(plot_cumulative_frequency, file.path(output_dir, "cumulative_frequency"))
+  
+  message("[INFO] Analysis and plots for Bradford's Law completed.")
 }
