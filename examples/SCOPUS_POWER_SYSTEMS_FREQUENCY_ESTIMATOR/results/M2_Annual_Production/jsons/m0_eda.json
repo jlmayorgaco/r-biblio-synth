@@ -1,15 +1,15 @@
 {
-  "start_date": 1965,
+  "start_year": 1965,
   "end_year": 2023,
   "peak_year": 2023,
   "peak_articles": 115,
-  "anomalies": [
-    {
-      "Year": 1965,
-      "Articles": 1,
-      "residuals": 46.0639
-    }
-  ],
+  "min_year": 1965,
+  "min_articles": 1,
+  "mean_articles": 38.4468,
+  "median_articles": 15,
+  "sd_articles": 37.9163,
+  "total_articles": 1807,
+  "anomalies": [],
   "outliers": {
     "zscore": [],
     "identified": []
