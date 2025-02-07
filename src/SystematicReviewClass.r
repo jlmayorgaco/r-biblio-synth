@@ -17,13 +17,16 @@ install_and_load <- function(packages) {
 }
 
 # List of required packages
-packages <- c("bibliometrix", "rworldmap", "tibble", "extrafont", "RColorBrewer", "ggrepel", "countrycode","treemapify", "maps", "ggwordcloud", "ggsci", "changepoint", "lomb", "WaveletComp", "kableExtra", "jsonlite", 
-              "pander", "rlang", "dplyr", "broom", "Metrics", "knitr", "ggplot2",  "tidyr", "splines",
-              "plotly", "webshot", "gridExtra", "igraph", "nls2", "reshape2", "minpack.lm", "htmlwidgets")
+
+packages <- c("bibliometrix","ggwordcloud", "patchwork","tm", "stopwords", "wordcloud2", "rworldmap", "tibble", "extrafont", "RColorBrewer", 
+"ggrepel", "countrycode","treemapify", "maps", "ggwordcloud", "ggsci", "changepoint", "lomb", "WaveletComp", "kableExtra", "jsonlite", 
+              "pander", "rlang", "dplyr", "broom", "Metrics", "knitr", "ggplot2",  "tidyr", "splines", "webshot",
+              "plotly", "webshot", "png", "gridExtra", "igraph", "nls2", "reshape2", "minpack.lm", "htmlwidgets")
 
 # Install and load necessary packages
 install_and_load(packages)
 
+webshot::install_phantomjs()
 
 # ---------------------------------------------------------------------------- #
 # -- Loading Modules
@@ -108,6 +111,7 @@ SystematicReview <- setRefClass(
       # Convert BibTeX data to dataframe
       .self$data <- tryCatch({
         convert2df(bib_path, dbsource = "scopus", format = "bibtex")
+        #convert2df(bib_path, dbsource = "openalex", format = "csv")
       }, error = function(e) {
         stop("Error: Could not convert BibTeX file to dataframe. ", conditionMessage(e))
       })
@@ -198,6 +202,8 @@ SystematicReview <- setRefClass(
       # Top Keywords
       fn_m1_mtrc2_most_rel_keywords_wordcloud(overview$most_rel_keywords)
       fn_m1_mtrc2_most_rel_keywords_wordcloud2(overview$most_rel_keywords)
+      #fn_m1_mtrc2_all_keywords_wordcloud(overview$extracted_data)
+      #fn_m1_mtrc2_all_keywords_wordcloud_by_years(overview$extracted_data)
 
       # Top Authors
       fn_m1_mtrc3_analyze_and_plot_most_prod_authors(overview$most_prod_authors)
@@ -208,38 +214,20 @@ SystematicReview <- setRefClass(
       fn_m1_mtrc4_analyze_and_plot_citations_per_year(overview$most_cited_papers)
       fn_m1_mtrc4_generate_bubble_chart(overview$most_cited_papers)
 
-      # Most Productive Countries
       fn_m1_mtrc5_analyze_and_plot_most_prod_countries(overview$most_prod_countries )
+
+      # Most Productive Countries
+      message(' ')
+      message(' ')
+      message(' ')
+      message(' overview ')
+      print(overview$most_prod_countries)
+      message(' ')
+      message(' ')
+      message(' ')
+      stop(' ')
+
       fn_m1_mtrc5_analyze_and_plot_tc_per_country(overview$tc_per_countries )
-    
-      # Most Relevant Sources
-      fn_m1_mtrc6_analyze_and_plot_most_rel_sources(overview$most_rel_sources)
-
-      # Ensure the data objects are loaded and prepared
-      most_prod_countries <- overview$most_prod_countries
-      tc_per_country <- overview$tc_per_countries
-
-      # Call Function 1: Bubble Chart (Productivity vs. Total Citations)
-      fn_m1_mtrc5_countries_tp_vs_tc_plot_bubble_chart(
-        most_prod_countries = most_prod_countries,
-        tc_per_country = tc_per_country
-      )
-
-      # Call Function 2: Dual-axis Bar Chart
-      plot_dual_axis_bar_chart( most_prod_countries = most_prod_countries,tc_per_country = tc_per_country)
-
-      # Call Function 3: Lorenz Curve Overlay
-      plot_lorenz_curve_overlay(most_prod_countries = most_prod_countries,tc_per_country = tc_per_country)
-
-      # Call Function 4: Treemap with Combined Metrics
-      #plot_combined_treemap( most_prod_countries = most_prod_countries, tc_per_country = tc_per_country)
-
-
-
-
-
-
-
 
       # Step 9: Inform completion
       message("[INFO] Main Information analysis completed.\n")
