@@ -18,7 +18,7 @@ install_and_load <- function(packages) {
 
 # List of required packages
 
-packages <- c("bibliometrix","ggwordcloud", "patchwork","tm", "stopwords", "wordcloud2", "rworldmap", "tibble", "extrafont", "RColorBrewer", 
+packages <- c("bibliometrix", "factoextra", "ggwordcloud", "patchwork","tm", "stopwords", "wordcloud2", "rworldmap", "tibble", "extrafont", "RColorBrewer", 
 "ggrepel", "countrycode","treemapify", "maps", "ggwordcloud", "ggsci", "changepoint", "lomb", "WaveletComp", "kableExtra", "jsonlite", 
               "pander", "rlang", "dplyr", "broom", "Metrics", "knitr", "ggplot2",  "tidyr", "splines", "webshot",
               "plotly", "webshot", "png", "gridExtra", "igraph", "nls2", "reshape2", "minpack.lm", "htmlwidgets")
