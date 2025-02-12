@@ -9,13 +9,14 @@ library(jsonlite)
 library(bibliometrix)
 library(wordcloud2)
 library(htmlwidgets)
-
-
+library(cluster)
 
 
 source('../../src/M1_Main_Information/_helpers.r')
 source('../../src/M1_Main_Information/_plots.r')
 source('../../src/M1_Main_Information/_report.r')
+
+source('../../src/M1_Main_Information/__m1_scp_mcp_stacked_bar_chart.r')
 
 # ---------------------------------------------------------------------------- #
 # Function: Main Information Analysis
@@ -603,87 +604,69 @@ fn_m1_mtrc4_analyze_and_plot_citations_per_year <- function(data) {
 
 
 # ---------------------------------------------------------------------------- #
-# Function: Generate and Save Bubble Chart for Most Cited Papers
+# Function: Generate and Save Bubble Charts for Most Cited Papers (Refactored)
 # ---------------------------------------------------------------------------- #
+
 fn_m1_mtrc4_generate_bubble_chart <- function(data) {
   tryCatch({
-    # Step 1: Ensure unique column names
-    colnames(data) <- make.unique(colnames(data))
 
-    # Step 2: Validate the required columns
-    required_cols <- c("TC", "TCperYear", "NTC", "PaperID")
-    missing_cols <- setdiff(required_cols, colnames(data))
-    if (length(missing_cols) > 0) {
-      stop("[ERROR] Missing required columns: ", paste(missing_cols, collapse = ", "))
-    }
+    source('../../src/M1_Main_Information/__m1_bubble_paper_tc_chart.r')
 
-    # Step 3: Convert relevant columns to numeric
-    numeric_cols <- c("TC", "TCperYear", "NTC")
-    for (col in numeric_cols) {
-      data[[col]] <- suppressWarnings(as.numeric(data[[col]]))
-    }
+    # ------------------------------------------- #
+    # -- Plotting Settings Config --------------- #
+    # ------------------------------------------- #
+    dpi <- 600              # Set DPI
+    text_size <- 4          # Text size in points
+    base_dpi <- 300         # Reference DPI for scaling
+    char_scale_factor <- 100  # Reference scale factor for 300 DPI at text size 4
+    # ------------------------------------------- #
 
-    # Step 4: Remove rows with invalid or missing values
-    valid_data <- data[complete.cases(data[numeric_cols]), ]
-    if (nrow(valid_data) == 0) {
-      stop("[ERROR] No valid rows in the dataset after cleaning values.")
-    }
 
-    # Step 5: Sort by Total Citations and select the top 10 papers
-    top_papers <- head(valid_data[order(-valid_data$TC), ], 10)
 
-    # Debug: Print top papers
-    message("[DEBUG] Top papers selected for bubble chart:")
-    print(top_papers)
+    data <- validate_and_prepare_data(data)
+    
+    # Plot Chart 1: Median-Based Quadrants
+    message("[INFO] Generating bubble chart for Median-Based Quadrants...")
+    region_data <- create_region_data(data)
 
-    # Step 6: Generate the bubble chart
-    bubble_chart <- ggplot(top_papers, aes(
-      x = TCperYear,
-      y = TC,
-      size = NTC,
-      label = PaperID
-    )) +
-      geom_point(alpha = 0.7, color = THEME_COLORS$Main[1]) + # Single color for bubbles
-      geom_text_repel(aes(label = PaperID), size = 3, fontface = "bold") +
-      labs(
-        title = "Bubble Chart: Most Cited Papers",
-        x = "Citations per Year",
-        y = "Total Citations",
-        size = "Normalized Citations"
-      ) +
-      theme_minimal() +
-      theme(
-        plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
-        axis.title = element_text(size = 12),
-        legend.position = "right",
-        panel.background = element_rect(fill = "white"),
-        panel.grid.major = element_line(color = "gray70"),
-        panel.grid.minor = element_line(color = "gray90")
-      )
+    message("[INFO]  geom_median <- create_median_quadrant_layers(region_data, data)...")
+    geom_median <- create_median_quadrant_layers(data = data, text_size = text_size, alpha = 0.1)
 
-    # Debug: Check if the plot is a valid ggplot object
-    if (!inherits(bubble_chart, "ggplot")) {
-      stop("[ERROR] Generated bubble chart is not a valid ggplot object.")
-    }
-
-    # Step 7: Save the bubble chart
-    save_plot(
-      plot = bubble_chart,
-      filename_prefix = "M1_G4_MOST_CITED_PAPERS_BUBBLE_CHART",
-      width = 8,
-      height = 6,
-      dpi = 600
+    bubble_chart <- generate_and_save_plot(
+      df = data, 
+      region_data = region_data,
+      title = "Bubble Chart: Median-Based Quadrants", 
+      custom_geom = geom_median
     )
 
+    kmeans_plot <- generate_and_save_kmeans_plot(data, "Bubble Chart: K-Means Clustering")
+        
+    save_plot(
+      plot = bubble_chart,
+      filename_prefix = "M1_G4_BUBBLE_PAPERS_MEDIAN_QUADRANTS", 
+      width = 8,
+      height = 6,
+      dpi = dpi
+    )
+
+    save_plot(
+      plot = kmeans_plot,
+      filename_prefix = "M1_G4_BUBBLE_PAPERS_K_MEANS", 
+      width = 8,
+      height = 6,
+      dpi = dpi
+    )
+
+
+
     # Log completion
-    message("[INFO] Bubble chart for Most Cited Papers generated and saved successfully.")
+    message("[INFO] Bubble chart with median-based quadrants generated successfully.")
+
   }, error = function(e) {
     message("[ERROR] An error occurred in fn_m1_mtrc4_generate_bubble_chart: ", e$message)
+    stop(' ======================================================================================================================== ')
   })
 }
-
-
-
 
 
 
