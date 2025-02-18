@@ -215,19 +215,45 @@ SystematicReview <- setRefClass(
       fn_m1_mtrc4_generate_bubble_chart(overview$most_cited_papers)
 
       fn_m1_mtrc5_analyze_and_plot_most_prod_countries(overview$most_prod_countries )
+      fn_m1_mtrc5_analyze_and_plot_tc_per_country(overview$tc_per_countries )
+
+
 
       # Most Productive Countries
-      message(' ')
-      message(' ')
-      message(' ')
-      message(' overview ')
-      print(overview$most_prod_countries)
-      message(' ')
-      message(' ')
-      message(' ')
-      stop(' ')
+      countries_per_year_scp_mcp <- bubble_countries_process_half_data(data)
+      df_first_half_summary <- countries_per_year_scp_mcp$df_first_half_summary
+      df_second_half_summary <- countries_per_year_scp_mcp$df_second_half_summary
+      df_half_ranges <- countries_per_year_scp_mcp$df_half_ranges
+      # Step 1: Validate and prepare country data
+      country_data <- bubble_countries_validate_and_prepare_country_data(df_first_half_summary, df_second_half_summary)
+      country_bubble_chart <- bubble_countries_plot_country_bubble_chart(
+        country_data,
+        title = "Bubble Chart of Countries by Total Citations and Citations per Year"
+      )
 
-      fn_m1_mtrc5_analyze_and_plot_tc_per_country(overview$tc_per_countries )
+      
+      save_plot(
+        plot = country_bubble_chart,
+        filename_prefix = "M1_G5_BUBBLE_COUNTRIES_MEDIAN_QUADRANTS", 
+        width = 11,
+        height = 6,
+        dpi = 1200
+      )
+
+      save_json(countries_per_year_scp_mcp, 'countries_per_year_scp_mcp.json')
+      # Step 4: Display the chart
+      print(country_bubble_chart)
+
+      message(' ')
+      message(' ')
+      message(' countries_per_year_scp_mcp  data columns:')
+      ##print(countries_per_year_scp_mcp)
+      message(' ')
+      message(' ')
+      message(' ')
+      stop(" ============== DEBUG ============== ")
+
+
 
       # Step 9: Inform completion
       message("[INFO] Main Information analysis completed.\n")
