@@ -282,7 +282,7 @@ generate_dual_bar_plot_horizontal <- function(data, title, x_label, y_label, x_v
   # Save the plot if file_name is provided
   if (!is.null(file_name)) {
     message("[DEBUG] Saving plot to: ", file_name)
-    save_plot(bar_plot, file_name, width = 10, height = 6, dpi = 1000)
+    save_plot(bar_plot, file_name, width = 12, height = 6, dpi = 1000)
   }
   
   return(bar_plot)
@@ -676,99 +676,133 @@ generate_world_map_ggplot <- function(data, file_name, title) {
     ) +
     ggsave(file_name, width = 10, height = 6, dpi = 600)
 }
+
+
+
+
+#' generate_world_map
+#'
+#' This function generates a world map visualizing the distribution of scientific articles by country.
+#' The map is saved in three different formats (PNG, SVG, and EPS) with a transparent background.
+#'
+#' @param map_data A data frame containing country names and a column with article counts.
+#' @param output_dir Directory where the output files will be saved. Default: "results/M1_Main_Information/figures".
+#' @param value_col Name of the column in map_data containing the article counts. Default: "Articles".
+#' @param map_title Title for the map. Default: "Global Distribution of Scientific Articles".
+#' @param file_name Base name for the output files (without extension). Default: "world_map".
+#' @param color_scheme Color palette for the map. Options: "viridis", "blues", "reds", "greens", "oranges", "purples", "cyans", "greyscale".
+#' @param caption_text Caption text for the map. Default: "Source: Custom Analysis".
+#'
+#' @return Saves the map as PNG, SVG, and EPS files in the specified directory.
 generate_world_map <- function(
   map_data,
   output_dir = "results/M1_Main_Information/figures",
   value_col = "Articles",
   map_title = "Global Distribution of Scientific Articles",
+  subtitle_text = "The number of articles published per country",
   file_name = "world_map",
   color_scheme = "viridis",
   caption_text = "Source: Custom Analysis"
 ) {
+  # Load world map data using the rnaturalearth package
   world <- rnaturalearth::ne_countries(scale = "medium", returnclass = "sf")
-
+  
+  # Prepare the input data by renaming and standardizing country names
   map_data <- map_data %>%
     dplyr::rename(Articles = !!value_col) %>%
     dplyr::mutate(Country = countrycode(Country, "country.name", "country.name"))
-
-
+  
+  # Standardize country names in the world data
   world$name <- countrycode(world$name, "country.name", "country.name")
-
-
-  # Step 4: Join map_data with world
+  
+  # Join the input data (map_data) with world map data on country names
   world <- dplyr::left_join(world, map_data, by = c("name" = "Country"))
-
-  # Step 5: Identify mismatched countries
-  mismatched <- dplyr::anti_join(map_data, world, by = c("Country" = "name"))
-
-  # Step 6: Exclude Antarctica
+  
+  # Exclude Antarctica from the map
   world <- world[!world$name %in% c("Antarctica"), ]
-
-  # Step 7: Define color palette
+  
+  # Define the color palette for the map
   palette <- switch(color_scheme,
     "viridis" = viridis::viridis(10),
     "blues" = c("#d7ecf5", "#004c91"),
     "reds" = c("#fee5d9", "#de2d26"),
-    "greyscale" = grey.colors(10, start = 0.9, end = 0.1),
     "greens" = c("#d0f0c0", "#006400"),
-    "oranges" = c("#ffeda0", "#f03b20"),
-    "purples" = c("#efedf5", "#756bb1"),
-    "cyans" = c("#e0f7fa", "#00796b"),
     grey.colors(10, start = 0.9, end = 0.1) # Default fallback
   )
-
-
-  # Step 9: Create the map plot
- map_plot <- ggplot(data = world) +
-  geom_sf(aes(fill = Articles), color = "black", size = 0.2) +
-  scale_fill_gradientn(
-    colours = if (is.character(palette)) palette else palette,
-    na.value = "lightgray", # Color for missing data
+  
+  # Create the map plot using ggplot2
+  map_plot <- ggplot(data = world)
+  map_plot <- map_plot + geom_sf(aes(fill = Articles), color = "black", size = 0.2) # Map polygons with black borders
+  map_plot <- map_plot + scale_fill_gradientn(
+    colours = palette,
+    na.value = "lightgray",  # Color for countries with missing data
     name = "Articles",
     guide = guide_colorbar(
-      barwidth = unit(20, "cm"),  # Adjust width of the gradient bar
-      barheight = unit(0.25, "cm") # Adjust height (thickness) of the gradient bar
+      barwidth = unit(15, "cm"),  # Width of the gradient bar
+      barheight = unit(0.25, "cm"),  # Height (thickness) of the gradient bar
+      title.position = "top",  # Title above the gradient
+      label.position = "bottom"
     )
-  ) +
-  labs(
-    title = map_title
-    #caption = "Source: Scopus"
-  ) +
-  theme_void() +
-  theme(
-    plot.title = element_text(hjust = 0.5, size = 18, face = "bold", color = "black"),
-    legend.position = "bottom",
-    legend.text = element_text(size = 10, color = "black"),
-    legend.title = element_text(size = 12, face = "bold", color = "black", vjust = 1.14), # Adjust vertical alignment
-    legend.key.width = unit(2, "cm"),
-    legend.key.height = unit(0.5, "cm"), 
-    plot.background = element_rect(fill = "transparent", color = NA), # Transparent background
-    panel.background = element_rect(fill = "transparent", color = NA) # Transparent panel
+  )
+  map_plot <- map_plot + labs(
+    title = map_title,
+    subtitle = subtitle_text,
+    caption = caption_text
+  )
+  map_plot <- map_plot + ggspatial::annotation_scale(
+      location = "bl",
+      width_hint = 0.2,   # Adjust the width of the scale bar
+      bar_units = "km",   # Set units to kilometers
+      text_cex = 0.8
+  )
+  map_plot <- map_plot + ggspatial::annotation_north_arrow(
+    location = "tr",  # Top-right position
+    which_north = "true",
+    style = ggspatial::north_arrow_fancy_orienteering(),
+    pad_x = unit(1, "cm"),  # Move it left to align with the title
+    pad_y = unit(-1.8, "cm")  # Move it up to match the title's y-position
   )
 
+  # Ensure nothing gets cropped by turning off clipping 
+  map_plot <- map_plot + coord_sf(clip = "off", expand = FALSE)
 
-  # Step 8: Define output file path
-
+  # Styling: Adjust title, subtitle, and spacing
+  map_plot <- map_plot + theme_void()
+# Styling: Adjust margins to reduce space on the sides
+map_plot <- map_plot + theme(
+  plot.margin = margin(30, 5, 10, 5),  # Reduce right and left margins
+  plot.title = element_text(hjust = 0, size = 16, face = "bold", color = "black", margin = margin(b = 10)),
+  plot.subtitle = element_text(hjust = 0, size = 12, color = "black", margin = margin(b = 15)),
+  plot.caption = element_text(size = 10, hjust = 0, margin = margin(t = 20)),
+  legend.position = "bottom",
+  legend.box = "horizontal",
+  legend.box.just = "left",
+  legend.box.margin = margin(t = 0, b = 0, l = -400, r = 0),  # No extra padding on the sides
+  legend.text = element_text(size = 10),
+  legend.title = element_text(size = 11, face = "bold"),
+  legend.key = element_rect(fill = "white", color = NA)
+)
+  
+  # Define the output file path
   output_file_base <- file.path(output_dir, file_name)
   dir.create(dirname(output_file_base), recursive = TRUE, showWarnings = FALSE)
-
-  # Step 10: Save the plot
-  # Save as PNG
+  
+  # Save the map in PNG format
   ggsave(
     paste0(output_file_base, ".png"), plot = map_plot,
-    width = 10.5, height = 5, dpi = 1200, bg = "transparent"
+    width = 12, height = 7, dpi = 1600, bg = "transparent"
   )
-
-  # Save as SVG
+  
+  # Save the map in SVG format
   ggsave(
     paste0(output_file_base, ".svg"), plot = map_plot,
-    width = 10.5, height = 5, dpi = 1200, bg = "transparent", device = "svg"
+    width = 12, height = 6.5, dpi = 1600, bg = "transparent", device = "svg"
   )
-
-  # Save as EPS
+  
+  # Save the map in EPS format
   ggsave(
     paste0(output_file_base, ".eps"), plot = map_plot,
-    width = 10.5, height = 5, dpi = 1200, bg = "transparent", device = "eps"
+    width = 12, height = 6.5, dpi = 1600, bg = "transparent", device = "eps"
   )
 }
 
