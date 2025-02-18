@@ -1,8 +1,8 @@
 # ---------------------------------------------------------------------------- #
-# -- M2 Main Information Analysis ------------------------------------------- #
+# M2 Main Information Analysis Script
 # ---------------------------------------------------------------------------- #
 
-# Load necessary libraries
+# Libraries
 library(ggwordcloud)
 library(ggplot2)
 library(jsonlite)
@@ -10,40 +10,40 @@ library(bibliometrix)
 library(wordcloud2)
 library(htmlwidgets)
 library(cluster)
+library(dplyr)
+library(scales)
+library(webshot)
+library(stopwords)
+library(ggplot2)
+library(dplyr)
+library(jsonlite)
+library(scales)
 
-
+# Load Helper Functions and Additional Scripts
 source('../../src/M1_Main_Information/_helpers.r')
 source('../../src/M1_Main_Information/_plots.r')
 source('../../src/M1_Main_Information/_report.r')
-
+source('../../src/M1_Main_Information/__m1_keywords_clouds_charts.r')
 source('../../src/M1_Main_Information/__m1_scp_mcp_stacked_bar_chart.r')
+source('../../src/M1_Main_Information/__m1_bubble_countries.r')
+source('../../src/M1_Main_Information/__m1_bubble_countries_full.r')
 
 # ---------------------------------------------------------------------------- #
-# Function: Main Information Analysis
+# Function: fn_m1_main_information
+# Description: Main information analysis using bibliometrix data.
 # ---------------------------------------------------------------------------- #
 fn_m1_main_information <- function(bib_data) {
+  
+  # Step 1: Bibliometric Analysis
   res1 <- biblioAnalysis(bib_data, sep = ";")
   s1 <- summary(res1, pause = FALSE, verbose = FALSE)
 
-
-  message(' ')
-  message(' ')
-  message(' ')
-  message(' ')
-  message(' =======> s1 <======= fn_m1_main_information ')
-  message(' ')
+  message("======= Summary of Bibliometric Analysis =======")
   print(s1)
-  message(' ')
-  message(' ')
-  message(' ')
-  message(' ')
-  message(' ')
-  message(' ')
-  message(' ')
-
+  
+  # Step 2: Extract and Clean Data
   extracted_data <- extract_bibliographic_data(bib_data, res1)
-
-  # Extract and clean additional summary information
+  
   summary_df <- clean_whitespace(s1$MainInformationDF)
   most_prod_authors <- clean_whitespace(s1$MostProdAuthors)
   annual_production <- clean_whitespace(s1$AnnualProduction)
@@ -53,30 +53,28 @@ fn_m1_main_information <- function(bib_data) {
   most_rel_sources <- clean_whitespace(s1$MostRelSources)
   most_rel_keywords <- clean_whitespace(s1$MostRelKeywords)
 
-
-  # Assign unique IDs based on DOI match
+  # Step 3: Assign Unique IDs to Most Cited Papers
   most_cited_papers <- most_cited_papers %>%
     dplyr::mutate(
       PaperID = dplyr::case_when(
         DOI %in% bib_data$DI ~ paste0("[", match(DOI, bib_data$DI), "]"),
-        TRUE ~ NA_character_ # If no match, set to NA
+        TRUE ~ NA_character_
       )
     )
 
-
-  # Ensure there are no missing IDs
+  # Check for Missing IDs
   if (any(is.na(most_cited_papers$PaperID))) {
     warning("[WARNING] Some papers could not be assigned unique IDs.")
   }
 
-  # Ensure PaperID column is present
   if (!"PaperID" %in% colnames(most_cited_papers)) {
-    stop("[ERROR] Unable to assign unique IDs. Check DOI consistency between datasets.")
+    stop("[ERROR] Unable to assign unique IDs. Check DOI consistency.")
   }
-  # Compute Bradford's Law
+
+  # Step 4: Compute Bradford's Law
   bradford_law <- bradford(bib_data)$table
 
-  # Organize main information into a structured list
+  # Step 5: Organize Results into a Structured List
   main_information_data <- list(
     main_information = extract_main_information(summary_df),
     most_cited_papers = most_cited_papers,
@@ -89,328 +87,104 @@ fn_m1_main_information <- function(bib_data) {
     bradford_law = bradford_law,
     extracted_data = extracted_data
   )
-
+  
   return(main_information_data)
 }
 
 # ---------------------------------------------------------------------------- #
 # Function: M1 Metric Mtrc1 :: Save Document Types Pie Chart
+# Description: Creates and saves a pie chart showing the distribution of document types.
 # ---------------------------------------------------------------------------- #
 fn_m1_mtrc1_articles_types_pie <- function(v_document_types) {
-  # Create data frame from document types
+  
+  # Step 1: Prepare Data Frame
   df <- data.frame(
     Document_Type = names(v_document_types),
     Count = sapply(v_document_types, function(x) ifelse(length(x) == 0, 0, x))
   )
-
-  # Filter out types with zero count and apply label mapping
+  
+  # Step 2: Filter Out Zero Count Types
   df <- df[df$Count > 0, ]
+  
+  # Step 3: Apply Label Mapping
   df$Document_Type <- LABEL_MAPPING[df$Document_Type]
 
-  # Create the pie chart
-  pie_chart <- ggplot(df, aes(x = "", y = Count, fill = Document_Type)) +
-    geom_bar(
-      width = 1, 
-      stat = "identity", 
-      color = THEME_COLORS$Grayscale$Black, 
-      size = 0.25
-    ) +
-    coord_polar("y", start = 0) +
-    labs(
-      title = "Document Types Distribution"
-    ) +
-    theme_void() +
-    theme(
-      plot.title = element_text(
-        size = 16, 
-        face = "bold", 
-        hjust = 0.5, 
-        margin = margin(t = 10, b = 10), 
-        color = THEME_COLORS$Text$Title
-      ),
-      legend.title = element_blank(),
-      legend.text = element_text(
-        size = 12, 
-        color = THEME_COLORS$Text$Body
-      ),
-      legend.position = "right"
-    ) +
-    scale_fill_manual(values = THEME_COLORS$Main)
-
-  # Save the plot using the save_plot function
+  # Step 4: Generate the Pie Chart using ggplot2
+  pie_chart <- ggplot(df, aes(x = "", y = Count, fill = Document_Type))
+  pie_chart <- pie_chart + geom_bar(
+    width = 1, 
+    stat = "identity", 
+    color = THEME_COLORS$Grayscale$Black, 
+    size = 0.25
+  )
+  pie_chart <- pie_chart + coord_polar("y", start = 0)
+  pie_chart <- pie_chart + labs(title = "Document Types Distribution")
+  pie_chart <- pie_chart + theme_void()
+  pie_chart <- pie_chart + theme(
+    plot.title = element_text(
+      size = 16, 
+      face = "bold", 
+      hjust = 0.5, 
+      margin = margin(t = 10, b = 10), 
+      color = THEME_COLORS$Text$Title
+    ),
+    legend.title = element_blank(),
+    legend.text = element_text(size = 12, color = THEME_COLORS$Text$Body),
+    legend.position = "right"
+  )
+  pie_chart <- pie_chart + scale_fill_manual(values = THEME_COLORS$Main)
+  
+  # Step 5: Save the Pie Chart
   save_plot(pie_chart, "M1_G2_DOCUMENT_TYPES_PIE_PLOT", width = 6, height = 4, dpi = 600)
-}
-
-# ---------------------------------------------------------------------------- #
-# Function: M1 Metric Mtrc1 :: Generate Most Relevant Keywords Wordcloud using ggplot2
-# ---------------------------------------------------------------------------- #
-fn_m1_mtrc2_most_rel_keywords_wordcloud <- function(most_rel_keywords, output_path = "results/M1_Main_Information/figures") {
   
-  # Check if input data is null or empty
-  if (is.null(most_rel_keywords) || nrow(most_rel_keywords) == 0) {
-    stop("[ERROR] The input `most_rel_keywords` is NULL or empty.")
-  }
-
-  # Ensure the columns contain the correct data
-  colnames(most_rel_keywords)[1] <- "Author Keywords (DE)"
-  colnames(most_rel_keywords)[2] <- "Article-Author-Keywords"
-  colnames(most_rel_keywords)[3] <- "Keywords-Plus (ID)"
-  colnames(most_rel_keywords)[4] <- "Keywords-Plus-Articles"
-
-  # Function to split keywords and repeat counts appropriately
-  split_keywords <- function(keywords, counts) {
-    split_words <- unlist(strsplit(keywords, " "))
-    counts_repeated <- rep(counts, times = lengths(strsplit(keywords, " ")))
-    data.frame(Keyword = split_words, Count = counts_repeated, stringsAsFactors = FALSE)
-  }
-
-  # Process both "Author Keywords (DE)" and "Keywords-Plus (ID)"
-  author_keywords <- split_keywords(
-    most_rel_keywords$`Author Keywords (DE)`, 
-    as.numeric(most_rel_keywords$`Article-Author-Keywords`)
-  )
-  keywords_plus <- split_keywords(
-    most_rel_keywords$`Keywords-Plus (ID)`, 
-    as.numeric(most_rel_keywords$`Keywords-Plus-Articles`)
-  )
-
-  # Combine both into a single data frame
-  combined_keywords <- rbind(author_keywords, keywords_plus)
-
-  # Remove NA or empty keywords
-  combined_keywords <- combined_keywords[!is.na(combined_keywords$Keyword) & combined_keywords$Keyword != "", ]
-
-  # Aggregate duplicate keywords and sum their counts
-  combined_keywords <- combined_keywords %>%
-    group_by(Keyword) %>%
-    summarise(Count = sum(Count, na.rm = TRUE)) %>%
-    ungroup()
-
-  # Sort keywords by frequency
-  combined_keywords <- combined_keywords %>%
-    arrange(desc(Count))
-
-  # Generate the word cloud
-  p <- ggplot(
-    combined_keywords, 
-    aes(
-      label = Keyword,
-      size = Count,
-      color = Count
-    )
-  ) +
-    geom_text_wordcloud(
-      area_corr = TRUE,
-      family = "Helvetica",
-      rotate_ratio = 0.5,
-      shape = "circle",
-      grid_size = 10,
-      rm_outside = FALSE
-    ) +
-    scale_size_area(max_size = 100) +
-    scale_color_gradientn(
-      colors = c(
-        THEME_COLORS$Categorical["Lower"], 
-        THEME_COLORS$Categorical["Medium"], 
-        THEME_COLORS$Categorical["Bigger"]
-      ),
-      values = scales::rescale(c(1, 10, 50, max(combined_keywords$Count))),
-      name = "Word Frequency",
-      guide = guide_colorbar(
-        barwidth = 10, barheight = 0.8, 
-        title.position = "top", title.hjust = 0.5
-      )
-    ) +
-    labs(
-      title = "Most Relevant Keywords"
-      #subtitle = "Word frequency representation",
-      #caption = "Generated using ggplot2"
-    ) +
-    theme_void() +
-    theme(
-      plot.title = element_text(
-        size = 16, face = "bold", hjust = 0.5, 
-        color = THEME_COLORS$Text$Title,
-        margin = margin(t = 10, b = 10)
-      ),
-      plot.subtitle = element_text(
-        size = 12, hjust = 0.5, 
-        color = THEME_COLORS$Text$Subtitle,
-        margin = margin(t = 5, b = 5)
-      ),
-      plot.caption = element_text(
-        size = 10, hjust = 0.5, 
-        color = THEME_COLORS$Text$Body,
-        margin = margin(t = 5)
-      ),
-      legend.position = "bottom",
-      legend.title = element_text(
-        size = 10, face = "bold", color = THEME_COLORS$Text$Title
-      ),
-      legend.text = element_text(
-        size = 8, color = THEME_COLORS$Text$Body
-      )
-    )
-
-  # Save the plot
-  save_plot(
-    p, 
-    "M1_G1_MOST_RELEVANT_KEYWORDS_WORDCLOUD", 
-    width = 8, height = 6, dpi = 600
-  )
-
-  # Log a success message
-  message("[INFO] Wordcloud generated and saved successfully.")
+  # Log success message
+  message("[INFO] Pie chart for document types saved successfully.")
 }
 
 # ---------------------------------------------------------------------------- #
-# Function: Generate Most Relevant Keywords Wordcloud2
-# ---------------------------------------------------------------------------- #
-fn_m1_mtrc2_most_rel_keywords_wordcloud2 <- function(most_rel_keywords) {
-  if (is.null(most_rel_keywords) || nrow(most_rel_keywords) == 0) {
-    stop("[ERROR] The input `most_rel_keywords` is NULL or empty.")
-  }
-
-  # Format column names
-  colnames(most_rel_keywords)[1] <- "Author Keywords (DE)"
-  colnames(most_rel_keywords)[2] <- "Article-Author-Keywords"
-
-  # Convert counts to numeric
-  most_rel_keywords$`Article-Author-Keywords` <- as.numeric(most_rel_keywords$`Article-Author-Keywords`)
-
-  # Prepare data for wordcloud2
-  wordcloud_data <- most_rel_keywords %>%
-    select(`Author Keywords (DE)`, `Article-Author-Keywords`) %>%
-    rename(word = `Author Keywords (DE)`, freq = `Article-Author-Keywords`)
-
-  # Create the word cloud
-  library(wordcloud2)
-  wordcloud <- wordcloud2(wordcloud_data, size = 1, shape = "circle")
-
-  # Save the word cloud as HTML
-  output_html <- file.path("results/M1_Main_Information/figures", "M1_Most_Rel_Keywords_Wordcloud.html")
-  htmlwidgets::saveWidget(wordcloud, output_html, selfcontained = FALSE)
-  message("[INFO] Wordcloud saved at: ", output_html)
-}
-
-
-
-fn_m1_mtrc2_all_keywords_wordcloud <- function(extracted_data) {
-
-  library(wordcloud2)
-  library(webshot)
-  library(htmlwidgets)
-
-  if (is.null(extracted_data$keywords) || is.null(extracted_data$titles) || is.null(extracted_data$descriptions)) {
-    stop("[ERROR] Extracted data must include `keywords`, `titles`, and `descriptions`.")
-  }
-
-  # Combine text data
-  combined_text <- c(
-    unlist(extracted_data$keywords),
-    unlist(extracted_data$titles),
-    unlist(extracted_data$descriptions)
-  )
-  
-  # Clean text data
-  cleaned_text <- tolower(combined_text)
-  cleaned_text <- gsub("[[:punct:]]", " ", cleaned_text)
-  cleaned_text <- gsub("[[:digit:]]", "", cleaned_text)
-  cleaned_text <- gsub("\\s+", " ", cleaned_text)
-  cleaned_text <- trimws(cleaned_text)
-
-  # Tokenize and filter words
-  words <- unlist(strsplit(cleaned_text, split = " "))
-  stopwords <- c(stopwords::stopwords("en"), "also", "however", "therefore", "thus", "hence")
-  words <- words[!words %in% stopwords]
-  words <- words[nchar(words) > 1]
-
-  # Word frequency
-  word_counts <- as.data.frame(table(words))
-  colnames(word_counts) <- c("word", "freq")
-  word_counts <- word_counts[order(-word_counts$freq), ]
-  word_counts <- head(word_counts, 100)
-
-
-  # Custom color function
-  color_function <- "function(word, weight) {
-      var maxWeight = 4000;  // Replace with approximate maximum frequency
-      var intensity = weight / maxWeight;
-      intensity = Math.min(1, Math.max(0.1, intensity)); // Clamp intensity
-      return `rgba(0, 0, 255, ${intensity})`;  // Blue gradient
-  }"
-
-  # Generate word cloud
-  wordcloud_plot <- wordcloud2::wordcloud2(
-    data = word_counts,
-    size = 1.2,
-    color = htmlwidgets::JS(color_function),
-    shape = "ellipse",
-    gridSize = 10,
-    rotateRatio = 0.015
-  )
-
-
-  # Save word cloud as HTML
-  htmlwidgets::saveWidget(
-    wordcloud_plot,
-    "results/M1_Main_Information/figures/M1_Most_Rel_Keywords_Wordcloud.html",
-    selfcontained = TRUE
-  )
-
-  # Save word cloud as PNG
-  webshot(
-    url = "results/M1_Main_Information/figures/M1_Most_Rel_Keywords_Wordcloud.html",
-    file = "results/M1_Main_Information/figures/M1_Most_Rel_Keywords_Wordcloud.png",
-    delay = 25,
-    vwidth = 2000,
-    vheight = 1200
-  )
-
-  message("[INFO] Word cloud saved as HTML and PNG.")
-  return(word_counts)
-}
-
-
-fn_m1_mtrc2_all_keywords_wordcloud_by_years <- function(extracted_data) {
-  preprocessed <- wc_3x3_preprocess_data(extracted_data)
-  wordcloud_data <- wc_3x3_create_wordcloud_data(preprocessed$data, preprocessed$word_freq, preprocessed$top_100_words)
-  wc_3x3_plot_and_save_results(wordcloud_data$grobs, wordcloud_data$chunks_details)
-}
-
-
-
-
-
-# ---------------------------------------------------------------------------- #
-# Function: Analyze and Plot Most Productive Authors
+# Function: M1 Metric Mtrc3 :: Analyze and Plot Most Productive Authors
+# Description: Validates data, calculates author productivity metrics, and generates a bar plot.
 # ---------------------------------------------------------------------------- #
 fn_m1_mtrc3_analyze_and_plot_most_prod_authors <- function(data) {
-  # Step 1: Validate data
+  
+  # Step 1: Validate Data
+  # Ensure the input data contains the required columns: "Authors" and "Articles".
   data <- validate_data(data, c("Authors", "Articles"))
   
-  # Step 2: Calculate metrics
+  # Step 2: Calculate Metrics for Top Authors
   metrics <- calculate_metrics_top_authors(data)
 
-  # Step 3: Generate the plot
-  plot <- generate_bar_plot_horizontal(
-    data = metrics,
+  # Step 3: Generate Horizontal Bar Plot for Top Authors
+  plot <- ggplot(metrics, aes(x = reorder(Authors, Articles), y = Articles))
+  plot <- plot + geom_bar(stat = "identity", fill = THEME_COLORS$Main[1], color = "black", size = 0.3)
+  plot <- plot + coord_flip()
+  plot <- plot + labs(
     title = "Top 10 Most Productive Authors",
-    x_label = "Authors",
-    y_label = "Number of Articles",
-    x_var = "Authors",
-    y_var = "Articles"
+    x = "Authors",
+    y = "Number of Articles"
+  )
+  plot <- plot + theme_minimal()
+  plot <- plot + theme(
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5, margin = margin(t = 10, b = 10)),
+    axis.title.x = element_text(size = 12),
+    axis.title.y = element_text(size = 12),
+    axis.text = element_text(size = 10),
+    axis.line = element_line(color = "black"),
+    panel.grid.major = element_line(color = THEME_COLORS$Grayscale$LightGray),
+    panel.grid.minor = element_blank()
   )
 
-  # Step 4: Save JSON
+  # Step 4: Save Metrics as JSON
+  # Export the calculated metrics to a JSON file.
   save_json(metrics, "most_prod_authors.json")
   
-  # Step 5: Save plot
+  # Step 5: Save the Plot as PNG
   save_plot(plot, "M1_G3_MOST_PROD_AUTHORS_BAR_PLOT", width = 8, height = 6, dpi = 600)
   
-  # Log success
+  # Step 6: Log Success Message
   message("[INFO] Most Productive Authors analysis completed successfully.")
 }
+
 # ---------------------------------------------------------------------------- #
 # Function: Generate Lorenz Curve for Author Contributions with Debug Logs
 # ---------------------------------------------------------------------------- #
@@ -460,10 +234,6 @@ fn_m1_mtrc3_generate_lorenz_curve <- function(data, output_dir) {
   })
 }
 
-
-
-
- 
 # ---------------------------------------------------------------------------- #
 # Function: Analyze and Plot Most Cited Papers
 # ---------------------------------------------------------------------------- #
@@ -601,12 +371,9 @@ fn_m1_mtrc4_analyze_and_plot_citations_per_year <- function(data) {
 }
 
 
-
-
 # ---------------------------------------------------------------------------- #
 # Function: Generate and Save Bubble Charts for Most Cited Papers (Refactored)
 # ---------------------------------------------------------------------------- #
-
 fn_m1_mtrc4_generate_bubble_chart <- function(data) {
   tryCatch({
 
@@ -668,37 +435,46 @@ fn_m1_mtrc4_generate_bubble_chart <- function(data) {
   })
 }
 
-
-
 # ---------------------------------------------------------------------------- #
-# Function: Analyze and Plot Most Productive Countries
+# Function: M1 Metric Mtrc5 :: Analyze and Plot Most Productive Countries
+# Description: Validates and preprocesses data, then generates multiple plots, 
+# including bar plots, Lorenz curves, world maps, and treemaps for country-based analysis.
 # ---------------------------------------------------------------------------- #
 fn_m1_mtrc5_analyze_and_plot_most_prod_countries <- function(data) {
-  # Step 1: Validate and preprocess input data
+  
+  # Step 1: Validate and Preprocess Data
   message("[INFO] Validating and preprocessing data for country analysis...")
   data <- preprocess_data(data, required_columns = c("Country", "Articles", "SCP", "MCP"))
 
-
-
-
-  # Step 2: Generate bar plot for top productive countries
+  # Step 2: Generate Bar Plot for Top Productive Countries
   message("[INFO] Generating bar plot for the most productive countries...")
   top_countries <- get_top_countries(data, top_n = 15)
-  generate_bar_plot_horizontal(
-    data = top_countries,
+  
+  bar_plot <- ggplot(top_countries, aes(x = reorder(Country, Articles), y = Articles))
+  bar_plot <- bar_plot + geom_bar(stat = "identity", fill = THEME_COLORS$Main[1], color = "black", size = 0.3)
+  bar_plot <- bar_plot + coord_flip()
+  bar_plot <- bar_plot + labs(
     title = "Top 15 Most Productive Countries",
-    x_label = "Country",
-    y_label = "Number of Articles",
-    x_var = "Country",
-    y_var = "Articles",
-    file_name = "M1_G5_MOST_PROD_COUNTRIES_BAR_PLOT"
+    x = "Country",
+    y = "Number of Articles"
+  )
+  bar_plot <- bar_plot + theme_minimal() + theme(
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+    axis.title.x = element_text(size = 12),
+    axis.title.y = element_text(size = 12),
+    axis.text = element_text(size = 10),
+    panel.grid.major = element_line(color = THEME_COLORS$Grayscale$LightGray)
   )
 
+  # Save Bar Plot
+  save_plot(bar_plot, "M1_G5_MOST_PROD_COUNTRIES_BAR_PLOT", width = 8, height = 6, dpi = 600)
 
   # Ensure SCP and MCP columns are numeric
   top_countries$SCP <- as.numeric(top_countries$SCP)
   top_countries$MCP <- as.numeric(top_countries$MCP)
 
+  # Step 3: Generate Dual Bar Plot for SCP and MCP
+  message("[INFO] Generating dual bar plot for SCP and MCP...")
   generate_dual_bar_plot_horizontal(
     data = top_countries,
     title = "Top Countries by SCP and MCP",
@@ -707,43 +483,10 @@ fn_m1_mtrc5_analyze_and_plot_most_prod_countries <- function(data) {
     x_var = "Country",
     y_var_scp = "SCP",
     y_var_mcp = "MCP",
-    file_name = "M1_G5_MOST_PROD_COUNTRIES_STACKED_BAR_PLOT.png"
+    file_name = "M1_G5_MOST_PROD_COUNTRIES_STACKED_BAR_PLOT"
   )
 
-  generate_dual_bar_plot_with_mirrored_area(
-    data = top_countries,
-    title = "Top Countries by SCP and MCP",
-    x_label = "Countries",
-    y_label = "N. of Documents",
-    x_var = "Country",
-    y_var_scp = "SCP",
-    y_var_mcp = "MCP",
-    file_name = "M1_G5_MOST_PROD_COUNTRIES_STACKED_MIRRORED_BAR_PLOT.png"
-  )
-
-
-  message(' ')
-  message(' ')
-  message(' ')
-  message(' ')
-  message(' ')
-  message(' ')
-  message(' ')
-  message(' ===> fn_m1_mtrc5_analyze_and_plot_most_prod_countries top_countries ')
-  message('top_countries')
-  print(top_countries)
-  message(' ')
-  message(' ')
-    message('data')
-  print(data)
-  message(' ')
-  message(' ')
-  message(' ')
-  message(' ')
-  stop('')
-
-
-  # Step 3: Generate Lorenz curve for inequality analysis
+  # Step 4: Generate Lorenz Curve for Inequality Analysis
   message("[INFO] Generating Lorenz curve for inequality analysis...")
   generate_lorenz_curve(
     data = data,
@@ -756,7 +499,7 @@ fn_m1_mtrc5_analyze_and_plot_most_prod_countries <- function(data) {
     theme_colors = THEME_COLORS
   )
 
-  # Step 4: Generate world map for article distribution
+  # Step 5: Generate World Map for Article Distribution
   message("[INFO] Generating world map for article production...")
   tryCatch({
     generate_world_map(
@@ -771,14 +514,15 @@ fn_m1_mtrc5_analyze_and_plot_most_prod_countries <- function(data) {
     message("[ERROR] Failed to generate world map: ", e$message)
   })
 
-
+  # Step 6: Generate Treemap for Article Distribution by Country
+  message("[INFO] Generating treemap for article distribution...")
   data <- data %>%
     mutate(
-      Country = as.character(Country),          # Convert Country to character
-      Freq = as.numeric(Freq),                  # Convert Freq to numeric
-      SCP = as.numeric(SCP),                    # Convert SCP to numeric
-      MCP = as.numeric(MCP),                    # Convert MCP to numeric
-      MCP_Ratio = as.numeric(MCP_Ratio)         # Convert MCP_Ratio to numeric
+      Country = as.character(Country),
+      Freq = as.numeric(Freq),
+      SCP = as.numeric(SCP),
+      MCP = as.numeric(MCP),
+      MCP_Ratio = as.numeric(MCP_Ratio)
     )
   generate_treemap(
     data = data,
@@ -788,52 +532,35 @@ fn_m1_mtrc5_analyze_and_plot_most_prod_countries <- function(data) {
     file_name = "M1_G5_MOST_PROD_COUNTRIES_TREEMAP"
   )
 
-  # Step 5: Generate the stacked plot for top 10 countries
-  message("[INFO] Generating stacked bar plot for the most productive countries...")
-generate_bar_stacked(
-  data = data, 
-  title = "Most Productive Countries",
-  x_label = "N. of Documents",
-  y_label = "Countries",
-  categorical_var_col = "Country",
-  col_a = "SCP",
-  col_b = "MCP",
-  col_a_label = "SCP",
-  col_b_label = "MCP",
-  file_name = "M1_G5_MOST_PROD_COUNTRIES_STACKED_BAR_PLOT"
-)
-
-  # Step 6: Bar Plot for SCP (Single Country Publications)
-  message("[INFO] Generating bar plot for SCP...")
-  data <- data %>% mutate(SCP = as.numeric(SCP))
-  generate_bar_plot_horizontal(
-    data = data,
+  # Step 7: Generate Additional Bar Plots for SCP and MCP
+  message("[INFO] Generating bar plots for SCP and MCP...")
+  
+  # Bar Plot for SCP (Single Country Publications)
+  bar_plot_scp <- ggplot(data, aes(x = reorder(Country, SCP), y = SCP))
+  bar_plot_scp <- bar_plot_scp + geom_bar(stat = "identity", fill = THEME_COLORS$Main[2], color = "black", size = 0.3)
+  bar_plot_scp <- bar_plot_scp + coord_flip()
+  bar_plot_scp <- bar_plot_scp + labs(
     title = "Single Country Publications (SCP)",
-    x_label = "Country",
-    y_label = "Number of SCP Articles",
-    x_var = "Country",
-    y_var = "SCP",
-    add_threshold_line = FALSE,
-    file_name = "M1_G5_MOST_PROD_COUNTRIES_SCP_BAR_PLOT"
+    x = "Country",
+    y = "Number of SCP Articles"
   )
+  bar_plot_scp <- bar_plot_scp + theme_minimal()
+  save_plot(bar_plot_scp, "M1_G5_MOST_PROD_COUNTRIES_SCP_BAR_PLOT", width = 8, height = 6, dpi = 600)
 
-  # Step 7: Bar Plot for MCP (Multiple Country Publications)
-  message("[INFO] Generating bar plot for MCP...")
-  data <- data %>% mutate(MCP = as.numeric(MCP))
-  generate_bar_plot_horizontal(
-    data = data,
+  # Bar Plot for MCP (Multiple Country Publications)
+  bar_plot_mcp <- ggplot(data, aes(x = reorder(Country, MCP), y = MCP))
+  bar_plot_mcp <- bar_plot_mcp + geom_bar(stat = "identity", fill = THEME_COLORS$Main[3], color = "black", size = 0.3)
+  bar_plot_mcp <- bar_plot_mcp + coord_flip()
+  bar_plot_mcp <- bar_plot_mcp + labs(
     title = "Multiple Country Publications (MCP)",
-    x_label = "Country",
-    y_label = "Number of MCP Articles",
-    x_var = "Country",
-    y_var = "MCP",
-    add_threshold_line = FALSE,
-    file_name = "M1_G5_MOST_PROD_COUNTRIES_MCP_BAR_PLOT"
+    x = "Country",
+    y = "Number of MCP Articles"
   )
+  bar_plot_mcp <- bar_plot_mcp + theme_minimal()
+  save_plot(bar_plot_mcp, "M1_G5_MOST_PROD_COUNTRIES_MCP_BAR_PLOT", width = 8, height = 6, dpi = 600)
 
-
-  # Final log message
-  message("[INFO] Most productive countries analysis (bar plot, Lorenz curve, world map, stacked bar plot) completed successfully.")
+  # Step 8: Final Logging and Completion
+  message("[INFO] Most productive countries analysis completed successfully.")
 }
 
 
@@ -1000,39 +727,46 @@ analyze_and_plot_bradford_law <- function(data, output_dir) {
 
 
 # ---------------------------------------------------------------------------- #
-# Function: Analyze and Plot Total Citations Per Country
-# ---------------------------------------------------------------------------- #
-# ---------------------------------------------------------------------------- #
-# Function: Analyze and Plot Total Citations Per Country
+# Function: M1 Metric Mtrc5 :: Analyze and Plot Total Citations Per Country
+# Description: Validates and preprocesses data, then generates multiple plots
+# to visualize total and average citations by country.
 # ---------------------------------------------------------------------------- #
 fn_m1_mtrc5_analyze_and_plot_tc_per_country <- function(data) {
-  # Step 1: Validate and preprocess input data
+  
+  # Step 1: Validate and Preprocess Data
   message("[INFO] Validating and preprocessing data for citation analysis...")
   data <- preprocess_data(data, required_columns = c("Country", "Total Citations", "Average Article Citations"))
 
+  data <- data %>%
+    mutate(
+      `Total Citations` = suppressWarnings(as.numeric(`Total Citations`)),
+      `Average Article Citations` = suppressWarnings(as.numeric(`Average Article Citations`))
+    )
 
-data <- data %>%
-  mutate(
-    `Total Citations` = suppressWarnings(as.numeric(`Total Citations`)),
-    `Average Article Citations` = suppressWarnings(as.numeric(`Average Article Citations`))
-  )
-
-  # Step 2: Generate bar plot for top countries by total citations
+  # Step 2: Generate Bar Plot for Top Countries by Total Citations
   message("[INFO] Generating bar plot for the countries with the most citations...")
   top_countries <- get_top_countries(data, column = "Total Citations", top_n = 15)
 
-generate_bar_plot_horizontal(
-    data = top_countries,
+  bar_plot <- ggplot(top_countries, aes(x = reorder(Country, `Total Citations`), y = `Total Citations`))
+  bar_plot <- bar_plot + geom_bar(stat = "identity", fill = THEME_COLORS$Main[1], color = "black", size = 0.3)
+  bar_plot <- bar_plot + coord_flip()
+  bar_plot <- bar_plot + labs(
     title = "Top 15 Countries by Total Citations",
-    x_label = "Country",
-    y_label = "Number of Citations",
-    x_var = "Country",
-    y_var = "Total Citations",
-    file_name = "M1_G5_TOP_COUNTRIES_BY_TOTAL_CITATIONS_BAR_PLOT"
+    x = "Country",
+    y = "Number of Citations"
+  )
+  bar_plot <- bar_plot + theme_minimal() + theme(
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+    axis.title.x = element_text(size = 12),
+    axis.title.y = element_text(size = 12),
+    axis.text = element_text(size = 10),
+    panel.grid.major = element_line(color = THEME_COLORS$Grayscale$LightGray)
   )
 
+  # Save Bar Plot
+  save_plot(bar_plot, "M1_G5_TOP_COUNTRIES_BY_TOTAL_CITATIONS_BAR_PLOT", width = 8, height = 6, dpi = 600)
 
-  # Step 3: Generate Lorenz curve for inequality analysis based on total citations
+  # Step 3: Generate Lorenz Curve for Citation Inequality Analysis
   message("[INFO] Generating Lorenz curve for citation inequality analysis...")
   generate_lorenz_curve(
     data = data,
@@ -1045,23 +779,13 @@ generate_bar_plot_horizontal(
     theme_colors = THEME_COLORS
   )
 
-data <- data %>%
-  rename(Total_Citations = `Total Citations`) %>%
-  mutate(Total_Citations = suppressWarnings(as.numeric(Total_Citations)))
-
-data <- data %>%
-  rename(Average_Article_Citations = `Average Article Citations`) %>%
-  mutate(Average_Article_Citations = suppressWarnings(as.numeric(Average_Article_Citations)))
-
-
-
-  # Step 4: Generate world map for citation distribution
+  # Step 4: Generate World Map for Citation Distribution
   message("[INFO] Generating world map for citation distribution...")
   tryCatch({
     generate_world_map(
       map_data = data,
       output_dir = "results/M1_Main_Information/figures",
-      value_col = "Total_Citations",
+      value_col = "Total Citations",
       map_title = "Global Distribution of Citations",
       file_name = "M1_G5_TOP_COUNTRIES_BY_TOTAL_CITATIONS_MAP",
       color_scheme = "blues"
@@ -1070,59 +794,54 @@ data <- data %>%
     message("[ERROR] Failed to generate world map: ", e$message)
   })
 
-
-  data <- data %>%
-    mutate(
-      Country = as.character(Country),
-      Total_Citations = as.numeric(Total_Citations),
-      Average_Article_Citations = as.numeric(Average_Article_Citations)
-    )
-
-  # Step 5: Generate treemap for citation distribution
+  # Step 5: Generate Treemap for Citation Distribution
   message("[INFO] Generating treemap for citation distribution...")
   generate_treemap(
     data = data,
-    value_col = "Total_Citations",
+    value_col = "Total Citations",
     label_col = "Country",
     title = "Citation Distribution by Country",
     file_name = "M1_G5_TOP_COUNTRIES_BY_TOTAL_CITATIONS_TREEMAP"
   )
 
-
-
-  # Step 6: Generate stacked bar plot for the most cited countries
-  message("[INFO] Generating stacked bar plot for the countries with most citations...")
-generate_bar_stacked(
+  # Step 6: Generate Stacked Bar Plot for Most Cited Countries
+  message("[INFO] Generating stacked bar plot for the most cited countries...")
+  generate_bar_stacked(
     data = data,
     title = "Most Cited Countries",
     x_label = "Number of Citations",
     y_label = "Countries",
     file_name = "M1_G5_TOP_COUNTRIES_BY_TOTAL_CITATIONS_STACKED_BAR_PLOT",
     categorical_var_col = "Country",
-    col_a = "Total_Citations",
-    col_b = "Average_Article_Citations",
+    col_a = "Total Citations",
+    col_b = "Average Article Citations",
     col_a_label = "Total Citations",
     col_b_label = "Average Citations"
-)
-
-  # Step 7: Bar Plot for Average Citations per Article
-  message("[INFO] Generating bar plot for average citations per article...")
-  generate_bar_plot_horizontal(
-    data = data,
-    title = "Average Citations per Article",
-    x_label = "Country",
-    y_label = "Average Citations",
-    x_var = "Country",
-    y_var = "Average_Article_Citations",
-    add_threshold_line = FALSE,
-    file_name = "M1_G5_TOP_COUNTRIES_BY_AVERAGE_CITATIONS_BAR_PLOT"
   )
 
+  # Step 7: Generate Bar Plot for Average Citations per Article
+  message("[INFO] Generating bar plot for average citations per article...")
+  avg_citations_plot <- ggplot(data, aes(x = reorder(Country, `Average Article Citations`), y = `Average Article Citations`))
+  avg_citations_plot <- avg_citations_plot + geom_bar(stat = "identity", fill = THEME_COLORS$Main[2], color = "black", size = 0.3)
+  avg_citations_plot <- avg_citations_plot + coord_flip()
+  avg_citations_plot <- avg_citations_plot + labs(
+    title = "Average Citations per Article",
+    x = "Country",
+    y = "Average Citations"
+  )
+  avg_citations_plot <- avg_citations_plot + theme_minimal() + theme(
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+    axis.title.x = element_text(size = 12),
+    axis.title.y = element_text(size = 12),
+    axis.text = element_text(size = 10)
+  )
 
-  # Final log message
+  # Save Average Citations Plot
+  save_plot(avg_citations_plot, "M1_G5_TOP_COUNTRIES_BY_AVERAGE_CITATIONS_BAR_PLOT", width = 8, height = 6, dpi = 600)
+
+  # Final Log Message
   message("[INFO] Citation analysis (bar plot, Lorenz curve, world map, stacked bar plot) completed successfully.")
 }
-
 
 
 
@@ -1249,11 +968,6 @@ fn_m1_mtrc5_countries_tp_vs_tc_plot_bubble_chart <- function(most_prod_countries
 }
 
 
-
-library(ggplot2)
-library(dplyr)
-library(jsonlite)
-library(scales)
 
 
 analyze_bradford_law <- function(data, output_dir = "results") {
