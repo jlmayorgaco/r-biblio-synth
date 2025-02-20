@@ -220,29 +220,31 @@ SystematicReview <- setRefClass(
 
 
       # Most Productive Countries
-      countries_per_year_scp_mcp <- bubble_countries_process_half_data(data)
-      df_first_half_summary <- countries_per_year_scp_mcp$df_first_half_summary
-      df_second_half_summary <- countries_per_year_scp_mcp$df_second_half_summary
-      df_half_ranges <- countries_per_year_scp_mcp$df_half_ranges
-      # Step 1: Validate and prepare country data
-      country_data <- bubble_countries_validate_and_prepare_country_data(df_first_half_summary, df_second_half_summary)
-      country_bubble_chart <- bubble_countries_plot_country_bubble_chart(
-        country_data,
-        title = "Bubble Chart of Countries by Total Citations and Citations per Year"
-      )
+      analysis <- BubbleCountryAnalysis$new(data,  N_years = 5,  num_countries = 12,  show_arrows = TRUE, show_scale_arrows = TRUE)
+      top_countries_df <- analysis$get_top_countries_dataset()
+      top_countries_tp_vs_tc_plot <- analysis$generate_bubble_tp_vs_tc_plot()
+      top_countries_scp_vs_mcp_plot <- analysis$generate_bubble_scp_vs_mcp_plot()
 
-      
+      analysis$do_run_by_countries()
+
       save_plot(
-        plot = country_bubble_chart,
-        filename_prefix = "M1_G5_BUBBLE_COUNTRIES_MEDIAN_QUADRANTS", 
+        plot = top_countries_tp_vs_tc_plot,
+        filename_prefix = "M1_G5_BUBBLE_COUNTRIES_TP_VS_TC_MEDIAN_QUADRANTS", 
+        width = 11,
+        height = 6,
+        dpi = 1200
+      )
+      save_plot(
+        plot = top_countries_scp_vs_mcp_plot,
+        filename_prefix = "M1_G5_BUBBLE_COUNTRIE_SCP_VS_MCP_MEDIAN_QUADRANTS", 
         width = 11,
         height = 6,
         dpi = 1200
       )
 
-      save_json(countries_per_year_scp_mcp, 'countries_per_year_scp_mcp.json')
-      # Step 4: Display the chart
-      print(country_bubble_chart)
+      save_json(top_countries_df , "M1_G5_BUBBLE_COUNTRIES_MEDIAN_QUADRANTS.json")
+
+
 
       message(' ')
       message(' ')
