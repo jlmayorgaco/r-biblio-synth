@@ -202,8 +202,6 @@ SystematicReview <- setRefClass(
       # Top Keywords
       fn_m1_mtrc2_most_rel_keywords_wordcloud(overview$most_rel_keywords)
       fn_m1_mtrc2_most_rel_keywords_wordcloud2(overview$most_rel_keywords)
-      #fn_m1_mtrc2_all_keywords_wordcloud(overview$extracted_data)
-      #fn_m1_mtrc2_all_keywords_wordcloud_by_years(overview$extracted_data)
 
       # Top Authors
       fn_m1_mtrc3_analyze_and_plot_most_prod_authors(overview$most_prod_authors)
@@ -217,7 +215,17 @@ SystematicReview <- setRefClass(
       fn_m1_mtrc5_analyze_and_plot_most_prod_countries(overview$most_prod_countries )
       fn_m1_mtrc5_analyze_and_plot_tc_per_country(overview$tc_per_countries )
 
+      # Step 9: Inform completion
+      message("[INFO] Main Information analysis completed.\n")
+    },
 
+    do_m2_annual_production = function(){},
+
+    do_m3_authors = function(){},
+
+    do_m4_countries = function(){
+
+      data <- .self$data
 
       # Most Productive Countries
       analysis <- BubbleCountryAnalysis$new(data,  N_years = 5,  num_countries = 12,  show_arrows = TRUE, show_scale_arrows = TRUE)
@@ -229,36 +237,20 @@ SystematicReview <- setRefClass(
 
       save_plot(
         plot = top_countries_tp_vs_tc_plot,
-        filename_prefix = "M1_G5_BUBBLE_COUNTRIES_TP_VS_TC_MEDIAN_QUADRANTS", 
+        filename_prefix = "M4_G1_BUBBLE_COUNTRIES_TP_VS_TC_MEDIAN_QUADRANTS", 
         width = 11,
         height = 6,
         dpi = 1200
       )
       save_plot(
         plot = top_countries_scp_vs_mcp_plot,
-        filename_prefix = "M1_G5_BUBBLE_COUNTRIE_SCP_VS_MCP_MEDIAN_QUADRANTS", 
+        filename_prefix = "M4_G1_BUBBLE_COUNTRIE_SCP_VS_MCP_MEDIAN_QUADRANTS", 
         width = 11,
         height = 6,
         dpi = 1200
       )
 
       save_json(top_countries_df , "M1_G5_BUBBLE_COUNTRIES_MEDIAN_QUADRANTS.json")
-
-
-
-      message(' ')
-      message(' ')
-      message(' countries_per_year_scp_mcp  data columns:')
-      ##print(countries_per_year_scp_mcp)
-      message(' ')
-      message(' ')
-      message(' ')
-      stop(" ============== DEBUG ============== ")
-
-
-
-      # Step 9: Inform completion
-      message("[INFO] Main Information analysis completed.\n")
     }
   )
 )
