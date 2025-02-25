@@ -26,7 +26,7 @@ postscriptFonts()
 # ---------------------------------------------------------------------------- #
 # Function: Save Plot
 # ---------------------------------------------------------------------------- #
-save_plot <- function(plot, filename_prefix, width = 4, height = 3, dpi = 300, aspect_ratio = NULL) {
+save_plot <- function(plot, filename_prefix, width = 4, height = 3, dpi = 300, aspect_ratio = NULL, output_dir = "results/M1_Main_Information/figures") {
 
 
     message("[DEBUG] Inside save_plot function...")
@@ -39,7 +39,7 @@ save_plot <- function(plot, filename_prefix, width = 4, height = 3, dpi = 300, a
      message("[DEBUG] end.plot: ")
 
   # Define the output directory
-  output_dir <- "results/M1_Main_Information/figures"
+  #output_dir <- "results/M1_Main_Information/figures"
   dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 
   # Adjust height based on aspect ratio if specified
@@ -720,6 +720,7 @@ generate_world_map <- function(
   
   # Exclude Antarctica from the map
   world <- world[!world$name %in% c("Antarctica"), ]
+  #world <- sf::st_transform(world, crs = 3857)
   
   # Define the color palette for the map
   palette <- switch(color_scheme,
@@ -744,17 +745,27 @@ generate_world_map <- function(
       label.position = "bottom"
     )
   )
+
   map_plot <- map_plot + labs(
     title = map_title,
     subtitle = subtitle_text,
     caption = caption_text
   )
+
   map_plot <- map_plot + ggspatial::annotation_scale(
-      location = "bl",
-      width_hint = 0.2,   # Adjust the width of the scale bar
-      bar_units = "km",   # Set units to kilometers
-      text_cex = 0.8
+    plot_unit = NULL,
+    bar_cols = c("black", "white"),
+    line_width = 1,
+    height = unit(0.25, "cm"),
+    pad_x = unit(0.25, "cm"),
+    pad_y = unit(0.25, "cm"),
+    text_pad = unit(0.15, "cm"),
+    text_cex = 0.7,
+    text_face = NULL,
+    text_family = "",
+    tick_height = 0.6
   )
+
   map_plot <- map_plot + ggspatial::annotation_north_arrow(
     location = "tr",  # Top-right position
     which_north = "true",
