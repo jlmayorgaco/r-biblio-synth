@@ -240,14 +240,16 @@ SystematicReview <- setRefClass(
         filename_prefix = "M4_G1_BUBBLE_COUNTRIES_TP_VS_TC_MEDIAN_QUADRANTS", 
         width = 11,
         height = 6,
-        dpi = 1200
+        dpi = 1200,
+        output_dir = "results/M4_Countries/figures"
       )
       save_plot(
         plot = top_countries_scp_vs_mcp_plot,
         filename_prefix = "M4_G1_BUBBLE_COUNTRIE_SCP_VS_MCP_MEDIAN_QUADRANTS", 
         width = 11,
         height = 6,
-        dpi = 1200
+        dpi = 1200,
+        output_dir = "results/M4_Countries/figures"
       )
 
       save_json(top_countries_df , "M1_G5_BUBBLE_COUNTRIES_MEDIAN_QUADRANTS.json")
