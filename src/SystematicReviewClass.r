@@ -16,15 +16,16 @@ install_and_load <- function(packages) {
   invisible(lapply(packages, require, character.only = TRUE))
 }
 
-# List of required packages
-
-packages <- c("bibliometrix", "factoextra", "ggwordcloud", "patchwork","tm", "stopwords", "wordcloud2", "rworldmap", "tibble", "extrafont", "RColorBrewer", 
+# List of required packages 
+packages <- c("bibliometrix", "grImport2", "rsvg", "grid", "gridSVG", "factoextra", "ggwordcloud", "patchwork","tm", "stopwords", "wordcloud2", "rworldmap", "tibble", "extrafont", "RColorBrewer", 
 "ggrepel", "countrycode","treemapify", "maps", "ggwordcloud", "ggsci", "changepoint", "lomb", "WaveletComp", "kableExtra", "jsonlite", 
               "pander", "rlang", "dplyr", "broom", "Metrics", "knitr", "ggplot2",  "tidyr", "splines", "webshot",
               "plotly", "webshot", "png", "gridExtra", "igraph", "nls2", "reshape2", "minpack.lm", "htmlwidgets")
 
 # Install and load necessary packages
 install_and_load(packages)
+
+
 
 webshot::install_phantomjs()
 
@@ -35,7 +36,7 @@ webshot::install_phantomjs()
 source('../../src/Config/PaletteGenerator.r')
 source('../../src/Config/PlotThemes.r')
 source('../../src/M1_Main_Information/M1_Main_Information.r')
-#source('../../src/M2_Annual_Production/M2_Annual_Production.r')
+source('../../src/M2_Annual_Production/M2_Annual_Production.r')
 #source('../../src/M3_Most_Prod_Authors/M3_Most_Prod_Authors.r')
 
 
@@ -219,7 +220,46 @@ SystematicReview <- setRefClass(
       message("[INFO] Main Information analysis completed.\n")
     },
 
-    do_m2_annual_production = function(){},
+    do_m2_annual_production = function(){
+
+      # Step 0: Set the main output directory
+      output_dir <- "results/M2_Annual_Production"
+      figures_dir <- file.path(output_dir, "figures")
+      jsons_dir <- file.path(output_dir, "jsons")
+
+      # Step 1: Delete the existing output directory (if exists)
+      if (dir.exists(output_dir)) {
+        unlink(output_dir, recursive = TRUE)
+        message("[INFO] Deleted existing directory: ", output_dir)
+      }
+
+      # Step 2: Recreate directory structure
+      dir.create(figures_dir, recursive = TRUE, showWarnings = FALSE)
+      dir.create(jsons_dir, recursive = TRUE, showWarnings = FALSE)
+      message("[INFO] Created new directory structure: ", output_dir)
+
+      # Step 3: Inform user about the processing stage
+      message("\nM2 :: Analyzing Annual Production...\n")
+
+      # Step 4: Convert bibliometric data to annual production format
+      data <- .self$data
+
+      # Extract relevant columns (Year & Articles)
+      df_annual <- data %>%
+        select(PY) %>%
+        filter(!is.na(PY)) %>%
+        group_by(PY) %>%
+        summarise(Articles = n()) %>%
+        rename(Year = PY)
+
+      # Step 5: Initialize and Run M2 Analysis
+      m2_analysis <- M2_Annual_Production$new(df_annual, year_col = "Year", articles_col = "Articles")
+      m2_analysis$runMetrics()
+
+      # Step 6: Log completion
+      message("[INFO] Annual Production analysis completed.\n")
+
+    },
 
     do_m3_authors = function(){},
 
