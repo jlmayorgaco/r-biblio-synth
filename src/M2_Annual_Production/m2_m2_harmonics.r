@@ -252,17 +252,16 @@ create_r2_vs_frequency_plot <- function(r_squared_table, output_path) {
   # Add an annotation for the highest R² value
   max_r2 <- max(r_squared_table$R2, na.rm = TRUE)
   max_freq <- r_squared_table$Frequency[which.max(r_squared_table$R2)]
-  p <- p + annotate(
-    "text",
-    x = max_freq,
-    y = max_r2,
-    label = paste0("Max R²: ", round(max_r2, 3), "\nFreq: ", round(max_freq, 3), " Hz"),
-    hjust = -0.1,
-    vjust = -0.5,
-    size = 3,
-    color = plot_colors$secondary
-  )
 
+p <- p + geom_text(
+  x = max_freq, 
+  y = max_r2, 
+  label = paste0("Max R²: ", round(max_r2, 3), "\nFreq: ", round(max_freq, 3), " Hz"),
+  hjust = -0.1,
+  vjust = -0.5,
+  size = 3,
+  color = plot_colors$secondary
+)
   # Save the plot
   output_file_png <- file.path(output_path, "R2_vs_Frequency_Plot.png")
   output_file_svg <- file.path(output_path, "R2_vs_Frequency_Plot.svg")
