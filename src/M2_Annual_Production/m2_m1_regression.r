@@ -117,40 +117,30 @@ M2_M1_Regression <- setRefClass(
 # ---------------------------------------------------------------------------- #
 create_regression_articles_plots <- function(metric_regression, models_regression, x, y, output_path) {
   
-  # Validate the selected model
+  # Validate Input
   if (is.null(metric_regression)) {
     stop("[ERROR] `metric_regression` is NULL.")
   }
 
-  # Retrieve the model function and parameters
+  # Retrieve model function and parameters
   v_model <- models_regression[[metric_regression$model_name]]
-  
-  # Parse the parameters
   v_params <- parse_params(metric_regression$model_params)
   v_r_squared <- metric_regression$model_r_squared
 
-  message(' ')
-  message(' ')
-  message(' ========> v_r_squared <- metric_regression$model_r_squared ')
-  message(' v_r_squared')
-  message(v_r_squared)
-  message(' ')
-  message(' ')
-  
-  # Prepare the real data
+  message("\n[INFO] Running Regression Plot")
+  message("[DEBUG] Model:", metric_regression$model_name)
+  message("[DEBUG] R² Value:", v_r_squared)
+
+  # Prepare Data
   t_real <- x
   y_real <- y
-
-  # Generate regression points
-  dt <- 0.1
-  t_regression <- seq(min(t_real), max(t_real), by = dt)
+  t_regression <- seq(min(t_real), max(t_real), by = 0.1)
   y_regression <- do.call(v_model, c(list(t = t_regression), v_params))
 
-  # Data frames for plotting
   df_real <- data.frame(Year = t_real, Articles = y_real)
   df_regression <- data.frame(Year = t_regression, Articles = y_regression)
 
-  # Create the plot
+  # Initialize Plot
   p <- ggplot() +
     geom_point(data = df_real, aes(x = Year, y = Articles), size = 2, color = "black") +
     geom_line(data = df_regression, aes(x = Year, y = Articles), color = "black", linewidth = 0.5, linetype = "dashed") +
@@ -161,69 +151,140 @@ create_regression_articles_plots <- function(metric_regression, models_regressio
     ) +
     theme_minimal(base_size = 10) +
     theme(
-      panel.background = element_rect(fill = "white", color = NA), # White inside axes
+      panel.background = element_rect(fill = "white", color = NA),
       plot.title = element_text(hjust = 0.5, size = 11, face = "bold"),
       axis.title = element_text(size = 9),
       axis.text = element_text(size = 8),
       axis.ticks = element_line(linewidth = 0.2),
-      axis.line = element_line(color = "black", linewidth = 0.5), # Increased thickness for axes
-      panel.grid.major = element_line(linewidth = 0.4, color = "#dddddd"), # Major grid lines
-      panel.grid.minor = element_line(linewidth = 0.2, color = "#f1f1f1"), # Subgrid with half resolution
-      panel.border = element_blank(), # Removed the panel border
+      axis.line = element_line(color = "black", linewidth = 0.5),
+      panel.grid.major = element_line(linewidth = 0.4, color = "#dddddd"),
+      panel.grid.minor = element_line(linewidth = 0.2, color = "#f1f1f1"),
+      panel.border = element_blank(),
       legend.position = "bottom",
       legend.text = element_text(size = 8),
       legend.title = element_text(size = 8, face = "bold")
     ) +
     scale_y_continuous(
-      breaks = scales::extended_breaks()(y_real),  # Major grid breaks
-      minor_breaks = scales::extended_breaks(n = 10)(y_real) # Subgrid breaks
+      breaks = scales::extended_breaks()(y_real),
+      minor_breaks = scales::extended_breaks(n = 10)(y_real)
     ) +
     scale_x_continuous(
-      breaks = scales::extended_breaks()(t_real), # Major grid breaks
-      minor_breaks = scales::extended_breaks(n = 10)(t_real) # Subgrid breaks
+      breaks = scales::extended_breaks()(t_real),
+      minor_breaks = scales::extended_breaks(n = 10)(t_real)
     )
 
-  # Add a text annotation for the model name and R² value
-  #label <- bquote(.(metric_regression$model_name) ~ "\n" ~ R^2 ~ "=" ~ .(sprintf("%.3f", v_r_squared)))
-  label_model <-metric_regression$model_name
-  p <- p + annotate(
-    "text",
-    x = min(t_real) + 2, # Adjust the X position
-    y = max(y_real) - 5, # Adjust the Y position
-    label = label_model,
-    hjust = 0, 
-    vjust = 1, 
-    size = 4.5, 
-    color = "black",
-    parse = FALSE # Do not re-parse the expression; `bquote()` handles it
-  )
-
-    # Ensure v_r_squared is valid and properly formatted
-    if (!is.null(v_r_squared) && !is.na(v_r_squared)) {
-    label_r2 <- paste0("R^2 == ", sprintf("%.3f", v_r_squared)) # Use '==' for mathematical expressions
-    p <- p + annotate(
-        "text",
-        x = min(t_real) + 2, # Adjust the X position
-        y = max(y_real) - 12, # Adjust the Y position
-        label = label_r2,
-        hjust = 0, 
-        vjust = 1, 
-        size = 4.5, 
-        color = "black",
-        parse = TRUE # Enable parsing for the R^2 expression
+  # **🔹 Add Model Name Annotation**
+  label_model <- as.character(metric_regression$model_name)
+  if (!is.na(min(t_real)) && !is.na(max(y_real)) && !is.null(label_model)) {
+    p <- p + geom_text(
+      aes(x = min(t_real) + 2, y = max(y_real) - 5, label = label_model),
+      hjust = 0, vjust = 1, size = 4.5, color = "black"
     )
-    } else {
-        message("[WARNING] R-squared value is missing or invalid.")
-    }
+    message("[INFO] Model name annotation added successfully.")
+  } else {
+    message("[WARNING] Model name annotation skipped due to missing values.")
+  }
 
-  # Define file paths for saving plots
+  # **🔹 Add R² Value Annotation**
+  if (!is.null(v_r_squared) && !is.na(v_r_squared)) {
+    label_r2 <- paste0("R^2 == ", sprintf("%.3f", v_r_squared))
+    p <- p + geom_text(
+      aes(x = min(t_real) + 2, y = max(y_real) - 12, label = label_r2),
+      hjust = 0, vjust = 1, size = 4.5, color = "black", parse = TRUE
+    )
+    message("[INFO] R-squared annotation added successfully.")
+  } else {
+    message("[WARNING] R-squared annotation skipped due to missing value.")
+  }
+
+  
+  # **🔹 Add Confidence Interval**
+  if (exists("lower_bound") && exists("upper_bound")) {
+    p <- p + geom_ribbon(aes(ymin = lower_bound, ymax = upper_bound), fill = "lightblue", alpha = 0.3)
+    message("[INFO] Confidence interval added to the plot.")
+  }
+
+  p <- p + add_plot_model_supporting_features(p, metric_regression$model_name, t_real, y_real)
+
+  # **🔹 Save Plot as PNG & SVG**
   output_file_png <- file.path(output_path, "Regression_Articles_Plot.png")
   output_file_svg <- file.path(output_path, "Regression_Articles_Plot.svg")
-  
-  # Save the plot with wider dimensions
+
   ggsave(filename = output_file_png, plot = p, width = 6, height = 4, dpi = 900)
   ggsave(filename = output_file_svg, plot = p, width = 6, height = 4, device = "svg")
+
+  message("[INFO] Regression plot saved successfully.")
 }
+
+library(grid)
+library(rsvg)
+
+add_plot_model_supporting_features <- function(p, model_name, t_real, y_real) {
+  
+  # **🔹 Add Gompertz Model Equation if Applicable**
+  if (model_name == "Gompertz") {
+    
+    # Define file paths
+    eq_dir <- normalizePath("../../src/M2_Annual_Production/latex/", mustWork = FALSE)
+    eq_file <- file.path(eq_dir, "m2_regression_model_gompertz")
+    tex_file <- paste0(eq_file, ".tex")
+    pdf_file <- paste0(eq_file, ".pdf")
+    eps_file <- paste0(eq_file, ".eps")
+    svg_file <- paste0(eq_file, ".svg")
+
+    # **🔹 Print Debugging Information**
+    message("[DEBUG] Current Working Directory: ", getwd())
+    message("[DEBUG] Expected TEX Path: ", tex_file)
+    message("[DEBUG] Expected PDF Path: ", pdf_file)
+    message("[DEBUG] Expected EPS Path: ", eps_file)
+    message("[DEBUG] Expected SVG Path: ", svg_file)
+
+    # **🔹 Change working directory to ensure correct file paths**
+    message("[INFO] Changing working directory to: ", eq_dir)
+    old_wd <- getwd()
+    setwd(eq_dir)
+
+    # **🔹 Compile LaTeX to PDF**
+    message("[INFO] Compiling LaTeX to PDF...")
+    system(paste0("pdflatex -interaction=nonstopmode ", shQuote(tex_file)))
+
+    # **🔹 Convert PDF to EPS**
+    message("[INFO] Converting PDF to EPS...")
+    system(paste0("pdftops -eps ", shQuote(pdf_file), " ", shQuote(eps_file)))
+
+    # **🔹 Convert EPS to SVG with Ghostscript**
+    message("[INFO] Converting EPS to SVG...")
+    system(paste0("dvisvgm --eps --libgs=/opt/homebrew/lib/libgs.dylib --output=", 
+                  shQuote(svg_file), " ", shQuote(eps_file)))
+
+    # **🔹 Restore original working directory**
+    setwd(old_wd)
+
+    # **🔹 Read SVG and Convert to Grid Object**
+    if (file.exists(svg_file)) {
+      message("[INFO] Loading SVG equation into plot...")
+      
+      # Convert the SVG to a raster image
+      grob_svg <- rasterGrob(rsvg::rsvg(svg_file), interpolate = TRUE)
+      
+      # Add the SVG as an annotation
+      p <- p + annotation_custom(grob_svg, 
+                                 xmin = min(t_real) + 2, xmax = min(t_real) + 10, 
+                                 ymin = max(y_real) - 15, ymax = max(y_real) - 5)
+      
+      message("[INFO] Gompertz equation added successfully.")
+    } else {
+      stop("[ERROR] SVG file not found: ", svg_file)
+    }
+  }
+
+  return(p)
+}
+
+
+
+
+
 
 
 
