@@ -28,6 +28,8 @@ source('../../src/M1_Main_Information/__m1_scp_mcp_stacked_bar_chart.r')
 source('../../src/M1_Main_Information/__m1_bubble_countries.r')
 source('../../src/M1_Main_Information/__m1_bubble_countries_full.r')
 
+source('../../src/M1_Main_Information/__m1_report.r')
+
 # ---------------------------------------------------------------------------- #
 # Function: fn_m1_main_information
 # Description: Main information analysis using bibliometrix data.
