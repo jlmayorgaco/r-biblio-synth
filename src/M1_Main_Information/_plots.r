@@ -775,7 +775,7 @@ generate_world_map <- function(
   )
 
   # Ensure nothing gets cropped by turning off clipping 
-  map_plot <- map_plot + coord_sf(clip = "off", expand = FALSE)
+  # map_plot <- map_plot + coord_sf(clip = "off", expand = FALSE)
 
   # Styling: Adjust title, subtitle, and spacing
   map_plot <- map_plot + theme_void()
