@@ -40,6 +40,15 @@ M2_M1_Regression <- setRefClass(
         # Find the best model
         best_model <- get_best_model(comparison_table)
 
+        # Evaluate Model Performance : Error Distribution, Is it Normal? Is periodic?
+        performance_model <- get_performance_model(x=x,y=y, best_model)
+
+        # Report
+        report <- get_report_table()
+        report.save_model_equation_latex()
+        report.save_models_comparison_table_latex()
+        report.save_model_performance_tests_latex()
+
    
         models_serialized <- lapply(models, serialize_model)
 
@@ -110,50 +119,9 @@ M2_M1_Regression <- setRefClass(
 
 
 
-
-
-
-
-create_diff_nominal_articles_plots <- function(x, y, output_path) {
-  # Ensure x and y have the expected columns
-  if (!("Year" %in% names(x)) || !("Articles" %in% names(y))) {
-    stop("[ERROR] Data frames must contain 'Year' and 'Articles' columns.")
-  }
-
-  # Extract real data
-  t_real <- x$Year
-  y_real <- y$Articles
-
-  # Calculate the numerical derivative of y with respect to x (Year)
-  y_diff <- diff(y_real)
-  t_diff <- t_real[-1]  # Remove the first time point to match the length of dy_dt
-
-  # Create a data frame for plotting
-  df_diff <- data.frame(Year = t_diff, Articles = y_diff)
-
-  # Create the plot
-  p <- ggplot(data = df_diff, aes(x = Year, y = Articles)) +
-    geom_point(size = 1.25, shape = 20, color = "#565656") +
-    geom_line(size = 0.25, linetype = "solid", color = "#565656") +
-    labs(
-      title = "Nominal Change in Annual Articles",
-      x = "Year",
-      y = "Difference in Articles"
-    ) +
-    ieee_theme
-
-  # Save the plot as PNG and SVG
-  output_file_png <- file.path(output_path, "Nominal_Annual_Diff_Articles_Plot_PNG.png")
-  output_file_svg <- file.path(output_path, "Nominal_Annual_Diff_Articles_Plot_SVG.svg")
-  
-  v_k_scaling <- 0.5
-  v_k_width_hight <- 1.5
-  v_width <- 8.8 * v_k_scaling
-  v_height <- v_width / v_k_width_hight
-
-  ggsave(filename = output_file_png, plot = p, width = v_width, height = v_height, dpi = 900)
-  ggsave(filename = output_file_svg, plot = p, width = v_width, height = v_height, device = "svg")
-}
+# ---------------------------------------------------------------------------- #
+# Plot Regression Models for Annual Articles
+# ---------------------------------------------------------------------------- #
 
 
 # ---------------------------------------------------------------------------- #
@@ -268,34 +236,34 @@ create_regression_articles_plots <- function(metric_regression, models_regressio
 
 
 
-      # Retrieve model function and parameters
-      v_model <- models_regression[[metric_regression$model_name]]
-      v_params <- parse_params(metric_regression$model_params)
-      v_r_squared <- metric_regression$model_r_squared
+  # Retrieve model function and parameters
+  v_model <- models_regression[[metric_regression$model_name]]
+  v_params <- parse_params(metric_regression$model_params)
+  v_r_squared <- metric_regression$model_r_squared
 
-      message("\n[INFO] Running Regression Plot")
-      message("[DEBUG] Model:", metric_regression$model_name)
-      message("[DEBUG] R² Value:", v_r_squared)
+  message("\n[INFO] Running Regression Plot")
+  message("[DEBUG] Model:", metric_regression$model_name)
+  message("[DEBUG] R² Value:", v_r_squared)
 
 
-      # Prepare Data
-      t_real <- x
-      y_real <- y
-      t_regression <- seq(min(t_real), max(t_real), by = 0.1)
-      y_regression <- do.call(v_model, c(list(t = t_regression), v_params))
+  # Prepare Data
+  t_real <- x
+  y_real <- y
+  t_regression <- seq(min(t_real), max(t_real), by = 0.1)
+  y_regression <- do.call(v_model, c(list(t = t_regression), v_params))
 
-      df_real <- data.frame(Year = t_real, Articles = y_real)
-      df_regression <- data.frame(Year = t_regression, Articles = y_regression)
+  df_real <- data.frame(Year = t_real, Articles = y_real)
+  df_regression <- data.frame(Year = t_regression, Articles = y_regression)
 
-      # Compute Squared Differences
-      y_model_real <- do.call(v_model, c(list(t = t_real), v_params))  # Model predictions at t_real
-      squared_diff <- (y_real - y_model_real)^2
-      sqrt_diff <- sqrt(abs(y_real - y_model_real))
+  # Compute Squared Differences
+  y_model_real <- do.call(v_model, c(list(t = t_real), v_params))  # Model predictions at t_real
+  squared_diff <- (y_real - y_model_real)^2
+  sqrt_diff <- sqrt(abs(y_real - y_model_real))
 
-      # Create Data Frame with Squared and Square Root Differences
-      df_diff <- data.frame(Year = t_real, Squared_Difference = squared_diff, Sqrt_Difference = sqrt_diff)
+  # Create Data Frame with Squared and Square Root Differences
+  df_diff <- data.frame(Year = t_real, Squared_Difference = squared_diff, Sqrt_Difference = sqrt_diff)
 
-      # I want a regression on df_diff and find if is constant, lineal, cuadradtic, exponencial, poliniomic, normal,etc.
+  # I want a regression on df_diff and find if is constant, lineal, cuadradtic, exponencial, poliniomic, normal,etc.
 
 
 
@@ -409,7 +377,7 @@ create_regression_articles_plots <- function(metric_regression, models_regressio
 
 
     # Perform statistical tests
-    stat_results <- perform_statistical_tests(df_diff, "Sqrt_Difference")
+    stat_results <- perform_statistical_tests(df_diff, "Sqrt_Difference", output_path)
     # Convert to JSON-friendly format
     stat_results_json <- toJSON(stat_results, pretty = TRUE, auto_unbox = TRUE)
     # Modify output_path: Replace "figures" with "jsons"
@@ -417,6 +385,56 @@ create_regression_articles_plots <- function(metric_regression, models_regressio
     write(stat_results_json, file = file.path(json_output_path, "m2_regression_model_stats_result.json"))
 
 }
+
+
+
+
+
+
+
+
+
+create_diff_nominal_articles_plots <- function(x, y, output_path) {
+  # Ensure x and y have the expected columns
+  if (!("Year" %in% names(x)) || !("Articles" %in% names(y))) {
+    stop("[ERROR] Data frames must contain 'Year' and 'Articles' columns.")
+  }
+
+  # Extract real data
+  t_real <- x$Year
+  y_real <- y$Articles
+
+  # Calculate the numerical derivative of y with respect to x (Year)
+  y_diff <- diff(y_real)
+  t_diff <- t_real[-1]  # Remove the first time point to match the length of dy_dt
+
+  # Create a data frame for plotting
+  df_diff <- data.frame(Year = t_diff, Articles = y_diff)
+
+  # Create the plot
+  p <- ggplot(data = df_diff, aes(x = Year, y = Articles)) +
+    geom_point(size = 1.25, shape = 20, color = "#565656") +
+    geom_line(size = 0.25, linetype = "solid", color = "#565656") +
+    labs(
+      title = "Nominal Change in Annual Articles",
+      x = "Year",
+      y = "Difference in Articles"
+    ) +
+    ieee_theme
+
+  # Save the plot as PNG and SVG
+  output_file_png <- file.path(output_path, "Nominal_Annual_Diff_Articles_Plot_PNG.png")
+  output_file_svg <- file.path(output_path, "Nominal_Annual_Diff_Articles_Plot_SVG.svg")
+  
+  v_k_scaling <- 0.5
+  v_k_width_hight <- 1.5
+  v_width <- 8.8 * v_k_scaling
+  v_height <- v_width / v_k_width_hight
+
+  ggsave(filename = output_file_png, plot = p, width = v_width, height = v_height, dpi = 900)
+  ggsave(filename = output_file_svg, plot = p, width = v_width, height = v_height, device = "svg")
+}
+
 
 
 
@@ -463,8 +481,16 @@ create_diff_percentage_articles_plots <- function(x, y, output_path) {
   ggsave(filename = output_file_svg, plot = p, width = v_width, height = v_height, device = "svg")
 }
 
+
+
+
+
 add_plot_model_supporting_features <- function(p, metric_regression, t_real, y_real) {
   
+  library(ggplot2)
+  library(rsvg)
+  library(grid)
+
   # Ensure `p` is a valid ggplot object
   if (!inherits(p, "ggplot")) {
     stop("[ERROR] `p` is NOT a ggplot object. Check its construction.")
@@ -496,12 +522,12 @@ add_plot_model_supporting_features <- function(p, metric_regression, t_real, y_r
     model_params <- extract_params(metric_regression$best_model$params)
 
     # Validate parameter extraction
-    if (!all(c("N0", "t0") %in% names(model_params))) {
-      stop("[ERROR] Missing required parameters `N0` or `t0`. Check parameter extraction.")
+    if (!all(c("N0", "t0", "Nmax", "k") %in% names(model_params))) {
+      stop("[ERROR] Missing required parameters `N0`, `t0`, `Nmax`, or `k`. Check parameter extraction.")
     }
 
     # Extract parameter values
-    N0 <- model_params[["N0"]]
+    N0 <- model_params[["y0"]] + model_params[["N0"]]
     t0 <- model_params[["t0"]]
 
     # Compute `tr`
@@ -537,10 +563,75 @@ add_plot_model_supporting_features <- function(p, metric_regression, t_real, y_r
       geom_text(
         data = data.frame(x = min(t_real), y = N0),
         aes(x = x, y = y, label = paste0("N0 = ", format_number(N0))), 
-        color = THEME_COLORS$Main[5], hjust = -0.2, vjust = -0.5
+        color = THEME_COLORS$Main[5], hjust = 0.0, vjust = -0.5
       )
 
     message("[INFO] Added t0, tr, and N0 reference lines to plot.")
+
+    # **🔹 Define File Paths Correctly**
+    eq_dir <- normalizePath("../../src/M2_Annual_Production/latex/", mustWork = FALSE)
+    eq_template <- file.path(eq_dir, "m2_regression_model_gompertz.tex")  
+    eq_rendered <- file.path(eq_dir, "m2_regression_model_gompertz_rendered.tex")  
+    pdf_file <- file.path(eq_dir, "m2_regression_model_gompertz_rendered.pdf")
+    eps_file <- file.path(eq_dir, "m2_regression_model_gompertz_rendered.eps")
+    svg_file <- file.path(eq_dir, "m2_regression_model_gompertz_rendered.svg")
+
+    # **🔹 Read LaTeX Template and Replace Placeholders**
+    if (!file.exists(eq_template)) stop("[ERROR] Template LaTeX file not found: ", eq_template)
+    
+    latex_template <- readLines(eq_template)
+
+    # **Apply Parameter Values to LaTeX Template**
+    format_number <- function(num) {
+      if (num < 1) {
+        return(sprintf("%.3f", num))  # 3 decimals if smaller than 1
+      } else if (num < 10) {
+        return(sprintf("%.1f", num))  # 1 decimal if between 1 and 10
+      } else {
+        return(sprintf("%.0f", num))  # Rounded integer if 10 or greater
+      }
+    }
+
+    latex_rendered <- gsub("<<N0>>", format_number(N0), latex_template)
+    latex_rendered <- gsub("<<k>>", format_number(model_params[["k"]]), latex_rendered)
+    latex_rendered <- gsub("<<c>>", format_number(model_params[["Nmax"]]), latex_rendered)
+    latex_rendered <- gsub("<<t0>>", format_number(t0), latex_rendered)
+
+    # **🔹 Save Rendered LaTeX**
+    writeLines(latex_rendered, eq_rendered)
+    message("[INFO] Rendered LaTeX file saved: ", eq_rendered)
+
+    # **🔹 Compile LaTeX**
+    old_wd <- getwd()
+    setwd(eq_dir)
+    system(paste0("pdflatex -interaction=nonstopmode ", shQuote(basename(eq_rendered))))
+
+    # **Check if PDF was created**
+    if (!file.exists(pdf_file)) stop("[ERROR] PDF file was not created: ", pdf_file)
+
+    # **🔹 Convert PDF to EPS & SVG**
+    system(paste0("pdftops -eps ", shQuote(basename(pdf_file)), " ", shQuote(basename(eps_file))))
+    if (!file.exists(eps_file)) stop("[ERROR] EPS file was not created: ", eps_file)
+
+    system(paste0("dvisvgm --eps --libgs=/opt/homebrew/lib/libgs.dylib --output=", 
+                  shQuote(basename(svg_file)), " ", shQuote(basename(eps_file))))
+    if (!file.exists(svg_file)) stop("[ERROR] SVG file was not created: ", svg_file)
+
+    setwd(old_wd)  # Restore working directory
+
+    # **🔹 Read and Attach SVG to Plot**
+    message("[INFO] Loading SVG equation into plot...")
+    svg_rendered <- rsvg::rsvg(svg_file, width = 5000)
+    grob_svg <- rasterGrob(svg_rendered, interpolate = TRUE)
+
+    # **Define Placement Variables Dynamically**
+    x0 <- min(t_real) - 7
+    y0 <- max(y_real) - 70  
+    delta <- 50  
+
+    p <- p + annotation_custom(grob_svg, xmin = x0, xmax = x0 + delta, ymin = y0, ymax = y0 + delta)
+
+    message("[INFO] Gompertz equation added successfully.")
   }
 
   return(p)
