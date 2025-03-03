@@ -306,8 +306,11 @@ check_residual_normality <- function(data, column) {
   }
 }
 
-# Function to perform and store statistical test results
-perform_statistical_tests <- function(data, column) {
+
+
+
+# Function to perform and store statistical test results, including FFT harmonic analysis
+perform_statistical_tests <- function(data, column, output_path) {
   
   # Initialize results list
   results <- list()
@@ -353,5 +356,111 @@ perform_statistical_tests <- function(data, column) {
     }
   )
 
+  # Perform FFT analysis
+  results$fft <- fft_analysis(data, column, "Year", output_path)
+
   return(results)
 }
+
+
+
+fft_analysis <- function(data, column, time_column, output_path) {
+  
+  library(ggplot2)
+
+  # Sort data by time to ensure proper frequency calculations
+  data <- data[order(data[[time_column]]), ]
+  
+  # Extract signal and time values
+  signal <- data[[column]]
+  time_values <- data[[time_column]]
+  
+  # Compute time intervals (Years)
+  dt <- mean(diff(time_values))  # Average time step in years
+  n <- length(signal)  # Number of observations
+  
+  # Perform FFT
+  fft_values <- fft(signal)
+  
+  # Compute corresponding frequencies in Years⁻¹
+  frequencies <- (0:(n / 2 - 1)) / (n * dt)
+  
+  # Compute power spectrum (energy at each frequency)
+  power_spectrum <- Mod(fft_values[1:(n / 2)])^2
+  
+  # Normalize power to get importance in %
+  power_percent <- 100 * power_spectrum / sum(power_spectrum)
+  
+  # Identify the dominant frequency
+  max_index <- which.max(power_spectrum[-1]) + 1  # Ignore DC component (index 1)
+  dominant_frequency <- frequencies[max_index]
+  dominant_period <- ifelse(dominant_frequency == 0, NA, 1 / dominant_frequency)  # Convert to Years
+  
+  # Get the top 5 most important frequencies
+  top_frequencies <- order(power_spectrum[-1], decreasing = TRUE)[1:5] + 1
+  top_freq_values <- frequencies[top_frequencies]
+  top_freq_periods <- 1 / top_freq_values  # Convert to Years
+  top_freq_importance <- power_percent[top_frequencies]
+  
+  # Create a dataframe for the top 5 frequencies
+  df_top_frequencies <- data.frame(
+    Rank = 1:5,
+    Frequency_YearsInv = round(top_freq_values, 4),
+    Period_Years = round(top_freq_periods, 2),
+    Importance_Percent = round(top_freq_importance, 2)
+  )
+
+  # Interpretation
+  interpretation <- if (is.na(dominant_period)) {
+    "No clear periodic component detected."
+  } else {
+    paste0("A periodic component with a dominant cycle of approximately ", 
+           round(dominant_period, 2), " years was detected. ",
+           "Top detected cycles range from ", 
+           round(min(top_freq_periods), 2), " to ", 
+           round(max(top_freq_periods), 2), " years.")
+  }
+  
+  # **🔹 Plot Power Spectrum**
+  df_spectrum <- data.frame(Frequency = frequencies, Power = power_spectrum)
+  
+  p_fft <- ggplot(df_spectrum, aes(x = Frequency, y = Power)) +
+    geom_line(color = "blue", linewidth = 1) +
+    geom_point(color = "red", size = 2) +
+    labs(
+      title = "FFT Power Spectrum (Harmonic Analysis)",
+      x = "Frequency (Cycles per Year)",
+      y = "Power Spectrum"
+    ) +
+    theme_minimal(base_size = 10) +
+    theme(
+      panel.background = element_rect(fill = "white", color = NA),
+      plot.title = element_text(hjust = 0.5, size = 11, face = "bold"),
+      axis.title = element_text(size = 9),
+      axis.text = element_text(size = 8),
+      axis.ticks = element_line(linewidth = 0.2),
+      axis.line = element_line(color = "black", linewidth = 0.5),
+      panel.grid.major = element_line(linewidth = 0.4, color = "#dddddd"),
+      panel.grid.minor = element_line(linewidth = 0.2, color = "#f1f1f1"),
+      panel.border = element_blank()
+    )
+
+  # **🔹 Save FFT Plot**
+  output_file_png <- file.path(output_path, "FFT_Harmonic_Analysis.png")
+  output_file_svg <- file.path(output_path, "FFT_Harmonic_Analysis.svg")
+
+  ggsave(filename = output_file_png, plot = p_fft, width = 7.16, height = 4.5, dpi = 600)
+  ggsave(filename = output_file_svg, plot = p_fft, width = 7.16, height = 4.5, device = "svg")
+
+  message("[INFO] FFT analysis plot saved successfully.")
+
+  return(list(
+    test = "FFT Harmonic Analysis",
+    dominant_frequency = round(dominant_frequency, 4),
+    dominant_period = round(dominant_period, 2),
+    interpretation = interpretation,
+    top_frequencies = df_top_frequencies,
+    plot_saved = list(png = output_file_png, svg = output_file_svg)
+  ))
+}
+
