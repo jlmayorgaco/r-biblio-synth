@@ -2,48 +2,78 @@
 # Comprehensive Performance Metrics and Tests for Model Evaluation
 # ---------------------------------------------------------------------------- #
 
-get_performance_model <- function(x, y, best_model) {
-  library(lmtest)
-  library(MASS)
-  library(car)
-  library(jsonlite)
-  library(tseries)
-  library(signal)
-  library(Metrics)
-  library(nortest)
-  library(e1071)
-  library(psych)
-  library(boot)
-  library(BayesFactor)
-  library(orcutt)
-  library(robustbase)
-  library(waveslim)
-  library(spectral)
+
+
+get_performance_model <- function(x, y, models, best_model) {
+  
+  # Prepare data frame for model predictions
+  data <- data.frame(Year = x, y = y)
+  response <- "y"
 
   # Model predictions
-  y_pred <- predict(best_model, newdata = data.frame(Year = x))
+  name <- best_model$name
+  model <- models[[name]]  
+
+  y_pred <- predict(model, newdata = data.frame(Year = x))
   residuals <- y - y_pred
 
-  # Compute all 57 metrics
-  # (Fit, Error, Normality, Heteroscedasticity, Autocorrelation, Linearity, Multicollinearity, Influence, Robustness, Spectral, Predictive)
+  
+
+  message(' ')
+  message(' ')
+  message(' ')
+  message(' ')
+  message(' ')
+  message(' ')
+  message(' ==== >residuals ')
+  message(' model')
+  message(model)
+  message(' ')
+  message('data.frame(Year = x)')
+  message(data.frame(Year = x))
+  message(' ')
+  message(' y')
+  print(y)
+  message(' ')
+  message(' y_pred')
+  print(y_pred)
+  message(' ')
+  message(' ')
+  stop(' ============================= ')
+
+
+
+  # Compute all metrics using modular functions
+  model_fit_metrics <- compute_model_fit_metrics(y, y_pred, best_model)
+  error_metrics <- compute_error_metrics(y, y_pred)
+  normality_tests <- compute_normality_tests(residuals)
+  heteroscedasticity_tests <- compute_heteroscedasticity_tests(best_model)
+  autocorrelation_tests <- compute_autocorrelation_tests(best_model, residuals)
+  linearity_tests <- compute_linearity_tests(best_model)
+  multicollinearity_metrics <- compute_multicollinearity_metrics(best_model)
+  influence_metrics <- compute_influence_metrics(best_model)
+  robustness_metrics <- compute_robustness_metrics(best_model, data, response)
+  spectral_analysis <- compute_spectral_analysis(residuals)
+  predictive_power <- compute_predictive_power(best_model, data, response)
   
   # Compile all 57 metrics
   performance <- list(
-    model_fit = list(r_squared = r_squared, adj_r_squared = adj_r_squared, aic = aic, bic = bic),
-    error_metrics = list(mse = mse, rmse = rmse, mae = mae, mape = mape, rmsle = rmsle, rae = rae, rse = rse),
-    normality_tests = list(shapiro = shapiro_test, ks = ks_test, jb = jb_test, ad = ad_test, cvm = cvm_test),
-    heteroscedasticity_tests = list(breusch_pagan = bp_test, white = white_test, goldfeld_quandt = gq_test),
-    autocorrelation_tests = list(durbin_watson = dw_test, ljung_box = ljung_test, breusch_godfrey = bg_test),
-    linearity_tests = list(harvey_collier = hc_test, ramsey_reset = reset_test),
-    multicollinearity = list(vif = vif_values, condition_number = condition_number),
-    influence_metrics = list(cooks = cooks, leverage = leverage, dfbetas = dfbetas, mahalanobis = mahalanobis_values, covratio = covratio_values, hadi = hadi_values),
-    robustness = list(robust_model = robust_model, jackknife = jackknife, bootstrap = bootstrap, cross_validation = cross_val),
-    spectral_analysis = list(harmonics = harmonic_frequencies, fft = fft_res, wavelet = wavelet_res, spectral_density = spectral_density_res),
-    predictive_power = list(adjusted_prediction_error = adj_pred_error, horizon_accuracy = horizon_accuracy, forecast_bias = forecast_bias, bayes_factor = bf)
+    model_fit = model_fit_metrics,
+    error_metrics = error_metrics,
+    normality_tests = normality_tests,
+    heteroscedasticity_tests = heteroscedasticity_tests,
+    autocorrelation_tests = autocorrelation_tests,
+    linearity_tests = linearity_tests,
+    multicollinearity = multicollinearity_metrics,
+    influence_metrics = influence_metrics,
+    robustness = robustness_metrics,
+    spectral_analysis = spectral_analysis,
+    predictive_power = predictive_power
   )
-
+  
   # Save to JSON
-  write(toJSON(performance, pretty = TRUE, auto_unbox = TRUE), file = "performance_model.json")
+  write(toJSON(performance, pretty = TRUE, auto_unbox = TRUE), file = "results/M2_Annual_Production/jsons/performance_model.json")
+  
   return(performance)
 }
 
@@ -273,7 +303,6 @@ compute_normality_tests <- function(residuals) {
 # ---------------------------------------------------------------------------- #
 # Elegant and Scalable Heteroscedasticity Tests with Dictionary Approach
 # ---------------------------------------------------------------------------- #
-
 compute_heteroscedasticity_tests <- function(model) {
   
   # Compute heteroscedasticity tests
@@ -327,7 +356,6 @@ compute_heteroscedasticity_tests <- function(model) {
   
   return(heteroscedasticity_tests)
 }
-
 
 # ---------------------------------------------------------------------------- #
 # Elegant and Scalable Autocorrelation Tests with Dictionary Approach
@@ -516,7 +544,6 @@ compute_multicollinearity_metrics <- function(model) {
 # ---------------------------------------------------------------------------- #
 # Elegant and Scalable Influence Metrics with Dictionary Approach
 # ---------------------------------------------------------------------------- #
-
 compute_influence_metrics <- function(model) {
   
   # Compute influence metrics
@@ -626,12 +653,9 @@ compute_influence_metrics <- function(model) {
   return(influence_metrics)
 }
 
-
-
 # ---------------------------------------------------------------------------- #
 # Elegant and Scalable Robustness Metrics with Dictionary Approach
 # ---------------------------------------------------------------------------- #
-
 compute_robustness_metrics <- function(model, data, response) {
   library(boot)
   library(robustbase)
@@ -732,3 +756,239 @@ compute_robustness_metrics <- function(model, data, response) {
   
   return(robustness_metrics)
 }
+
+# ---------------------------------------------------------------------------- #
+# Elegant and Scalable Spectral Analysis Metrics with Dictionary Approach
+# ---------------------------------------------------------------------------- #
+compute_spectral_analysis <- function(residuals, sampling_rate = 1) {
+  library(signal)
+  library(waveslim)
+  library(stats)
+  
+  # Compute FFT and adjust to Years
+  fft_res <- fft(residuals)
+  fft_magnitude <- Mod(fft_res)
+  fft_freqs <- (0:(length(residuals) - 1)) * (sampling_rate / length(residuals))
+  
+  # Convert frequencies to Years (inverse of 1/Years)
+  fft_years <- ifelse(fft_freqs != 0, 1 / fft_freqs, Inf)
+  
+  # Extract top 5 significant frequencies based on magnitude
+  top_frequencies <- order(fft_magnitude, decreasing = TRUE)[2:6]
+  top_frequencies_years <- fft_years[top_frequencies]
+  top_magnitudes <- fft_magnitude[top_frequencies]
+  
+  # Compute wavelet transform
+  wavelet_res <- modwt(residuals, filter = "haar", n.levels = 4)
+  
+  # Compute spectral density
+  spectral_density_res <- spectrum(residuals, plot = FALSE)
+  
+  # Lookup table for descriptions
+  descriptions <- list(
+    harmonics = "Harmonic Analysis identifies significant cycles in years, suggesting cyclical patterns.",
+    fft = "Fast Fourier Transform (FFT) decomposes residuals into frequency components measured in years, revealing dominant cycles.",
+    wavelet = "Wavelet Transform captures localized frequency components in time series data, useful for identifying transients.",
+    spectral_density = "Spectral Density Analysis evaluates the distribution of power across cycles (years), highlighting dominant cycles."
+  )
+  
+  # Interpretation lookup table
+  interpretation <- list(
+    harmonics = "Presence of significant harmonic cycles suggests periodic patterns or seasonality in residuals.",
+    fft = "Dominant cycles in FFT suggest underlying periodic components in years.",
+    wavelet = "Significant wavelet coefficients suggest localized time-frequency patterns.",
+    spectral_density = "Peaks in spectral density suggest dominant cycles or oscillations in years."
+  )
+  
+  # Helper function for result interpretation
+  get_result <- function(metric, values) {
+    if (metric == "harmonics") {
+      if (length(values) > 0) {
+        return(sprintf("Detected significant harmonic cycles at: %s years.", paste(round(values, 2), collapse = ", ")))
+      } else {
+        return("No significant harmonic cycles detected.")
+      }
+    }
+    if (metric == "fft") {
+      if (length(top_frequencies_years) > 0) {
+        return(sprintf("Top 5 dominant cycles in FFT are: %s years.", paste(round(top_frequencies_years, 2), collapse = ", ")))
+      } else {
+        return("No dominant cycles detected in FFT.")
+      }
+    }
+    if (metric == "wavelet") {
+      if (any(sapply(wavelet_res, function(x) max(abs(x))) > 0.5)) {
+        return("Significant wavelet coefficients detected, suggesting localized patterns.")
+      } else {
+        return("No significant wavelet coefficients detected.")
+      }
+    }
+    if (metric == "spectral_density") {
+      if (max(spectral_density_res$spec) > mean(spectral_density_res$spec) * 2) {
+        return("Peaks in spectral density detected, suggesting dominant cycles.")
+      } else {
+        return("No significant peaks in spectral density detected.")
+      }
+    }
+    return("Interpretation not available.")
+  }
+  
+  # Compile spectral analysis using dictionary-based approach
+  spectral_analysis <- list(
+    harmonics = list(
+      value = top_frequencies_years,
+      description = descriptions$harmonics,
+      interpretation = interpretation$harmonics,
+      result = get_result("harmonics", top_frequencies_years)
+    ),
+    fft = list(
+      value = list(frequencies = top_frequencies_years, magnitudes = top_magnitudes),
+      description = descriptions$fft,
+      interpretation = interpretation$fft,
+      result = get_result("fft", top_frequencies_years)
+    ),
+    wavelet = list(
+      value = wavelet_res,
+      description = descriptions$wavelet,
+      interpretation = interpretation$wavelet,
+      result = get_result("wavelet", wavelet_res)
+    ),
+    spectral_density = list(
+      value = spectral_density_res$spec,
+      description = descriptions$spectral_density,
+      interpretation = interpretation$spectral_density,
+      result = get_result("spectral_density", spectral_density_res$spec)
+    )
+  )
+  
+  return(spectral_analysis)
+}
+
+# ---------------------------------------------------------------------------- #
+# Elegant and Scalable Predictive Power Metrics with Dictionary Approach
+# ---------------------------------------------------------------------------- #
+compute_predictive_power <- function(model, data, response) {
+  library(Metrics)
+  library(BayesFactor)
+  library(boot)
+  library(forecast)
+  
+  # Extract actual values
+  actual <- data[[response]]
+  
+  # Handle prediction based on model type
+  if ("Arima" %in% class(model) || "ets" %in% class(model)) {
+    # For ARIMA or ETS models, use forecast instead of predict
+    arima_forecast <- forecast(model, h = 10)  # Forecast 10 steps ahead
+    predicted <- arima_forecast$mean  # Extract forecasted mean values
+  } else {
+    # For regression models, use predict with newdata
+    predicted <- predict(model, newdata = data)
+  }
+  
+  # Adjusted Prediction Error (using AIC correction)
+  residuals <- actual - predicted
+  adj_pred_error <- mean(abs(residuals)) / (1 - length(coef(model)) / length(actual))
+  
+  # Horizon Accuracy (for sequential data)
+  horizon_accuracy <- mean(abs(tail(residuals, 5))) / mean(abs(actual))
+  
+  # Forecast Bias
+  forecast_bias <- mean(predicted - actual)
+  
+  
+  # Compute Bayes Factor
+  bf <- regressionBF(as.formula(paste(response, "~ .")), data = data)
+  
+  # Lookup table for descriptions
+  descriptions <- list(
+    adjusted_prediction_error = "Adjusted Prediction Error accounts for model complexity by penalizing larger models to prevent overfitting.",
+    horizon_accuracy = "Horizon Accuracy measures predictive performance over a fixed forecast horizon, useful for sequential data.",
+    forecast_bias = "Forecast Bias evaluates systematic underestimation or overestimation by the model:\n  - Positive bias: Overestimation.\n  - Negative bias: Underestimation.",
+    bayes_factor = "Bayes Factor compares the predictive performance of the model against a null model:\n  - BF > 10: Strong evidence for the model.\n  - BF < 1: Evidence against the model."
+  )
+  
+  # Interpretation lookup table
+  interpretation <- list(
+    adjusted_prediction_error = "Lower values suggest better predictive accuracy with less risk of overfitting.",
+    horizon_accuracy = "Higher accuracy suggests better performance over the forecast horizon.",
+    forecast_bias = "Bias near 0 suggests no systematic error; positive suggests overestimation, negative suggests underestimation.",
+    bayes_factor = "BF > 10 suggests strong evidence for the model; BF < 1 suggests evidence against the model."
+  )
+  
+  # Helper function for result interpretation
+  get_result <- function(metric, value) {
+    if (metric == "adjusted_prediction_error") {
+      if (value < 0.1) {
+        return("Excellent predictive accuracy with low risk of overfitting.")
+      } else if (value < 0.2) {
+        return("Good predictive accuracy but some risk of overfitting.")
+      } else {
+        return("High error suggests potential overfitting or poor predictive performance.")
+      }
+    }
+    if (metric == "horizon_accuracy") {
+      if (value > 0.9) {
+        return("Excellent horizon accuracy, suggesting robust predictive performance.")
+      } else if (value > 0.7) {
+        return("Good horizon accuracy, suggesting reliable forecasts.")
+      } else {
+        return("Low horizon accuracy suggests limited predictive performance.")
+      }
+    }
+    if (metric == "forecast_bias") {
+      if (abs(value) < 0.01) {
+        return("Minimal bias, suggesting balanced forecasts.")
+      } else if (value > 0) {
+        return("Positive bias detected, suggesting systematic overestimation.")
+      } else {
+        return("Negative bias detected, suggesting systematic underestimation.")
+      }
+    }
+    if (metric == "bayes_factor") {
+      if (value > 10) {
+        return("Strong evidence for the model (BF > 10).")
+      } else if (value > 3) {
+        return("Moderate evidence for the model (3 < BF ≤ 10).")
+      } else if (value > 1) {
+        return("Weak evidence for the model (1 < BF ≤ 3).")
+      } else {
+        return("Evidence against the model (BF < 1).")
+    }
+    return("Interpretation not available.")
+  }
+  
+  # Compile predictive power metrics using dictionary-based approach
+  predictive_power <- list(
+    adjusted_prediction_error = list(
+      value = adj_pred_error,
+      description = descriptions$adjusted_prediction_error,
+      interpretation = interpretation$adjusted_prediction_error,
+      result = get_result("adjusted_prediction_error", adj_pred_error)
+    ),
+    horizon_accuracy = list(
+      value = horizon_accuracy,
+      description = descriptions$horizon_accuracy,
+      interpretation = interpretation$horizon_accuracy,
+      result = get_result("horizon_accuracy", horizon_accuracy)
+    ),
+    forecast_bias = list(
+      value = forecast_bias,
+      description = descriptions$forecast_bias,
+      interpretation = interpretation$forecast_bias,
+      result = get_result("forecast_bias", forecast_bias)
+    ),
+    bayes_factor = list(
+      value = bf,
+      description = descriptions$bayes_factor,
+      interpretation = interpretation$bayes_factor,
+      result = get_result("bayes_factor", bf)
+    )
+  )
+  
+  return(predictive_power)
+}
+}
+
+
+
