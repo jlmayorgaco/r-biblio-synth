@@ -104,45 +104,111 @@ fn_m1_mtrc2_most_rel_keywords_wordcloud <- function(most_rel_keywords, output_pa
   # Step 8: Log Success Message
   message("[INFO] Wordcloud generated and saved successfully.")
 }
-
 # ---------------------------------------------------------------------------- #
 # Function: M1 Metric Mtrc2 :: Generate Most Relevant Keywords Wordcloud2
 # Description: Creates a word cloud using the wordcloud2 package and saves it as an HTML file.
 # ---------------------------------------------------------------------------- #
 fn_m1_mtrc2_most_rel_keywords_wordcloud2 <- function(most_rel_keywords) {
   
+  # Ensure required packages are loaded
+  library(dplyr)
+  library(wordcloud2)
+  library(htmlwidgets)
+  
+  # Debugging: Print the input data
+  message(' ')
+  message(' ')
+  message(' ')
+  message(' ')
+  message(' ')
+  message(' =============================================> most_rel_keywords <=============================================' )
+  message(' most_rel_keywords ')
+  print(most_rel_keywords)
+  message(' ')
+  message(' ')
+  message(' ')
+  message(' ')
+  
   # Step 1: Validate Input Data
   if (is.null(most_rel_keywords) || nrow(most_rel_keywords) == 0) {
     stop("[ERROR] The input `most_rel_keywords` is NULL or empty.")
   }
 
-  # Step 2: Format and Rename Columns
-  colnames(most_rel_keywords)[1] <- "Author Keywords (DE)"
-  colnames(most_rel_keywords)[2] <- "Article-Author-Keywords"
+  # Step 2: Clean and Fix Duplicate Column Names
+  colnames(most_rel_keywords) <- make.unique(trimws(colnames(most_rel_keywords)))
+  
+  # Print column names for debugging
+  message("[INFO] Column names after cleaning and making unique:")
+  print(colnames(most_rel_keywords))
+  
+  # Dynamically detect and rename columns based on actual names
+  author_keywords_col <- grep("Author Keywords", colnames(most_rel_keywords), value = TRUE)
+  article_keywords_col <- grep("Keywords-Plus", colnames(most_rel_keywords), value = TRUE)
+  articles_col <- grep("^Articles(\\.\\d*)?$", colnames(most_rel_keywords), value = TRUE)
+
+  # Print detected column names for debugging
+  message("[INFO] Detected columns:")
+  message(" - Author Keywords Column: ", author_keywords_col)
+  message(" - Keywords-Plus Column: ", article_keywords_col)
+  message(" - Articles Column: ", articles_col)
+
+  # Ensure we have the right columns
+  if (length(author_keywords_col) > 0 && length(article_keywords_col) > 0 && length(articles_col) >= 2) {
+    most_rel_keywords <- most_rel_keywords %>%
+      rename(
+        `Author Keywords (DE)` = all_of(author_keywords_col),
+        `Article-Author-Keywords` = all_of(articles_col[2])  # Use the second "Articles" column for Keywords-Plus
+      )
+    message("[INFO] Dynamically renamed columns successfully.")
+  } else {
+    stop("[ERROR] Required columns `Author Keywords (DE)` or `Keywords-Plus (ID)` not found.")
+  }
+
+  # Print renamed column names for verification
+  message("[INFO] Renamed column names:")
+  print(colnames(most_rel_keywords))
   
   # Step 3: Convert Counts to Numeric
   most_rel_keywords$`Article-Author-Keywords` <- as.numeric(most_rel_keywords$`Article-Author-Keywords`)
-
-  # Step 4: Prepare Data for Wordcloud2
-  wordcloud_data <- most_rel_keywords %>%
-    select(`Author Keywords (DE)`, `Article-Author-Keywords`) %>%
-    rename(word = `Author Keywords (DE)`, freq = `Article-Author-Keywords`)
   
+  # Check for NAs after conversion
+  if (any(is.na(most_rel_keywords$`Article-Author-Keywords`))) {
+    stop("[ERROR] Column `Article-Author-Keywords` contains non-numeric values.")
+  }
+
+  # Step 4: Prepare Data for Wordcloud2 with dplyr::filter to avoid namespace conflict
+  wordcloud_data <- most_rel_keywords %>%
+    dplyr::select(`Author Keywords (DE)`, `Article-Author-Keywords`) %>%
+    rename(word = `Author Keywords (DE)`, freq = `Article-Author-Keywords`) %>%
+    dplyr::filter(freq > 2)  # Use dplyr::filter to avoid conflict
+
+  # Check if filtered data is empty
+  if (nrow(wordcloud_data) == 0) {
+    stop("[ERROR] No keywords left after filtering low-frequency terms.")
+  }
+
   # Step 5: Generate the Word Cloud using wordcloud2
-  library(wordcloud2)
   wordcloud <- wordcloud2(
     data = wordcloud_data, 
-    size = 1, 
+    size = 1.5,           # Increase size to fit more words
     shape = "circle"
   )
   
   # Step 6: Save the Word Cloud as an HTML File
   output_html <- file.path("results/M1_Main_Information/figures", "M1_Most_Rel_Keywords_Wordcloud.html")
+  
+  # Create directory if not exists
+  if (!dir.exists(dirname(output_html))) {
+    dir.create(dirname(output_html), recursive = TRUE)
+  }
+  
   htmlwidgets::saveWidget(wordcloud, output_html, selfcontained = FALSE)
   
   # Step 7: Log Success Message
   message("[INFO] Wordcloud saved at: ", output_html)
 }
+
+
 
 
 fn_m1_mtrc2_all_keywords_wordcloud <- function(extracted_data) {
