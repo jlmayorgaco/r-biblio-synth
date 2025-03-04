@@ -187,7 +187,7 @@ get_regression_models <- function(x, y) {
 
   # Fit models
   linear_model <- lm(Articles ~ Year, data = annual_production)
-  polynomial_model <- lm(Articles ~ poly(Year, 3, raw = TRUE), data = annual_production)
+  polynomial_model <- lm(Articles ~ I(Year) + I(Year^2) + I(Year^3), data = annual_production)
   spline_model <- lm(Articles ~ bs(Year, df = 5), data = annual_production)
 
   exponential_model <- fit_specific_model(exponential_growth, list(r = 0.0651, N0 = 2.87, t0 = 0.01), annual_production)
@@ -202,7 +202,13 @@ get_regression_models <- function(x, y) {
   # New models
   richards_model <- fit_specific_model(richards_growth, list(K = 115, r = 0.1, t0 = 2000, nu = 1.5), annual_production)
   fourier_model <- lm(Articles ~ sin(2 * pi * Year / 10) + cos(2 * pi * Year / 10), data = annual_production)
-  arima_model <- auto.arima(annual_production$Articles)
+
+  # ARIMA model for time series data
+  #library(forecast)
+  #arima_model <- auto.arima(annual_production$Articles)
+
+  # Correct way to forecast ARIMA without `newdata`
+  #arima_forecast <- forecast(arima_model, h = 10)  # Forecast 10 steps ahead
 
   # Collect models
   models <- list(
@@ -218,8 +224,8 @@ get_regression_models <- function(x, y) {
     VonBertalanffy = vonbertalanffy_model,
     Normal = normal_model,
     Richards = richards_model,
-    Fourier = fourier_model,
-    ARIMA = arima_model
+    Fourier = fourier_model
+    #ARIMA = arima_model
   )
 
   # Remove NULL models
