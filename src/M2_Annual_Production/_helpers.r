@@ -589,9 +589,9 @@ get_metrics_comparison_table <- function(models, data) {
       next  # Skip invalid models
     }
 
-    message(' ----- > model ')
+    message(' ==== === === ===  ----- > model ')
     print(model)
-    message(' ----- > r_squared ')
+    message(' ==== === === ===  ----- > r_squared ')
     print(r_squared)
 
     # Convert parameters to a readable string
