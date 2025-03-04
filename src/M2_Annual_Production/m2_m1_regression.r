@@ -40,16 +40,12 @@ M2_M1_Regression <- setRefClass(
         # Find the best model
         best_model <- get_best_model(comparison_table)
 
+
+
         # Evaluate Model Performance : Error Distribution, Is it Normal? Is periodic?
-        performance_model <- get_performance_model(x=x,y=y, best_model)
+        performance_model <- get_performance_model(x=x,y=y, models, best_model)
 
-        # Report
-        report <- get_report_table()
-        report.save_model_equation_latex()
-        report.save_models_comparison_table_latex()
-        report.save_model_performance_tests_latex()
 
-   
         models_serialized <- lapply(models, serialize_model)
 
         .self$results <- list(
