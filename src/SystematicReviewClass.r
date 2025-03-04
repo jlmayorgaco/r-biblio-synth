@@ -15,12 +15,131 @@ install_and_load <- function(packages) {
   if (length(new_packages)) install.packages(new_packages, dependencies = TRUE)
   invisible(lapply(packages, require, character.only = TRUE))
 }
+# ---------------------------------------------------------------------------- #
+# List of Required Packages for Comprehensive Analysis
+# ---------------------------------------------------------------------------- #
 
-# List of required packages 
-packages <- c("bibliometrix", "grImport2", "rsvg", "forecast", "lmtest", "grid", "gridSVG", "factoextra", "ggwordcloud", "patchwork","tm", "stopwords", "wordcloud2", "rworldmap", "tibble", "extrafont", "RColorBrewer", 
-"ggrepel", "countrycode","treemapify", "maps", "ggwordcloud", "ggsci", "changepoint", "lomb", "WaveletComp", "kableExtra", "jsonlite", 
-              "pander", "rlang", "dplyr", "broom", "Metrics", "knitr", "ggplot2",  "tidyr", "splines", "webshot",
-              "plotly", "webshot", "png", "gridExtra", "igraph", "ggfortify", "nls2", "reshape2", "minpack.lm", "htmlwidgets")
+# 📊 Data Manipulation and Wrangling
+packages <- c(
+  "dplyr",       # Data manipulation (filtering, selecting, summarizing)
+  "tibble",      # Enhanced data frames
+  "tidyr",       # Data tidying (gather, spread, separate)
+  "broom",       # Convert statistical analysis objects into tidy data frames
+  "reshape2"     # Data reshaping (melt and cast)
+)
+
+# 📈 Data Visualization
+packages <- c(packages,
+  "ggplot2",     # Core plotting package
+  "plotly",      # Interactive plots
+  "ggrepel",     # Improved text labels for ggplot2
+  "RColorBrewer",# Color palettes for ggplot2
+  "patchwork",   # Combine multiple ggplot2 plots
+  "ggsci",       # Scientific journal themes for ggplot2
+  "treemapify",  # Treemap visualizations
+  "ggfortify",   # Plot diagnostic plots for statistical models
+  "extrafont",   # Custom fonts for ggplot2
+  "ggwordcloud", # Word clouds with ggplot2
+  "wordcloud2",  # Interactive word clouds
+  "grid",        # Low-level graphics
+  "gridSVG",     # Export grid graphics as SVG
+  "gridExtra"    # Arrange multiple plots
+)
+
+# 🌍 Geographic and Mapping
+packages <- c(packages,
+  "rworldmap",   # World maps
+  "maps",        # Geospatial data
+  "countrycode"  # Convert country names to codes
+)
+
+# 📦 Web and HTML Export
+packages <- c(packages,
+  "jsonlite",    # JSON handling
+  "htmlwidgets", # Interactive HTML widgets
+  "webshot",     # Capture web pages as images
+  "png"          # Read and write PNG files
+)
+
+# 🧩 Text Mining and Processing
+packages <- c(packages,
+  "tm",          # Text mining
+  "stopwords",   # Stop words for text analysis
+  "bibliometrix" # Bibliometric analysis
+)
+
+# 📊 Statistical Analysis
+packages <- c(packages,
+  "car",         # Regression diagnostics
+  "MASS",        # Statistical functions and datasets
+  "nortest",     # Tests for normality
+  "tseries",     # Time series analysis
+  "lmtest",      # Hypothesis testing for regression models
+  "BayesFactor", # Bayesian analysis
+  "psych"        # Descriptive statistics
+)
+
+# 🛠️ Model Fitting and Optimization
+packages <- c(packages,
+  "nls2",        # Nonlinear least squares
+  "minpack.lm"   # Levenberg-Marquardt algorithm for NLS
+)
+
+# 🛠️ Metrics and Model Performance
+packages <- c(packages,
+  "Metrics",     # Error metrics (MAE, MSE, etc.)
+  "broom",       # Tidy summaries of models
+  "rlang"        # Functional programming tools for tidyverse
+)
+
+# 📊 Time Series Analysis
+packages <- c(packages,
+  "forecast",    # Time series forecasting
+  "changepoint", # Change point detection
+  "lomb",        # Lomb-Scargle periodograms
+  "WaveletComp", # Wavelet analysis
+  "signal",      # Signal processing
+  "splines"      # Spline regression
+)
+
+# ⚙️ Robustness and Resampling
+packages <- c(packages,
+  "boot",        # Bootstrap methods
+  "robustbase"   # Robust statistics
+)
+
+# 🔄 Autocorrelation and Spectral Analysis
+packages <- c(packages,
+  "orcutt",      # Cochrane-Orcutt procedure for autocorrelation
+  "spectral",    # Spectral analysis
+  "waveslim"     # Wavelet transforms
+)
+
+# 🛠️ Influence and Diagnostics
+packages <- c(packages,
+  "e1071",       # Support vector machines and skewness/kurtosis
+  "car",         # Influence diagnostics for regression
+  "lmtest"       # Diagnostics for regression models
+)
+
+# 📋 Reporting and Tables
+packages <- c(packages,
+  "kableExtra",  # Enhanced tables in RMarkdown
+  "knitr",       # Dynamic report generation
+  "pander"       # Format R objects for reports
+)
+
+# 📊 Graph and Network Analysis
+packages <- c(packages,
+  "igraph"       # Network analysis and graph theory
+)
+
+# 📋 Miscellaneous Utilities
+packages <- c(packages,
+  "pander",      # Format tables and figures in RMarkdown
+  "rlang"        # Programming with tidyverse
+)
+
 
 # Install and load necessary packages
 install_and_load(packages)
@@ -201,8 +320,8 @@ SystematicReview <- setRefClass(
       fn_m1_mtrc1_articles_types_pie(overview$main_information$document_types)
 
       # Top Keywords
-      fn_m1_mtrc2_most_rel_keywords_wordcloud(overview$most_rel_keywords)
-      fn_m1_mtrc2_most_rel_keywords_wordcloud2(overview$most_rel_keywords)
+      #fn_m1_mtrc2_most_rel_keywords_wordcloud(overview$most_rel_keywords)
+      #fn_m1_mtrc2_most_rel_keywords_wordcloud2(overview$most_rel_keywords)
 
       # Top Authors
       fn_m1_mtrc3_analyze_and_plot_most_prod_authors(overview$most_prod_authors)
@@ -244,15 +363,18 @@ SystematicReview <- setRefClass(
       # Step 4: Convert bibliometric data to annual production format
       data <- .self$data
 
+      message("\nM2 :: Analyzing Annual Production... p1 \n")
+      print(colnames(data))
+
       # Extract relevant columns (Year & Articles)
       df_annual <- data %>%
-        select(PY) %>%
-        filter(!is.na(PY)) %>%
-        group_by(PY) %>%
-        summarise(Articles = n()) %>%
-        rename(Year = PY)
+        dplyr::select("PY") %>%             # Use dplyr::select with quotes
+        dplyr::filter(!is.na(PY)) %>%       # Use dplyr::filter explicitly
+        dplyr::group_by(PY) %>%
+        dplyr::summarise(Articles = n()) %>%
+        dplyr::rename(Year = PY)            # Use dplyr::rename explicitly
 
-      # Step 5: Initialize and Run M2 Analysis
+            # Step 5: Initialize and Run M2 Analysis
       m2_analysis <- M2_Annual_Production$new(df_annual, year_col = "Year", articles_col = "Articles")
       m2_analysis$runMetrics()
 
