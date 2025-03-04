@@ -571,22 +571,28 @@ get_metrics_comparison_table <- function(models, data) {
 
   # Evaluate each model
   for (name in names(models)) {
-    model <- models[[name]]
-    
+    model <- models[[name]]    
     # Handle linear and non-linear models separately
     if (inherits(model, "lm")) {
       preds <- predict(model)
       r_squared <- summary(model)$r.squared
       aic <- AIC(model)
+      bic <- BIC(model)
       params <- coef(model)  # Get model parameters
     } else if (inherits(model, "nls")) {
       preds <- predict(model)
       r_squared <- cor(y, preds)^2  # R² for nls
       aic <- AIC(model)
+      bic <- BIC(model)
       params <- coef(model)  # Get model parameters
     } else {
       next  # Skip invalid models
     }
+
+    message(' ----- > model ')
+    print(model)
+    message(' ----- > r_squared ')
+    print(r_squared)
 
     # Convert parameters to a readable string
     param_str <- paste(names(params), "=", round(params, 4), collapse = ", ")
@@ -600,6 +606,7 @@ get_metrics_comparison_table <- function(models, data) {
       R2 = r_squared,
       RMSE = rmse,
       AIC = aic,
+      BIC = bic,
       Parameters = param_str
     ))
   }
