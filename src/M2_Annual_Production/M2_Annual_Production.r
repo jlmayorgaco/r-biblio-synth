@@ -12,12 +12,12 @@ source('../../src/M2_Annual_Production/_utils.r')
 message("Loaded file: _settings.r")
 source('../../src/M2_Annual_Production/_settings.r')
 
+message("Loaded file: _performances.r")
+source('../../src/M2_Annual_Production/_performances.r')
+
 source('../../src/M2_Annual_Production/m2_m0_eda.r')
 source('../../src/M2_Annual_Production/m2_m1_regression.r')
 source('../../src/M2_Annual_Production/m2_m2_harmonics.r')
-#source('../../src/M2_Annual_Production/m2_m3_growth.r')
-#source('../../src/M2_Annual_Production/m2_m4_fft.r')
-#source('../../src/M2_Annual_Production/m2_m5_harmonics_regression.r')
 
 # ---------------------------------------------------------------------------- #
 # -- M2_Annual_Production Class
