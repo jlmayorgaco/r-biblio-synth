@@ -17,34 +17,32 @@ get_performance_model <- function(x, y, models, best_model) {
   y_pred <- predict(model, newdata = data.frame(Year = x))
   residuals <- y - y_pred
 
-  
-
+  # Compute all metrics using modular functions
+  model_fit_metrics <- compute_model_fit_metrics(y, y_pred, model)
   message(' ')
   message(' ')
   message(' ')
   message(' ')
   message(' ')
   message(' ')
-  message(' ==== >residuals ')
-  message(' model')
-  message(model)
+  message(' ==== >model_fit_metrics ')
   message(' ')
-  message('data.frame(Year = x)')
-  message(data.frame(Year = x))
-  message(' ')
-  message(' y')
+  message('y')
   print(y)
   message(' ')
   message(' y_pred')
   print(y_pred)
   message(' ')
+  message(' best_model')
+  print(best_model)
+  message(' ')
+  message(' ')
+  message(' model_fit_metrics')
+  print(model_fit_metrics)
+  message(' ')
   message(' ')
   stop(' ============================= ')
 
-
-
-  # Compute all metrics using modular functions
-  model_fit_metrics <- compute_model_fit_metrics(y, y_pred, best_model)
   error_metrics <- compute_error_metrics(y, y_pred)
   normality_tests <- compute_normality_tests(residuals)
   heteroscedasticity_tests <- compute_heteroscedasticity_tests(best_model)
@@ -79,27 +77,65 @@ get_performance_model <- function(x, y, models, best_model) {
 
 
 # ---------------------------------------------------------------------------- #
-# Elegant and Scalable Model Fit Metrics with Lookup Tables
+# Function: compute_model_fit_metrics
+# Description: Computes model fit metrics (R², Adjusted R², AIC, BIC) using y, y_pred, and model
+# Parameters:
+#   - y: Actual values
+#   - y_pred: Predicted values
+#   - model: Model object
+# Returns:
+#   - A list of model fit metrics
 # ---------------------------------------------------------------------------- #
-compute_model_fit_metrics <- function(model) {
+compute_model_fit_metrics <- function(y, y_pred, model) {
   
-    # Extract R-squared and Adjusted R-squared
-    r_squared <- summary(model)$r.squared
-    adj_r_squared <- summary(model)$adj.r.squared
-    aic <- AIC(model)
-    bic <- BIC(model)
+    # Print debug info
+    message("[DEBUG] Computing model fit metrics...")
+    
+    # Compute R² for non-lm models using correlation or manual method
+    if ("lm" %in% class(model)) {
+      r_squared <- summary(model)$r.squared
+      adj_r_squared <- summary(model)$adj.r.squared
+    } else if ("nls" %in% class(model)) {
+      # Use correlation-based R² for nls models
+      r_squared <- cor(y, y_pred)^2
+      adj_r_squared <- 1 - (1 - r_squared) * (length(y) - 1) / (length(y) - length(coef(model)) - 1)
+    } else {
+      # Compute R² manually if not lm or nls
+      ss_total <- sum((y - mean(y))^2)
+      ss_residual <- sum((y - y_pred)^2)
+      r_squared <- 1 - (ss_residual / ss_total)
+      adj_r_squared <- 1 - ((1 - r_squared) * (length(y) - 1) / (length(y) - length(coef(model)) - 1))
+    }
+    
+    # Check if r_squared or adj_r_squared is NULL
+    if (is.null(r_squared) || is.null(adj_r_squared)) {
+      message("[WARNING] R-squared or Adjusted R-squared is NULL, setting to NA.")
+      r_squared <- NA
+      adj_r_squared <- NA
+    }
+    
+    # Compute AIC and BIC using model object if available
+    aic <- tryCatch(AIC(model), error = function(e) NA)
+    bic <- tryCatch(BIC(model), error = function(e) NA)
+    
+    # Print debug info for metrics
+    message("[DEBUG] R-squared: ", r_squared)
+    message("[DEBUG] Adjusted R-squared: ", adj_r_squared)
+    message("[DEBUG] AIC: ", aic)
+    message("[DEBUG] BIC: ", bic)
     
     # Lookup table for R-squared interpretation
     r_squared_interpretation <- list(
-        "0.0-0.3" = "Weak fit: The model explains very little of the variability, suggesting that important predictors may be missing or that the data is too noisy.",
-        "0.3-0.6" = "Moderate fit: The model explains a reasonable amount of variability, which might be acceptable in fields with high data variability.",
-        "0.6-0.8" = "Strong fit: The model explains a substantial portion of the variability, which is usually acceptable for moderately complex data.",
-        "0.8-0.9" = "Very strong fit: The model captures a high degree of variability, suggesting strong predictive power.",
-        "0.9-1.0" = "Excellent fit: The model explains most of the variability, but consider potential overfitting if the model is too complex."
+        "0.0-0.3" = "Weak fit: The model explains very little of the variability.",
+        "0.3-0.6" = "Moderate fit: The model explains a reasonable amount of variability.",
+        "0.6-0.8" = "Strong fit: The model explains a substantial portion of the variability.",
+        "0.8-0.9" = "Very strong fit: The model captures a high degree of variability.",
+        "0.9-1.0" = "Excellent fit: The model explains most of the variability."
     )
     
     # Function to get R-squared interpretation
     get_r_squared_result <- function(value) {
+        if (is.na(value)) return("R-squared not available.")
         if (value >= 0.9) return(r_squared_interpretation[["0.9-1.0"]])
         if (value >= 0.8) return(r_squared_interpretation[["0.8-0.9"]])
         if (value >= 0.6) return(r_squared_interpretation[["0.6-0.8"]])
@@ -107,49 +143,52 @@ compute_model_fit_metrics <- function(model) {
         return(r_squared_interpretation[["0.0-0.3"]])
     }
     
-    # Descriptions lookup for other metrics
+
+    message('  ')
+    message('  ')
+    message('  ')
+    message('  ======> r_squared  ')
+    print(get_r_squared_result(r_squared))
+    message('  ')
+    message('  ')
+    message('  ')
+    stop(' ====== ')
+
+    # Descriptions for metrics
     descriptions <- list(
         r_squared = "R-squared measures the proportion of variance explained by the model.",
-        adj_r_squared = "Adjusted R-squared modifies R-squared by considering the number of predictors relative to the number of observations.",
-        aic = "Akaike Information Criterion (AIC) balances model fit and complexity. Lower AIC indicates a better model fit relative to complexity.",
-        bic = "Bayesian Information Criterion (BIC) imposes a stronger penalty for complexity than AIC. Lower BIC indicates a better model considering both fit and parsimony."
+        adj_r_squared = "Adjusted R-squared adjusts R-squared for the number of predictors.",
+        aic = "Akaike Information Criterion (AIC) balances model fit and complexity.",
+        bic = "Bayesian Information Criterion (BIC) imposes a stronger penalty for complexity than AIC."
     )
     
-    # Result interpretation for AIC and BIC using lookup
-    aic_result <- ifelse(aic < 200, "Low AIC: Suggests a good balance between fit and complexity.",
-                        ifelse(aic < 300, "Moderate AIC: Acceptable fit with reasonable complexity.",
-                                "High AIC: Suggests potential overfitting or excessive model complexity."))
-    
-    bic_result <- ifelse(bic < 200, "Low BIC: Suggests a well-fitting model with appropriate complexity.",
-                        ifelse(bic < 300, "Moderate BIC: Suggests a reasonable balance of fit and complexity.",
-                                "High BIC: Suggests potential overfitting or unnecessary complexity."))
-    
-    # Compile model fit metrics using lookup tables and functions
+    # Compile model fit metrics using lookup tables
     model_fit_metrics <- list(
         r_squared = list(
-        value = r_squared,
-        description = descriptions$r_squared,
-        result = get_r_squared_result(r_squared)
+            value = r_squared,
+            description = descriptions$r_squared,
+            result = get_r_squared_result(r_squared)
         ),
         adj_r_squared = list(
-        value = adj_r_squared,
-        description = descriptions$adj_r_squared,
-        result = get_r_squared_result(adj_r_squared)
+            value = adj_r_squared,
+            description = descriptions$adj_r_squared,
+            result = get_r_squared_result(adj_r_squared)
         ),
         aic = list(
-        value = aic,
-        description = descriptions$aic,
-        result = aic_result
+            value = aic,
+            description = descriptions$aic,
+            result = ifelse(!is.na(aic), sprintf("AIC is %.3f", aic), "AIC not available.")
         ),
         bic = list(
-        value = bic,
-        description = descriptions$bic,
-        result = bic_result
+            value = bic,
+            description = descriptions$bic,
+            result = ifelse(!is.na(bic), sprintf("BIC is %.3f", bic), "BIC not available.")
         )
     )
     
     return(model_fit_metrics)
 }
+
 
 
 
