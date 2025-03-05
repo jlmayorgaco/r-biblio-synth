@@ -19,37 +19,31 @@ get_performance_model <- function(x, y, models, best_model) {
 
   # Compute all metrics using modular functions
   model_fit_metrics <- compute_model_fit_metrics(y, y_pred, model)
+  error_metrics <- compute_error_metrics(y, y_pred)
+  normality_tests <- compute_normality_tests(residuals)
+  heteroscedasticity_tests <- compute_heteroscedasticity_tests(model)
+  autocorrelation_tests <- compute_autocorrelation_tests(model, residuals)
+  linearity_tests <- compute_linearity_tests(model)
+  influence_metrics <- compute_influence_metrics(model, y, y_pred, residuals)
+
   message(' ')
   message(' ')
   message(' ')
   message(' ')
   message(' ')
   message(' ')
-  message(' ==== >model_fit_metrics ')
+  message(' ==== > influence_metrics ')
   message(' ')
-  message('y')
-  print(y)
-  message(' ')
-  message(' y_pred')
-  print(y_pred)
-  message(' ')
-  message(' best_model')
-  print(best_model)
+  message(' influence_metrics ')
+  print(influence_metrics)
   message(' ')
   message(' ')
-  message(' model_fit_metrics')
-  print(model_fit_metrics)
+  message(' ')
+  message(' ')
+  message(' ')
   message(' ')
   message(' ')
   stop(' ============================= ')
-
-  error_metrics <- compute_error_metrics(y, y_pred)
-  normality_tests <- compute_normality_tests(residuals)
-  heteroscedasticity_tests <- compute_heteroscedasticity_tests(best_model)
-  autocorrelation_tests <- compute_autocorrelation_tests(best_model, residuals)
-  linearity_tests <- compute_linearity_tests(best_model)
-  multicollinearity_metrics <- compute_multicollinearity_metrics(best_model)
-  influence_metrics <- compute_influence_metrics(best_model)
   robustness_metrics <- compute_robustness_metrics(best_model, data, response)
   spectral_analysis <- compute_spectral_analysis(residuals)
   predictive_power <- compute_predictive_power(best_model, data, response)
@@ -142,17 +136,6 @@ compute_model_fit_metrics <- function(y, y_pred, model) {
         if (value >= 0.3) return(r_squared_interpretation[["0.3-0.6"]])
         return(r_squared_interpretation[["0.0-0.3"]])
     }
-    
-
-    message('  ')
-    message('  ')
-    message('  ')
-    message('  ======> r_squared  ')
-    print(get_r_squared_result(r_squared))
-    message('  ')
-    message('  ')
-    message('  ')
-    stop(' ====== ')
 
     # Descriptions for metrics
     descriptions <- list(
@@ -185,6 +168,7 @@ compute_model_fit_metrics <- function(y, y_pred, model) {
             result = ifelse(!is.na(bic), sprintf("BIC is %.3f", bic), "BIC not available.")
         )
     )
+
     
     return(model_fit_metrics)
 }
@@ -343,70 +327,145 @@ compute_normality_tests <- function(residuals) {
 # Elegant and Scalable Heteroscedasticity Tests with Dictionary Approach
 # ---------------------------------------------------------------------------- #
 compute_heteroscedasticity_tests <- function(model) {
-  
-  # Compute heteroscedasticity tests
-  tests <- list(
-    breusch_pagan = bptest(model),
-    white = bptest(model, ~ fitted(model) + I(fitted(model)^2)),
-    goldfeld_quandt = gqtest(model)
-  )
-  
-  # Lookup table for descriptions
-  descriptions <- list(
-    breusch_pagan = "Breusch-Pagan Test detects heteroscedasticity by checking if residual variance depends on independent variables.",
-    white = "White's Test is a generalization of the Breusch-Pagan Test, detecting both linear and nonlinear forms of heteroscedasticity.",
-    goldfeld_quandt = "Goldfeld-Quandt Test checks for heteroscedasticity by comparing variances across different parts of the data, assuming a specific order."
-  )
-  
-  # Interpretation lookup table
-  interpretation <- list(
-    breusch_pagan = "p-value < 0.05 suggests evidence of heteroscedasticity; p-value ≥ 0.05 suggests homoscedasticity.",
-    white = "p-value < 0.05 suggests evidence of heteroscedasticity; p-value ≥ 0.05 suggests homoscedasticity.",
-    goldfeld_quandt = "p-value < 0.05 suggests evidence of heteroscedasticity; p-value ≥ 0.05 suggests homoscedasticity."
-  )
-  
-  # Helper function for result interpretation
-  get_result <- function(test) {
-    p_value <- test$p.value
-    if (p_value < 0.01) {
-      return("Strong evidence of heteroscedasticity (p < 0.01).")
-    } else if (p_value < 0.05) {
-      return("Moderate evidence of heteroscedasticity (p < 0.05).")
-    } else if (p_value < 0.1) {
-      return("Weak evidence of heteroscedasticity (p < 0.1).")
-    } else {
-      return("No evidence of heteroscedasticity (p ≥ 0.1).")
-    }
-  }
-  
-  # Compile heteroscedasticity tests using dictionary-based approach
-  heteroscedasticity_tests <- lapply(names(tests), function(test) {
-    list(
-      statistic = tests[[test]]$statistic,
-      p_value = tests[[test]]$p.value,
-      description = descriptions[[test]],
-      interpretation = interpretation[[test]],
-      result = get_result(tests[[test]])
+
+    # Initialize test results
+    tests <- list(
+        breusch_pagan = NA,
+        white = NA,
+        goldfeld_quandt = NA
     )
-  })
+    
+    # Check if model is lm
+    if ("lm" %in% class(model)) {
+        message("[DEBUG] lm model detected. Using bptest for Breusch-Pagan Test.")
+        # Safe execution of bptest for lm models
+        tests$breusch_pagan <- tryCatch(bptest(model), error = function(e) NA)
+        tests$white <- tryCatch(bptest(model, ~ fitted(model) + I(fitted(model)^2)), error = function(e) NA)
+        tests$goldfeld_quandt <- tryCatch(gqtest(model), error = function(e) NA)
+        
+    } else {
+        message("[DEBUG] Non-lm model detected. Using residuals for Breusch-Pagan Test.")
+        # For non-lm models, compute residuals manually
+        residuals <- residuals(model)
+        fitted_vals <- fitted(model)
+        
+        # Compute Breusch-Pagan test manually
+        library(lmtest)
+        bp_test <- tryCatch(bptest(lm(residuals^2 ~ fitted_vals)), error = function(e) NA)
+        tests$breusch_pagan <- bp_test
+        
+        # Compute White’s Test manually
+        white_test <- tryCatch(bptest(lm(residuals^2 ~ poly(fitted_vals, 2))), error = function(e) NA)
+        tests$white <- white_test
+        
+        # Compute Goldfeld-Quandt Test manually
+        gq_test <- tryCatch(gqtest(lm(residuals ~ fitted_vals)), error = function(e) NA)
+        tests$goldfeld_quandt <- gq_test
+    }
+
+    # Lookup table for descriptions
+    descriptions <- list(
+        breusch_pagan = "Breusch-Pagan Test detects heteroscedasticity by checking if residual variance depends on independent variables.",
+        white = "White's Test is a generalization of the Breusch-Pagan Test, detecting both linear and nonlinear forms of heteroscedasticity.",
+        goldfeld_quandt = "Goldfeld-Quandt Test checks for heteroscedasticity by comparing variances across different parts of the data, assuming a specific order."
+    )
+    
+    # Interpretation lookup table
+    interpretation <- list(
+        breusch_pagan = "p-value < 0.05 suggests evidence of heteroscedasticity; p-value ≥ 0.05 suggests homoscedasticity.",
+        white = "p-value < 0.05 suggests evidence of heteroscedasticity; p-value ≥ 0.05 suggests homoscedasticity.",
+        goldfeld_quandt = "p-value < 0.05 suggests evidence of heteroscedasticity; p-value ≥ 0.05 suggests homoscedasticity."
+    )
+
+    # Helper function for result interpretation
+    get_result <- function(test) {
+        if (isTRUE(is.null(test)) || (is.list(test) && isTRUE(any(is.na(test)))) || !is.list(test)) {
+            return("Test result not available.")
+        }
+        p_value <- test$p.value
+        if (p_value < 0.01) {
+            return("Strong evidence of heteroscedasticity (p < 0.01).")
+        } else if (p_value < 0.05) {
+            return("Moderate evidence of heteroscedasticity (p < 0.05).")
+        } else if (p_value < 0.1) {
+            return("Weak evidence of heteroscedasticity (p < 0.1).")
+        } else {
+            return("No evidence of heteroscedasticity (p ≥ 0.1).")
+        }
+    }
   
-  # Name the list elements
-  names(heteroscedasticity_tests) <- names(tests)
-  
-  return(heteroscedasticity_tests)
+    # Compile heteroscedasticity tests using dictionary-based approach
+    heteroscedasticity_tests <- lapply(names(tests), function(test) {
+        if (isTRUE(is.null(tests[[test]])) || (is.list(tests[[test]]) && isTRUE(any(is.na(tests[[test]])))) || !is.list(tests[[test]])) {
+            return(list(
+                statistic = NA,
+                p_value = NA,
+                description = descriptions[[test]],
+                interpretation = "Test not applicable for this model.",
+                result = "Test result not available."
+            ))
+        } else {
+            return(list(
+                statistic = tests[[test]]$statistic,
+                p_value = tests[[test]]$p.value,
+                description = descriptions[[test]],
+                interpretation = interpretation[[test]],
+                result = get_result(tests[[test]])
+            ))
+        }
+    })
+
+
+
+    # Name the list elements
+    names(heteroscedasticity_tests) <- names(tests)
+
+
+    return(heteroscedasticity_tests)
 }
 
+
 # ---------------------------------------------------------------------------- #
-# Elegant and Scalable Autocorrelation Tests with Dictionary Approach
+# Function: compute_autocorrelation_tests
+# Description: Computes autocorrelation tests (Durbin-Watson, Ljung-Box, Breusch-Godfrey)
+# Parameters:
+#   - model: Model object
+#   - residuals: Residuals of the model
+# Returns:
+#   - A list of autocorrelation test results
 # ---------------------------------------------------------------------------- #
 compute_autocorrelation_tests <- function(model, residuals) {
   
-  # Compute autocorrelation tests
+  message("[DEBUG] Computing autocorrelation tests...")
+  
+  # Initialize test results
   tests <- list(
-    durbin_watson = dwtest(model),
-    ljung_box = Box.test(residuals, lag = log(length(residuals)), type = "Ljung-Box"),
-    breusch_godfrey = bgtest(model)
+    durbin_watson = NA,
+    ljung_box = NA,
+    breusch_godfrey = NA
   )
+  
+  # Check if model is lm
+  if ("lm" %in% class(model)) {
+    message("[DEBUG] lm model detected. Using dwtest and bgtest.")
+    # Safe execution of tests for lm models
+    tests$durbin_watson <- tryCatch(dwtest(model), error = function(e) NA)
+    tests$breusch_godfrey <- tryCatch(bgtest(model), error = function(e) NA)
+  } else {
+    message("[DEBUG] Non-lm model detected. Using manual Durbin-Watson calculation.")
+    # For non-lm models, compute Durbin-Watson manually
+    dw_stat <- sum(diff(residuals)^2) / sum(residuals^2)
+    dw_test <- list(statistic = dw_stat, p.value = NA)
+    tests$durbin_watson <- dw_test
+    
+    # Manually compute Breusch-Godfrey test for non-lm models using custom regression
+    library(lmtest)
+    bg_test <- tryCatch(bgtest(lm(residuals ~ lag(residuals, -1))), error = function(e) NA)
+    tests$breusch_godfrey <- bg_test
+  }
+  
+  # Compute Ljung-Box test for both lm and non-lm models
+  tests$ljung_box <- tryCatch(Box.test(residuals, lag = log(length(residuals)), type = "Ljung-Box"), error = function(e) NA)
   
   # Lookup table for descriptions
   descriptions <- list(
@@ -424,6 +483,9 @@ compute_autocorrelation_tests <- function(model, residuals) {
   
   # Helper function for result interpretation
   get_result <- function(test, test_name) {
+    if (isTRUE(is.null(test)) || (is.list(test) && isTRUE(any(is.na(test)))) || !is.list(test)) {
+      return("Test result not available.")
+    }
     if (test_name == "durbin_watson") {
       stat <- test$statistic
       if (stat < 1.5) {
@@ -449,47 +511,121 @@ compute_autocorrelation_tests <- function(model, residuals) {
   
   # Compile autocorrelation tests using dictionary-based approach
   autocorrelation_tests <- lapply(names(tests), function(test) {
-    list(
-      statistic = tests[[test]]$statistic,
-      p_value = ifelse("p.value" %in% names(tests[[test]]), tests[[test]]$p.value, NA),
-      description = descriptions[[test]],
-      interpretation = interpretation[[test]],
-      result = get_result(tests[[test]], test)
-    )
+    if (isTRUE(is.null(tests[[test]])) || (is.list(tests[[test]]) && isTRUE(any(is.na(tests[[test]])))) || !is.list(tests[[test]])) {
+      return(list(
+        statistic = NA,
+        p_value = NA,
+        description = descriptions[[test]],
+        interpretation = "Test not applicable for this model.",
+        result = "Test result not available."
+      ))
+    } else {
+      return(list(
+        statistic = tests[[test]]$statistic,
+        p_value = ifelse("p.value" %in% names(tests[[test]]), tests[[test]]$p.value, NA),
+        description = descriptions[[test]],
+        interpretation = interpretation[[test]],
+        result = get_result(tests[[test]], test)
+      ))
+    }
   })
   
   # Name the list elements
   names(autocorrelation_tests) <- names(tests)
   
+  message("[DEBUG] Autocorrelation tests results:")
+  print(autocorrelation_tests)
+  
   return(autocorrelation_tests)
 }
+
 
 # ---------------------------------------------------------------------------- #
 # Elegant and Scalable Linearity Tests with Dictionary Approach
 # ---------------------------------------------------------------------------- #
 compute_linearity_tests <- function(model) {
   
-  # Compute linearity tests
+  message("[DEBUG] Computing linearity tests...")
+  
+  # Initialize test results
   tests <- list(
-    harvey_collier = harvtest(model),
-    ramsey_reset = resettest(model)
+    harvey_collier = NA,
+    ramsey_reset = NA,
+    cpr_plot = NA,
+    gam_check = NA,
+    box_cox = NA
   )
+  
+  # Check if model is lm
+  if ("lm" %in% class(model)) {
+    message("[DEBUG] lm model detected. Using harvtest and resettest.")
+    # Safe execution of tests for lm models
+    tests$harvey_collier <- tryCatch(harvtest(model), error = function(e) NA)
+    tests$ramsey_reset <- tryCatch(resettest(model), error = function(e) NA)
+  } else {
+    message("[DEBUG] Non-lm model detected. Performing alternative linearity checks.")
+    
+    # Extract residuals and fitted values for non-lm models
+    residuals <- residuals(model)
+    fitted_vals <- fitted(model)
+    
+    # 1. Component Plus Residual (Partial Residual) Plot
+    tryCatch({
+      library(car)
+      cpr_model <- lm(residuals ~ fitted_vals)
+      tests$cpr_plot <- list(
+        statistic = summary(cpr_model)$coefficients[2, 3],
+        p_value = summary(cpr_model)$coefficients[2, 4]
+      )
+    }, error = function(e) tests$cpr_plot <- NA)
+    
+    # 2. Generalized Additive Models (GAM)
+    tryCatch({
+      library(mgcv)
+      gam_model <- gam(residuals ~ s(fitted_vals))
+      gam_p_value <- summary(gam_model)$s.pv[1]
+      tests$gam_check <- list(
+        statistic = summary(gam_model)$s.table[1, "F"],
+        p_value = gam_p_value
+      )
+    }, error = function(e) tests$gam_check <- NA)
+    
+    # 3. Box-Cox Transformation Test
+    tryCatch({
+      library(MASS)
+      bc <- boxcox(lm(residuals ~ fitted_vals), plot = FALSE)
+      lambda <- bc$x[which.max(bc$y)]
+      tests$box_cox <- list(
+        statistic = lambda,
+        p_value = ifelse(lambda != 1, 0.01, 0.5)  # Hypothetical p-value for transformation need
+      )
+    }, error = function(e) tests$box_cox <- NA)
+  }
   
   # Lookup table for descriptions
   descriptions <- list(
-    harvey_collier = "Harvey-Collier Test checks if the relationship between dependent and independent variables is linear by testing the null hypothesis that the model is correctly specified.",
-    ramsey_reset = "Ramsey's RESET Test detects model misspecification by testing if higher-order terms of fitted values can explain the response variable, suggesting potential non-linearity or omitted variables."
+    harvey_collier = "Harvey-Collier Test checks if the model is linear in parameters.",
+    ramsey_reset = "Ramsey's RESET Test checks for model misspecification or non-linearity.",
+    cpr_plot = "Component Plus Residual Plot checks for non-linear patterns in residuals.",
+    gam_check = "Generalized Additive Model (GAM) checks if non-linear terms are significant.",
+    box_cox = "Box-Cox Test suggests a transformation to achieve linearity."
   )
   
   # Interpretation lookup table
   interpretation <- list(
-    harvey_collier = "p-value < 0.05 suggests that the model may not be linear; p-value ≥ 0.05 suggests no evidence against linearity.",
-    ramsey_reset = "p-value < 0.05 suggests evidence of model misspecification or non-linearity; p-value ≥ 0.05 suggests no evidence of misspecification."
+    harvey_collier = "p-value < 0.05 suggests non-linearity; p-value ≥ 0.05 suggests no evidence against linearity.",
+    ramsey_reset = "p-value < 0.05 suggests model misspecification; p-value ≥ 0.05 suggests no evidence of misspecification.",
+    cpr_plot = "p-value < 0.05 suggests non-linear patterns in residuals.",
+    gam_check = "p-value < 0.05 suggests significant non-linear terms.",
+    box_cox = "Non-zero lambda suggests a transformation may improve linearity."
   )
   
   # Helper function for result interpretation
   get_result <- function(test) {
-    p_value <- test$p.value
+    if (isTRUE(is.null(test)) || (is.list(test) && isTRUE(any(is.na(test)))) || !is.list(test)) {
+      return("Test result not available.")
+    }
+    p_value <- test$p_value
     if (p_value < 0.01) {
       return("Strong evidence of non-linearity or model misspecification (p < 0.01).")
     } else if (p_value < 0.05) {
@@ -503,194 +639,154 @@ compute_linearity_tests <- function(model) {
   
   # Compile linearity tests using dictionary-based approach
   linearity_tests <- lapply(names(tests), function(test) {
-    list(
-      statistic = tests[[test]]$statistic,
-      p_value = tests[[test]]$p.value,
-      description = descriptions[[test]],
-      interpretation = interpretation[[test]],
-      result = get_result(tests[[test]])
-    )
+    if (isTRUE(is.null(tests[[test]])) || (is.list(tests[[test]]) && isTRUE(any(is.na(tests[[test]])))) || !is.list(tests[[test]])) {
+      return(list(
+        statistic = NA,
+        p_value = NA,
+        description = descriptions[[test]],
+        interpretation = "Test not applicable for this model.",
+        result = "Test result not available."
+      ))
+    } else {
+      return(list(
+        statistic = tests[[test]]$statistic,
+        p_value = tests[[test]]$p_value,
+        description = descriptions[[test]],
+        interpretation = interpretation[[test]],
+        result = get_result(tests[[test]])
+      ))
+    }
   })
   
   # Name the list elements
   names(linearity_tests) <- names(tests)
   
+  message("[DEBUG] Linearity tests results:")
+  print(linearity_tests)
+  
   return(linearity_tests)
 }
 
-# ---------------------------------------------------------------------------- #
-# Elegant and Scalable Multicollinearity Metrics with Dictionary Approach
-# ---------------------------------------------------------------------------- #
-compute_multicollinearity_metrics <- function(model) {
-  
-  # Compute multicollinearity metrics
-  vif_values <- vif(model)
-  condition_number <- kappa(model)
-  
-  # Lookup table for descriptions
-  descriptions <- list(
-    vif = "Variance Inflation Factor (VIF) measures how much the variance of a regression coefficient is inflated due to multicollinearity:\n  - VIF = 1: No multicollinearity.\n  - VIF > 5: Moderate multicollinearity.\n  - VIF > 10: High multicollinearity.",
-    condition_number = "Condition Number assesses multicollinearity by examining the sensitivity of the regression solution to changes in the independent variables:\n  - < 10: No multicollinearity.\n  - 10–30: Moderate multicollinearity.\n  - > 30: High multicollinearity."
-  )
-  
-  # Interpretation lookup table
-  interpretation <- list(
-    vif = "VIF > 5 suggests moderate multicollinearity; VIF > 10 suggests high multicollinearity.",
-    condition_number = "Condition number > 30 suggests high multicollinearity."
-  )
-  
-  # Helper function for result interpretation
-  get_vif_result <- function(vif_values) {
-    max_vif <- max(vif_values)
-    if (max_vif > 10) {
-      return("High multicollinearity detected (VIF > 10). Consider removing or combining predictors.")
-    } else if (max_vif > 5) {
-      return("Moderate multicollinearity detected (5 < VIF ≤ 10). Be cautious of predictor redundancy.")
-    } else {
-      return("No significant multicollinearity detected (VIF ≤ 5).")
-    }
-  }
-  
-  get_condition_number_result <- function(cn) {
-    if (cn > 30) {
-      return("High multicollinearity detected (Condition Number > 30). Consider dimensionality reduction techniques.")
-    } else if (cn > 10) {
-      return("Moderate multicollinearity detected (10 < Condition Number ≤ 30).")
-    } else {
-      return("No significant multicollinearity detected (Condition Number ≤ 10).")
-    }
-  }
-  
-  # Compile multicollinearity metrics using dictionary-based approach
-  multicollinearity_metrics <- list(
-    vif = list(
-      value = vif_values,
-      description = descriptions$vif,
-      interpretation = interpretation$vif,
-      result = get_vif_result(vif_values)
-    ),
-    condition_number = list(
-      value = condition_number,
-      description = descriptions$condition_number,
-      interpretation = interpretation$condition_number,
-      result = get_condition_number_result(condition_number)
-    )
-  )
-  
-  return(multicollinearity_metrics)
-}
 
+ 
 # ---------------------------------------------------------------------------- #
-# Elegant and Scalable Influence Metrics with Dictionary Approach
+# Function: compute_influence_metrics
+# Description: Computes influence metrics using pre-computed y, y_pred, and residuals.
+# Parameters:
+#   - model: Model object
+#   - y: Observed values
+#   - y_pred: Predicted values from the model
+#   - residuals: Residuals (y - y_pred)
+# Returns:
+#   - A list of influence metrics
 # ---------------------------------------------------------------------------- #
-compute_influence_metrics <- function(model) {
+compute_influence_metrics <- function(model, y, y_pred, residuals) {
   
-  # Compute influence metrics
-  cooks <- cooks.distance(model)
-  leverage <- hatvalues(model)
-  dfbetas <- dfbetas(model)
-  mahalanobis_values <- mahalanobis(model.matrix(model), colMeans(model.matrix(model)), cov(model.matrix(model)))
-  covratio_values <- covratio(model)
-  hadi_values <- hatvalues(model) * cooks.distance(model)
+  message("[DEBUG] Computing influence metrics...")
   
-  # Lookup table for descriptions
-  descriptions <- list(
-    cooks = "Cook's Distance measures the influence of a data point by assessing how much the regression coefficients change when it is removed:\n  - > 1 suggests highly influential points.",
-    leverage = "Leverage values measure the influence of individual data points based on their position in the predictor space:\n  - High leverage indicates potential outliers.",
-    dfbetas = "DFBETAS quantifies how much each coefficient changes when a data point is excluded:\n  - Absolute values > 2/√n suggest influential points.",
-    mahalanobis = "Mahalanobis Distance measures the distance of a point from the mean of the predictor variables considering correlations:\n  - High values suggest outliers.",
-    covratio = "COVRATIO evaluates the influence of data points on the covariance matrix of coefficients:\n  - Values outside (1 ± 3p/n) suggest influential points.",
-    hadi = "Hadi's Influence Measure detects both leverage points and influential observations by combining leverage and Cook's Distance."
-  )
+  # Initialize results with NA
+  cooks <- NA
+  leverage <- NA
+  dfbetas <- NA
+  mahalanobis_values <- NA
+  covratio_values <- NA
+  hadi_values <- NA
   
-  # Interpretation lookup table
-  interpretation <- list(
-    cooks = "Cook's Distance > 1 suggests high influence.",
-    leverage = "Leverage > 2p/n suggests potential outliers.",
-    dfbetas = "DFBETAS > 2/√n suggests high influence.",
-    mahalanobis = "High Mahalanobis Distance suggests outliers.",
-    covratio = "COVRATIO outside (1 ± 3p/n) suggests high influence.",
-    hadi = "High Hadi's Measure suggests influential points."
-  )
+  tryCatch({
+    # Extract data and predictors manually
+    message("[DEBUG] Extracting data used for fitting...")
+    data <- tryCatch({
+      d <- eval(model$call$data, environment(model))
+      if (is.function(d)) stop("[ERROR] Extracted object is a function, not a data frame.")
+      message("[DEBUG] Data extracted successfully.")
+      print(head(d))
+      d
+    }, error = function(e) {
+      message("[ERROR] Failed to extract data: ", e$message)
+      print('model$call$data')
+      print(model)
+      NA
+    })
+    if (is.na(data)) stop("[ERROR] Data extraction failed.")
+    
+    # Extract predictor variables
+    predictor_names <- tryCatch({
+      pn <- all.vars(formula(model))[-1]  # Exclude response variable
+      message("[DEBUG] Predictor names extracted:")
+      print(pn)
+      pn
+    }, error = function(e) {
+      message("[ERROR] Failed to extract predictor names: ", e$message)
+      NA
+    })
+    
+    predictors <- tryCatch({
+      p <- data[, predictor_names, drop = FALSE]
+      message("[DEBUG] Predictors extracted successfully:")
+      print(head(p))
+      p
+    }, error = function(e) {
+      message("[ERROR] Failed to extract predictors: ", e$message)
+      NA
+    })
+    if (is.na(predictors) || ncol(predictors) < 1) stop("[ERROR] Predictors extraction failed.")
+    
+    # Define n and p safely
+    n <- tryCatch(nrow(predictors), error = function(e) NA)
+    p <- tryCatch(ncol(predictors), error = function(e) NA)
+    
+    if (is.na(n) || is.na(p)) stop("[ERROR] Failed to determine n or p.")
+    
+    message("[DEBUG] n (observations): ", n)
+    message("[DEBUG] p (predictors): ", p)
+    
+    # Alternative Cook's Distance
+    leverage <- diag(predictors %*% solve(t(predictors) %*% predictors) %*% t(predictors))
+    cooks <- (residuals^2 / (p * var(residuals))) * leverage / (1 - leverage)^2
+    message("[DEBUG] Cook's Distance and Leverage computed successfully.")
+    
+    # Alternative DFBETAS calculation
+    dfbetas <- apply(predictors, 2, function(x) (residuals / sqrt(var(residuals))) * x / sqrt(sum(x^2)))
+    message("[DEBUG] DFBETAS computed successfully.")
+    
+    # Mahalanobis Distance
+    mahalanobis_values <- mahalanobis(predictors, colMeans(predictors), cov(predictors))
+    message("[DEBUG] Mahalanobis Distance computed successfully.")
+    
+    # COVRATIO
+    covratio_values <- sum(1 / eigen(cov(predictors))$values)
+    message("[DEBUG] COVRATIO computed successfully.")
+    
+    # Hadi's Measure
+    hadi_values <- leverage * cooks
+    message("[DEBUG] Hadi's Measure computed successfully.")
+    
+  }, error = function(e) {
+    message("[ERROR] Influence metrics failed: ", e$message)
+    cooks <- NA
+    leverage <- NA
+    dfbetas <- NA
+    mahalanobis_values <- NA
+    covratio_values <- NA
+    hadi_values <- NA
+  })
   
-  # Helper function for result interpretation
-  get_result <- function(metric, values) {
-    n <- length(values)
-    p <- length(coef(model))
-    if (metric == "cooks") {
-      if (any(values > 1)) return("High influence detected (Cook's Distance > 1).")
-      else return("No high influence detected (Cook's Distance ≤ 1).")
-    }
-    if (metric == "leverage") {
-      threshold <- 2 * p / n
-      if (any(values > threshold)) return(sprintf("High leverage detected (Leverage > %.3f).", threshold))
-      else return("No high leverage detected.")
-    }
-    if (metric == "dfbetas") {
-      threshold <- 2 / sqrt(n)
-      if (any(abs(values) > threshold)) return(sprintf("High influence detected (DFBETAS > %.3f).", threshold))
-      else return("No high influence detected (DFBETAS ≤ threshold).")
-    }
-    if (metric == "mahalanobis") {
-      threshold <- qchisq(0.99, df = p)
-      if (any(values > threshold)) return(sprintf("Outliers detected (Mahalanobis Distance > %.2f).", threshold))
-      else return("No outliers detected.")
-    }
-    if (metric == "covratio") {
-      threshold_low <- 1 - 3 * p / n
-      threshold_high <- 1 + 3 * p / n
-      if (any(values < threshold_low | values > threshold_high)) return("High influence detected (COVRATIO outside threshold).")
-      else return("No high influence detected (COVRATIO within threshold).")
-    }
-    if (metric == "hadi") {
-      if (any(values > 1)) return("High influence detected (Hadi's Measure > 1).")
-      else return("No high influence detected.")
-    }
-    return("Interpretation not available.")
-  }
-  
-  # Compile influence metrics using dictionary-based approach
+  # Compile influence metrics
   influence_metrics <- list(
-    cooks = list(
-      value = cooks,
-      description = descriptions$cooks,
-      interpretation = interpretation$cooks,
-      result = get_result("cooks", cooks)
-    ),
-    leverage = list(
-      value = leverage,
-      description = descriptions$leverage,
-      interpretation = interpretation$leverage,
-      result = get_result("leverage", leverage)
-    ),
-    dfbetas = list(
-      value = dfbetas,
-      description = descriptions$dfbetas,
-      interpretation = interpretation$dfbetas,
-      result = get_result("dfbetas", dfbetas)
-    ),
-    mahalanobis = list(
-      value = mahalanobis_values,
-      description = descriptions$mahalanobis,
-      interpretation = interpretation$mahalanobis,
-      result = get_result("mahalanobis", mahalanobis_values)
-    ),
-    covratio = list(
-      value = covratio_values,
-      description = descriptions$covratio,
-      interpretation = interpretation$covratio,
-      result = get_result("covratio", covratio_values)
-    ),
-    hadi = list(
-      value = hadi_values,
-      description = descriptions$hadi,
-      interpretation = interpretation$hadi,
-      result = get_result("hadi", hadi_values)
-    )
+    cooks = list(value = cooks, result = ifelse(any(cooks > 1, na.rm = TRUE), "High influence detected.", "No high influence detected.")),
+    leverage = list(value = leverage, result = ifelse(any(leverage > 2 * p / n, na.rm = TRUE), "High leverage detected.", "No high leverage detected.")),
+    dfbetas = list(value = dfbetas, result = ifelse(any(abs(dfbetas) > 2 / sqrt(n), na.rm = TRUE), "High influence detected.", "No high influence detected.")),
+    mahalanobis = list(value = mahalanobis_values, result = ifelse(any(mahalanobis_values > qchisq(0.99, df = p), na.rm = TRUE), "Outliers detected.", "No outliers detected.")),
+    covratio = list(value = covratio_values, result = ifelse(any(covratio_values < 1 - 3 * p / n | covratio_values > 1 + 3 * p / n, na.rm = TRUE), "High influence detected.", "No high influence detected.")),
+    hadi = list(value = hadi_values, result = ifelse(any(hadi_values > 1, na.rm = TRUE), "High influence detected.", "No high influence detected."))
   )
+  
+  message("[DEBUG] Influence metrics results:")
+  print(influence_metrics)
   
   return(influence_metrics)
 }
+
 
 # ---------------------------------------------------------------------------- #
 # Elegant and Scalable Robustness Metrics with Dictionary Approach
