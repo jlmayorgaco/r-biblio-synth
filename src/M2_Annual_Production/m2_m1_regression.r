@@ -40,11 +40,8 @@ M2_M1_Regression <- setRefClass(
         # Find the best model
         best_model <- get_best_model(comparison_table)
 
-
-
         # Evaluate Model Performance : Error Distribution, Is it Normal? Is periodic?
         performance_model <- get_performance_model(x=x,y=y, models, best_model)
-
 
         models_serialized <- lapply(models, serialize_model)
 
@@ -58,7 +55,8 @@ M2_M1_Regression <- setRefClass(
                 models = models_serialized,
                 model_name = best_model$name,
                 model_params = best_model$params,
-                model_r_squared = best_model$R2
+                model_r_squared = best_model$R2,
+                model_performance = performance_model
         )
 
 
@@ -75,6 +73,14 @@ M2_M1_Regression <- setRefClass(
 
       # Generate regression plots
       create_regression_articles_plots(
+        metric_regression = .self$results,
+        models_regression = model_function_map,
+        x = x, 
+        y = y,
+        output_path = output_path
+      )
+
+      create_regression_articles_small_plots(
         metric_regression = .self$results,
         models_regression = model_function_map,
         x = x, 
@@ -123,6 +129,7 @@ M2_M1_Regression <- setRefClass(
 # ---------------------------------------------------------------------------- #
 # Plot Regression Models for Annual Articles
 # ---------------------------------------------------------------------------- #
+
 create_regression_articles_plots <- function(metric_regression, models_regression, x, y, output_path) {
   
   # Validate Input
