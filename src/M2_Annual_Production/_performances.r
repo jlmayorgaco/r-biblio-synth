@@ -24,29 +24,11 @@ get_performance_model <- function(x, y, models, best_model) {
   heteroscedasticity_tests <- compute_heteroscedasticity_tests(model)
   autocorrelation_tests <- compute_autocorrelation_tests(model, residuals)
   linearity_tests <- compute_linearity_tests(model)
-  influence_metrics <- compute_influence_metrics(model, y, y_pred, residuals)
+  #influence_metrics <- compute_influence_metrics(model, y, y_pred, residuals, data)
+  robustness_metrics <- compute_robustness_metrics(x, y, y_pred, residuals)
+  spectral_analysis <- compute_spectral_analysis(model, y, y_pred, residuals, data)
+  predictive_power <- compute_predictive_power(model, y, y_pred, residuals, data)
 
-  message(' ')
-  message(' ')
-  message(' ')
-  message(' ')
-  message(' ')
-  message(' ')
-  message(' ==== > influence_metrics ')
-  message(' ')
-  message(' influence_metrics ')
-  print(influence_metrics)
-  message(' ')
-  message(' ')
-  message(' ')
-  message(' ')
-  message(' ')
-  message(' ')
-  message(' ')
-  stop(' ============================= ')
-  robustness_metrics <- compute_robustness_metrics(best_model, data, response)
-  spectral_analysis <- compute_spectral_analysis(residuals)
-  predictive_power <- compute_predictive_power(best_model, data, response)
   
   # Compile all 57 metrics
   performance <- list(
@@ -56,15 +38,40 @@ get_performance_model <- function(x, y, models, best_model) {
     heteroscedasticity_tests = heteroscedasticity_tests,
     autocorrelation_tests = autocorrelation_tests,
     linearity_tests = linearity_tests,
-    multicollinearity = multicollinearity_metrics,
-    influence_metrics = influence_metrics,
+    #multicollinearity = multicollinearity_metrics,
+    #influence_metrics = influence_metrics,
     robustness = robustness_metrics,
     spectral_analysis = spectral_analysis,
     predictive_power = predictive_power
   )
+
+
+# Function to simplify modwt objects for JSON serialization
+simplify_modwt <- function(modwt_obj) {
+  if (!inherits(modwt_obj, "modwt")) return(modwt_obj)  # Return as-is if not modwt
+  
+  # Extract useful parts of modwt object
+  simplified <- list(
+    coefficients = lapply(modwt_obj, function(x) if (is.numeric(x)) x else NULL),
+    wavelet = attr(modwt_obj, "wavelet"),
+    boundary = attr(modwt_obj, "boundary")
+  )
+  
+  return(simplified)
+}
+
+# Simplify modwt objects within performance_model if they exist
+if (!is.null(performance$spectral_analysis$wavelet$value)) {
+  performance$spectral_analysis$wavelet$value <- simplify_modwt(
+    performance$spectral_analysis$wavelet$value
+  )
+}
+
+# Serialize to JSON
+json_performance_model <- toJSON(performance, pretty = TRUE, auto_unbox = TRUE)
   
   # Save to JSON
-  write(toJSON(performance, pretty = TRUE, auto_unbox = TRUE), file = "results/M2_Annual_Production/jsons/performance_model.json")
+  #write(json_performance_model, file = "results/M2_Annual_Production/jsons/performance_model.json")
   
   return(performance)
 }
@@ -662,277 +669,139 @@ compute_linearity_tests <- function(model) {
   names(linearity_tests) <- names(tests)
   
   message("[DEBUG] Linearity tests results:")
-  print(linearity_tests)
-  
+
   return(linearity_tests)
 }
 
 
- 
-# ---------------------------------------------------------------------------- #
-# Function: compute_influence_metrics
-# Description: Computes influence metrics using pre-computed y, y_pred, and residuals.
-# Parameters:
-#   - model: Model object
-#   - y: Observed values
-#   - y_pred: Predicted values from the model
-#   - residuals: Residuals (y - y_pred)
-# Returns:
-#   - A list of influence metrics
-# ---------------------------------------------------------------------------- #
-compute_influence_metrics <- function(model, y, y_pred, residuals) {
-  
-  message("[DEBUG] Computing influence metrics...")
-  
-  # Initialize results with NA
-  cooks <- NA
-  leverage <- NA
-  dfbetas <- NA
-  mahalanobis_values <- NA
-  covratio_values <- NA
-  hadi_values <- NA
-  
-  tryCatch({
-    # Extract data and predictors manually
-    message("[DEBUG] Extracting data used for fitting...")
-    data <- tryCatch({
-      d <- eval(model$call$data, environment(model))
-      if (is.function(d)) stop("[ERROR] Extracted object is a function, not a data frame.")
-      message("[DEBUG] Data extracted successfully.")
-      print(head(d))
-      d
-    }, error = function(e) {
-      message("[ERROR] Failed to extract data: ", e$message)
-      print('model$call$data')
-      print(model)
-      NA
-    })
-    if (is.na(data)) stop("[ERROR] Data extraction failed.")
-    
-    # Extract predictor variables
-    predictor_names <- tryCatch({
-      pn <- all.vars(formula(model))[-1]  # Exclude response variable
-      message("[DEBUG] Predictor names extracted:")
-      print(pn)
-      pn
-    }, error = function(e) {
-      message("[ERROR] Failed to extract predictor names: ", e$message)
-      NA
-    })
-    
-    predictors <- tryCatch({
-      p <- data[, predictor_names, drop = FALSE]
-      message("[DEBUG] Predictors extracted successfully:")
-      print(head(p))
-      p
-    }, error = function(e) {
-      message("[ERROR] Failed to extract predictors: ", e$message)
-      NA
-    })
-    if (is.na(predictors) || ncol(predictors) < 1) stop("[ERROR] Predictors extraction failed.")
-    
-    # Define n and p safely
-    n <- tryCatch(nrow(predictors), error = function(e) NA)
-    p <- tryCatch(ncol(predictors), error = function(e) NA)
-    
-    if (is.na(n) || is.na(p)) stop("[ERROR] Failed to determine n or p.")
-    
-    message("[DEBUG] n (observations): ", n)
-    message("[DEBUG] p (predictors): ", p)
-    
-    # Alternative Cook's Distance
-    leverage <- diag(predictors %*% solve(t(predictors) %*% predictors) %*% t(predictors))
-    cooks <- (residuals^2 / (p * var(residuals))) * leverage / (1 - leverage)^2
-    message("[DEBUG] Cook's Distance and Leverage computed successfully.")
-    
-    # Alternative DFBETAS calculation
-    dfbetas <- apply(predictors, 2, function(x) (residuals / sqrt(var(residuals))) * x / sqrt(sum(x^2)))
-    message("[DEBUG] DFBETAS computed successfully.")
-    
-    # Mahalanobis Distance
-    mahalanobis_values <- mahalanobis(predictors, colMeans(predictors), cov(predictors))
-    message("[DEBUG] Mahalanobis Distance computed successfully.")
-    
-    # COVRATIO
-    covratio_values <- sum(1 / eigen(cov(predictors))$values)
-    message("[DEBUG] COVRATIO computed successfully.")
-    
-    # Hadi's Measure
-    hadi_values <- leverage * cooks
-    message("[DEBUG] Hadi's Measure computed successfully.")
-    
-  }, error = function(e) {
-    message("[ERROR] Influence metrics failed: ", e$message)
-    cooks <- NA
-    leverage <- NA
-    dfbetas <- NA
-    mahalanobis_values <- NA
-    covratio_values <- NA
-    hadi_values <- NA
-  })
-  
-  # Compile influence metrics
-  influence_metrics <- list(
-    cooks = list(value = cooks, result = ifelse(any(cooks > 1, na.rm = TRUE), "High influence detected.", "No high influence detected.")),
-    leverage = list(value = leverage, result = ifelse(any(leverage > 2 * p / n, na.rm = TRUE), "High leverage detected.", "No high leverage detected.")),
-    dfbetas = list(value = dfbetas, result = ifelse(any(abs(dfbetas) > 2 / sqrt(n), na.rm = TRUE), "High influence detected.", "No high influence detected.")),
-    mahalanobis = list(value = mahalanobis_values, result = ifelse(any(mahalanobis_values > qchisq(0.99, df = p), na.rm = TRUE), "Outliers detected.", "No outliers detected.")),
-    covratio = list(value = covratio_values, result = ifelse(any(covratio_values < 1 - 3 * p / n | covratio_values > 1 + 3 * p / n, na.rm = TRUE), "High influence detected.", "No high influence detected.")),
-    hadi = list(value = hadi_values, result = ifelse(any(hadi_values > 1, na.rm = TRUE), "High influence detected.", "No high influence detected."))
-  )
-  
-  message("[DEBUG] Influence metrics results:")
-  print(influence_metrics)
-  
-  return(influence_metrics)
-}
 
 
 # ---------------------------------------------------------------------------- #
-# Elegant and Scalable Robustness Metrics with Dictionary Approach
+# Basic and Simple Robustness Metrics for Model Evaluation
 # ---------------------------------------------------------------------------- #
-compute_robustness_metrics <- function(model, data, response) {
-  library(boot)
-  library(robustbase)
+compute_robustness_metrics <- function(x, y, y_pred, residuals) {
   
-  # Compute robust model coefficients
-  robust_model <- lmrob(as.formula(paste(response, "~ .")), data = data)
+  message("[DEBUG] Computing robustness metrics...")
   
-  # Compute jackknife estimates
-  jackknife <- jackknife(coef(model))
+  # Basic Metrics
+  mae <- mean(abs(residuals))
+  mse <- mean(residuals^2)
+  rmse <- sqrt(mse)
+  mad <- median(abs(residuals - median(residuals)))
   
-  # Bootstrap estimates
+  # Variability Metrics
+  cvr <- sd(residuals) / mean(y)
+  iqr_residuals <- IQR(residuals)
+  
+  # Robustness Indicators
+  snr <- mean(y_pred) / sd(residuals)
+  mae_to_rmse <- mae / rmse
+
+  # Bootstrap function for MAE and RMSE
   bootstrap_func <- function(data, indices) {
-    d <- data[indices, ]
-    fit <- lm(as.formula(paste(response, "~ .")), data = d)
-    return(coef(fit))
-  }
-  bootstrap <- boot(data = data, statistic = bootstrap_func, R = 1000)
-  
-  # Cross-validation (10-fold)
-  cross_val <- cv.glm(data, model, K = 10)
-  
-  # Lookup table for descriptions
-  descriptions <- list(
-    robust_model = "Robust Model uses M-estimation to reduce the influence of outliers, providing more reliable coefficients.",
-    jackknife = "Jackknife Resampling generates multiple sub-samples by leaving one observation out, assessing model stability.",
-    bootstrap = "Bootstrap Resampling creates multiple samples with replacement to estimate the variability of coefficients.",
-    cross_validation = "Cross-Validation (10-fold) assesses model performance on unseen data by splitting the data into training and validation sets."
-  )
-  
-  # Interpretation lookup table
-  interpretation <- list(
-    robust_model = "Coefficients from the robust model indicate how sensitive the original model is to outliers.",
-    jackknife = "Small variations in jackknife estimates suggest a stable model.",
-    bootstrap = "Narrow confidence intervals in bootstrap estimates suggest a stable model.",
-    cross_validation = "Low cross-validation error suggests strong predictive performance on unseen data."
-  )
-  
-  # Helper function for result interpretation
-  get_result <- function(metric, values) {
-    if (metric == "robust_model") {
-      if (any(abs(coef(robust_model) - coef(model)) > 0.1)) {
-        return("Robust model coefficients differ significantly from original, suggesting sensitivity to outliers.")
-      } else {
-        return("Robust model coefficients are similar to original, suggesting stability.")
-      }
-    }
-    if (metric == "jackknife") {
-      if (max(values) > 0.1) {
-        return("High variation in jackknife estimates, suggesting model instability.")
-      } else {
-        return("Low variation in jackknife estimates, suggesting model stability.")
-      }
-    }
-    if (metric == "bootstrap") {
-      if (max(bootstrap$t0 - apply(bootstrap$t, 2, mean)) > 0.1) {
-        return("High variability in bootstrap estimates, suggesting model instability.")
-      } else {
-        return("Low variability in bootstrap estimates, suggesting model stability.")
-      }
-    }
-    if (metric == "cross_validation") {
-      if (cross_val$delta[2] < 0.1) {
-        return("Low cross-validation error, suggesting strong predictive performance.")
-      } else {
-        return("High cross-validation error, suggesting potential overfitting or limited predictive performance.")
-      }
-    }
-    return("Interpretation not available.")
+    resampled_y <- data[indices]
+    resampled_y_pred <- y_pred[indices]
+    resampled_residuals <- resampled_y - resampled_y_pred
+    return(c(
+      mae = mean(abs(resampled_residuals)),
+      rmse = sqrt(mean(resampled_residuals^2))
+    ))
   }
   
-  # Compile robustness metrics using dictionary-based approach
+  # Perform Bootstrap
+  bootstrap <- boot(data = y, statistic = bootstrap_func, R = 100)
+  
+  # Extract Bootstrap Results
+  bootstrap_mae <- boot.ci(bootstrap, index = 1, type = "bca")
+  bootstrap_rmse <- boot.ci(bootstrap, index = 2, type = "bca")
+  
+  # Compile Metrics
   robustness_metrics <- list(
-    robust_model = list(
-      value = coef(robust_model),
-      description = descriptions$robust_model,
-      interpretation = interpretation$robust_model,
-      result = get_result("robust_model", coef(robust_model))
+    basic_metrics = list(
+      mae = list(value = mae, description = "Mean Absolute Error (MAE)"),
+      mse = list(value = mse, description = "Mean Squared Error (MSE)"),
+      rmse = list(value = rmse, description = "Root Mean Squared Error (RMSE)"),
+      mad = list(value = mad, description = "Median Absolute Deviation (MAD)")
     ),
-    jackknife = list(
-      value = jackknife$jack.values,
-      description = descriptions$jackknife,
-      interpretation = interpretation$jackknife,
-      result = get_result("jackknife", jackknife$jack.values)
+    variability_metrics = list(
+      cvr = list(value = cvr, description = "Coefficient of Variation of Residuals (CVR)"),
+      iqr_residuals = list(value = iqr_residuals, description = "IQR of Residuals")
     ),
-    bootstrap = list(
-      value = apply(bootstrap$t, 2, function(x) c(mean = mean(x), sd = sd(x))),
-      description = descriptions$bootstrap,
-      interpretation = interpretation$bootstrap,
-      result = get_result("bootstrap", bootstrap$t)
+    robustness_indicators = list(
+      snr = list(value = snr, description = "Signal-to-Noise Ratio (SNR)"),
+      mae_to_rmse = list(value = mae_to_rmse, description = "Ratio of MAE to RMSE")
     ),
-    cross_validation = list(
-      value = cross_val$delta,
-      description = descriptions$cross_validation,
-      interpretation = interpretation$cross_validation,
-      result = get_result("cross_validation", cross_val$delta)
+    bootstrap_metrics = list(
+      mae = list(
+        value = bootstrap_mae$t0,
+        ci = bootstrap_mae$bca[4:5],
+        description = "Bootstrap MAE with 95% Confidence Interval"
+      ),
+      rmse = list(
+        value = bootstrap_rmse$t0,
+        ci = bootstrap_rmse$bca[4:5],
+        description = "Bootstrap RMSE with 95% Confidence Interval"
+      )
     )
   )
+  
+  # Print for Debugging
+  message("[DEBUG] Robustness metrics computed successfully.")
+  print(robustness_metrics)
   
   return(robustness_metrics)
 }
 
+
+
 # ---------------------------------------------------------------------------- #
 # Elegant and Scalable Spectral Analysis Metrics with Dictionary Approach
 # ---------------------------------------------------------------------------- #
-compute_spectral_analysis <- function(residuals, sampling_rate = 1) {
-  library(signal)
+compute_spectral_analysis <- function(model, y, y_pred, residuals, data) {
+ library(signal)
   library(waveslim)
   library(stats)
   
-  # Compute FFT and adjust to Years
+  # Ensure residuals are not NULL or empty
+  if (is.null(residuals) || length(residuals) == 0) {
+    stop("[ERROR] Residuals cannot be NULL or empty.")
+  }
+  
+  message("[DEBUG] Performing spectral analysis...")
+  
+  # Compute Fast Fourier Transform (FFT)
   fft_res <- fft(residuals)
   fft_magnitude <- Mod(fft_res)
-  fft_freqs <- (0:(length(residuals) - 1)) * (sampling_rate / length(residuals))
+  fft_freqs <- (0:(length(residuals) - 1)) / length(residuals)
   
-  # Convert frequencies to Years (inverse of 1/Years)
-  fft_years <- ifelse(fft_freqs != 0, 1 / fft_freqs, Inf)
+  # Convert frequencies to periods (years)
+  fft_periods <- ifelse(fft_freqs != 0, 1 / fft_freqs, Inf)
   
   # Extract top 5 significant frequencies based on magnitude
   top_frequencies <- order(fft_magnitude, decreasing = TRUE)[2:6]
-  top_frequencies_years <- fft_years[top_frequencies]
+  top_frequencies_years <- fft_periods[top_frequencies]
   top_magnitudes <- fft_magnitude[top_frequencies]
   
-  # Compute wavelet transform
-  wavelet_res <- modwt(residuals, filter = "haar", n.levels = 4)
+  # Compute Wavelet Transform
+  wavelet_res <- modwt(residuals, wf = "haar", n.levels = 4)
   
-  # Compute spectral density
-  spectral_density_res <- spectrum(residuals, plot = FALSE)
+  # Compute Spectral Density using spec.pgram instead of spectrum
+  spectral_density_res <- spec.pgram(residuals, plot = FALSE)
   
   # Lookup table for descriptions
   descriptions <- list(
     harmonics = "Harmonic Analysis identifies significant cycles in years, suggesting cyclical patterns.",
-    fft = "Fast Fourier Transform (FFT) decomposes residuals into frequency components measured in years, revealing dominant cycles.",
-    wavelet = "Wavelet Transform captures localized frequency components in time series data, useful for identifying transients.",
-    spectral_density = "Spectral Density Analysis evaluates the distribution of power across cycles (years), highlighting dominant cycles."
+    fft = "Fast Fourier Transform (FFT) decomposes residuals into frequency components, revealing dominant cycles.",
+    wavelet = "Wavelet Transform captures localized frequency components, useful for identifying transients.",
+    spectral_density = "Spectral Density Analysis evaluates the distribution of power across frequencies, highlighting dominant cycles."
   )
   
   # Interpretation lookup table
   interpretation <- list(
     harmonics = "Presence of significant harmonic cycles suggests periodic patterns or seasonality in residuals.",
-    fft = "Dominant cycles in FFT suggest underlying periodic components in years.",
+    fft = "Dominant cycles in FFT suggest underlying periodic components.",
     wavelet = "Significant wavelet coefficients suggest localized time-frequency patterns.",
-    spectral_density = "Peaks in spectral density suggest dominant cycles or oscillations in years."
+    spectral_density = "Peaks in spectral density suggest dominant cycles or oscillations."
   )
   
   # Helper function for result interpretation
@@ -968,7 +837,7 @@ compute_spectral_analysis <- function(residuals, sampling_rate = 1) {
     return("Interpretation not available.")
   }
   
-  # Compile spectral analysis using dictionary-based approach
+  # Compile spectral analysis results
   spectral_analysis <- list(
     harmonics = list(
       value = top_frequencies_years,
@@ -996,110 +865,101 @@ compute_spectral_analysis <- function(residuals, sampling_rate = 1) {
     )
   )
   
+  message("[DEBUG] Spectral analysis completed.")
   return(spectral_analysis)
 }
+
+
+
 
 # ---------------------------------------------------------------------------- #
 # Elegant and Scalable Predictive Power Metrics with Dictionary Approach
 # ---------------------------------------------------------------------------- #
-compute_predictive_power <- function(model, data, response) {
+compute_predictive_power <- function(model, y, y_pred, residuals, data) {
   library(Metrics)
-  library(BayesFactor)
   library(boot)
-  library(forecast)
   
-  # Extract actual values
-  actual <- data[[response]]
+  message("[DEBUG] Computing predictive power metrics...")
   
-  # Handle prediction based on model type
-  if ("Arima" %in% class(model) || "ets" %in% class(model)) {
-    # For ARIMA or ETS models, use forecast instead of predict
-    arima_forecast <- forecast(model, h = 10)  # Forecast 10 steps ahead
-    predicted <- arima_forecast$mean  # Extract forecasted mean values
-  } else {
-    # For regression models, use predict with newdata
-    predicted <- predict(model, newdata = data)
-  }
+  # 1. Adjusted Prediction Error (APE)
+  adj_pred_error <- mean(abs(residuals)) / (1 - length(y_pred) / length(y))
   
-  # Adjusted Prediction Error (using AIC correction)
-  residuals <- actual - predicted
-  adj_pred_error <- mean(abs(residuals)) / (1 - length(coef(model)) / length(actual))
+  # 2. Horizon Accuracy (last 5 points)
+  horizon_accuracy <- mean(abs(tail(residuals, 5))) / mean(abs(y))
   
-  # Horizon Accuracy (for sequential data)
-  horizon_accuracy <- mean(abs(tail(residuals, 5))) / mean(abs(actual))
+  # 3. Forecast Bias
+  forecast_bias <- mean(y_pred - y)
   
-  # Forecast Bias
-  forecast_bias <- mean(predicted - actual)
+  # 4. Theil's U Statistic
+  naive_forecast <- c(y[-1], tail(y, 1))  # Simple naive forecast: previous value
+  theil_u <- sqrt(mean((y_pred - y)^2)) / sqrt(mean((naive_forecast - y)^2))
   
+  # 5. Cross-Validation Error (10-Fold)
+  cross_val_error <- tryCatch({
+    cv_func <- function(data, indices) {
+      d <- data[indices, ]
+      fit <- lm(y ~ Year, data = d)
+      pred <- predict(fit, newdata = d)
+      return(mean((d$y - pred)^2))
+    }
+    cv <- boot(data = data, statistic = cv_func, R = 10)
+    mean(cv$t)
+  }, error = function(e) NA)
   
-  # Compute Bayes Factor
-  bf <- regressionBF(as.formula(paste(response, "~ .")), data = data)
-  
-  # Lookup table for descriptions
+  # Descriptions
   descriptions <- list(
-    adjusted_prediction_error = "Adjusted Prediction Error accounts for model complexity by penalizing larger models to prevent overfitting.",
-    horizon_accuracy = "Horizon Accuracy measures predictive performance over a fixed forecast horizon, useful for sequential data.",
-    forecast_bias = "Forecast Bias evaluates systematic underestimation or overestimation by the model:\n  - Positive bias: Overestimation.\n  - Negative bias: Underestimation.",
-    bayes_factor = "Bayes Factor compares the predictive performance of the model against a null model:\n  - BF > 10: Strong evidence for the model.\n  - BF < 1: Evidence against the model."
+    adj_pred_error = "Adjusted Prediction Error (APE) accounts for model complexity, penalizing larger models.",
+    horizon_accuracy = "Horizon Accuracy measures prediction accuracy for the last 5 data points.",
+    forecast_bias = "Forecast Bias evaluates systematic overestimation (+) or underestimation (-).",
+    theil_u = "Theil's U Statistic compares model performance to a naive forecast model.",
+    cross_val_error = "Cross-Validation Error (10-Fold) measures robustness of predictive performance."
   )
   
-  # Interpretation lookup table
+  # Interpretation
   interpretation <- list(
-    adjusted_prediction_error = "Lower values suggest better predictive accuracy with less risk of overfitting.",
-    horizon_accuracy = "Higher accuracy suggests better performance over the forecast horizon.",
-    forecast_bias = "Bias near 0 suggests no systematic error; positive suggests overestimation, negative suggests underestimation.",
-    bayes_factor = "BF > 10 suggests strong evidence for the model; BF < 1 suggests evidence against the model."
+    adj_pred_error = "Lower APE suggests better predictive accuracy with less overfitting.",
+    horizon_accuracy = "Higher accuracy suggests robust predictions for recent data.",
+    forecast_bias = "Bias near 0 suggests no systematic error; positive indicates overestimation, negative indicates underestimation.",
+    theil_u = "Theil's U < 1 suggests model outperforms naive forecasts; > 1 suggests underperformance.",
+    cross_val_error = "Lower cross-validation error suggests more robust and reliable model predictions."
   )
   
   # Helper function for result interpretation
   get_result <- function(metric, value) {
-    if (metric == "adjusted_prediction_error") {
-      if (value < 0.1) {
-        return("Excellent predictive accuracy with low risk of overfitting.")
-      } else if (value < 0.2) {
-        return("Good predictive accuracy but some risk of overfitting.")
-      } else {
-        return("High error suggests potential overfitting or poor predictive performance.")
-      }
+    if (metric == "adj_pred_error") {
+      if (value < 0.1) return("Excellent predictive accuracy with low risk of overfitting.")
+      else if (value < 0.2) return("Good predictive accuracy but some risk of overfitting.")
+      else return("High error suggests potential overfitting or poor predictive performance.")
     }
     if (metric == "horizon_accuracy") {
-      if (value > 0.9) {
-        return("Excellent horizon accuracy, suggesting robust predictive performance.")
-      } else if (value > 0.7) {
-        return("Good horizon accuracy, suggesting reliable forecasts.")
-      } else {
-        return("Low horizon accuracy suggests limited predictive performance.")
-      }
+      if (value > 0.9) return("Excellent horizon accuracy, suggesting robust predictive performance.")
+      else if (value > 0.7) return("Good horizon accuracy, suggesting reliable forecasts.")
+      else return("Low horizon accuracy suggests limited predictive performance.")
     }
     if (metric == "forecast_bias") {
-      if (abs(value) < 0.01) {
-        return("Minimal bias, suggesting balanced forecasts.")
-      } else if (value > 0) {
-        return("Positive bias detected, suggesting systematic overestimation.")
-      } else {
-        return("Negative bias detected, suggesting systematic underestimation.")
-      }
+      if (abs(value) < 0.01) return("Minimal bias, suggesting balanced forecasts.")
+      else if (value > 0) return("Positive bias detected, suggesting systematic overestimation.")
+      else return("Negative bias detected, suggesting systematic underestimation.")
     }
-    if (metric == "bayes_factor") {
-      if (value > 10) {
-        return("Strong evidence for the model (BF > 10).")
-      } else if (value > 3) {
-        return("Moderate evidence for the model (3 < BF ≤ 10).")
-      } else if (value > 1) {
-        return("Weak evidence for the model (1 < BF ≤ 3).")
-      } else {
-        return("Evidence against the model (BF < 1).")
+    if (metric == "theil_u") {
+      if (value < 0.5) return("Excellent performance compared to naive model.")
+      else if (value < 1) return("Good performance compared to naive model.")
+      else return("Model underperforms compared to naive model.")
+    }
+    if (metric == "cross_val_error") {
+      if (value < 0.1) return("Low cross-validation error, suggesting strong predictive performance.")
+      else return("High cross-validation error, suggesting potential overfitting or limited predictive performance.")
     }
     return("Interpretation not available.")
   }
   
-  # Compile predictive power metrics using dictionary-based approach
+  # Compile metrics
   predictive_power <- list(
-    adjusted_prediction_error = list(
+    adj_pred_error = list(
       value = adj_pred_error,
-      description = descriptions$adjusted_prediction_error,
-      interpretation = interpretation$adjusted_prediction_error,
-      result = get_result("adjusted_prediction_error", adj_pred_error)
+      description = descriptions$adj_pred_error,
+      interpretation = interpretation$adj_pred_error,
+      result = get_result("adj_pred_error", adj_pred_error)
     ),
     horizon_accuracy = list(
       value = horizon_accuracy,
@@ -1113,17 +973,27 @@ compute_predictive_power <- function(model, data, response) {
       interpretation = interpretation$forecast_bias,
       result = get_result("forecast_bias", forecast_bias)
     ),
-    bayes_factor = list(
-      value = bf,
-      description = descriptions$bayes_factor,
-      interpretation = interpretation$bayes_factor,
-      result = get_result("bayes_factor", bf)
+    theil_u = list(
+      value = theil_u,
+      description = descriptions$theil_u,
+      interpretation = interpretation$theil_u,
+      result = get_result("theil_u", theil_u)
+    ),
+    cross_val_error = list(
+      value = cross_val_error,
+      description = descriptions$cross_val_error,
+      interpretation = interpretation$cross_val_error,
+      result = get_result("cross_val_error", cross_val_error)
     )
   )
   
+  message("[DEBUG] Predictive power metrics results:")
+  print(predictive_power)
+  
   return(predictive_power)
 }
-}
+
+
 
 
 
