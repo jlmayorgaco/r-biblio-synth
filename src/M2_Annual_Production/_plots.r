@@ -151,9 +151,9 @@ create_main_regression_plot <- function(plot_data, model_info, lower_bound, uppe
   
   # Initialize plot
   p <- ggplot() +
-    geom_point(data = df_real, aes(x = Year, y = Articles), size = 2, color = "black") +
+    geom_point(data = df_real, aes(x = Year, y = Articles), size = 2, shape = 21, fill = "white", color = "black", stroke = 0.7)
     geom_line(data = df_regression, aes(x = Year, y = Articles), 
-              color = "black", linewidth = 0.5, linetype = "dashed") +
+              color = "black", linewidth = 0.5, linetype = "solid") +
     labs(
       title = "Annual Articles Regression Plot",
       x = "Year",
@@ -183,24 +183,26 @@ create_main_regression_plot <- function(plot_data, model_info, lower_bound, uppe
 #'
 #' @return theme object
 apply_plot_theme <- function() {
-  theme_minimal(base_size = 10) +
+  theme_minimal(base_size = 12) +  # Increased base size for IEEE standards
     theme(
-      panel.background = element_rect(fill = "white", color = NA),
-      plot.title = element_text(hjust = 0.5, size = 11, face = "bold"),
-      axis.title = element_text(size = 9),
-      axis.text = element_text(size = 8),
-      axis.ticks = element_line(linewidth = 0.2),
+      panel.background = element_rect(fill = "white", color = "black"),  # Added black border
+      plot.title = element_text(hjust = 0.5, size = 12, face = "bold", family = "Times New Roman"),
+      axis.title = element_text(size = 11, family = "Times New Roman"),
+      axis.text = element_text(size = 10, family = "Times New Roman"),
+      axis.ticks = element_line(linewidth = 0.3),
       axis.line = element_line(color = "black", linewidth = 0.5),
-      panel.grid.major = element_line(linewidth = 0.4, color = "#dddddd"),
-      panel.grid.minor = element_line(linewidth = 0.2, color = "#f1f1f1"),
-      panel.border = element_blank(),
+      panel.grid.major = element_line(linewidth = 0.3, color = "#dddddd"),
+      panel.grid.minor = element_line(linewidth = 0.2, color = "#eeeeee"),
+      panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
       legend.position = "bottom",
-      legend.text = element_text(size = 8),
-      legend.title = element_text(size = 8, face = "bold")
+      legend.text = element_text(size = 10, family = "Times New Roman"),
+      legend.title = element_text(size = 10, face = "bold", family = "Times New Roman"),
+      plot.margin = margin(5, 5, 5, 5)
     )
 }
 
-#' Add model name annotation to plot
+
+#' Add model name annotation to plot with IEEE style
 #'
 #' @param p ggplot object
 #' @param model_name Name of the model
@@ -209,10 +211,16 @@ apply_plot_theme <- function() {
 #' @return Updated ggplot object
 add_model_name_annotation <- function(p, model_name, t_real, y_real) {
   if (!is.na(min(t_real)) && !is.na(max(y_real)) && !is.null(model_name)) {
-    p <- p + geom_text(
-      aes(x = min(t_real) + 0, y = min(y_real) + 20, label = model_name),
-      hjust = 0, vjust = 1, size = 2.5, color = "black"
-    )
+    p <- p + 
+      geom_text(
+        aes(x = min(t_real) + 0, y = min(y_real) + 16, label = model_name),
+        hjust = 0, vjust = 1, size = 2.5, color = "black", family = "Times New Roman"
+      ) +
+      geom_rect(
+        aes(xmin = min(t_real) - 5, xmax = min(t_real) + 25,
+            ymin = min(y_real) + 10, ymax = min(y_real) + 28),
+        fill = "white", alpha = 0.8, color = "black", linewidth = 0.2, inherit.aes = FALSE
+      )
     message("[INFO] Model name annotation added successfully.")
   } else {
     message("[WARNING] Model name annotation skipped due to missing values.")
@@ -220,7 +228,7 @@ add_model_name_annotation <- function(p, model_name, t_real, y_real) {
   return(p)
 }
 
-#' Add R² value annotation to plot
+#' Add R² value annotation to plot with IEEE style
 #'
 #' @param p ggplot object
 #' @param r_squared R-squared value
@@ -230,16 +238,23 @@ add_model_name_annotation <- function(p, model_name, t_real, y_real) {
 add_r_squared_annotation <- function(p, r_squared, t_real, y_real) {
   if (!is.null(r_squared) && !is.na(r_squared)) {
     label_r2 <- paste0("R^2 == ", sprintf("%.3f", r_squared))
-    p <- p + geom_text(
-      aes(x = min(t_real) + 0, y = min(y_real) + 32, label = label_r2),
-      hjust = 0, vjust = 1, size = 2.5, color = "black", parse = TRUE
-    )
+    p <- p + 
+      geom_text(
+        aes(x = min(t_real) + 0, y = min(y_real) + 24, label = label_r2),
+        hjust = 0, vjust = 1, size = 2.5, color = "black", parse = TRUE, family = "Times New Roman"
+      ) +
+      geom_rect(
+        aes(xmin = min(t_real) - 5, xmax = min(t_real) + 25,
+            ymin = min(y_real) + 20, ymax = min(y_real) + 30),
+        fill = "white", alpha = 0.8, color = "black", linewidth = 0.2, inherit.aes = FALSE
+      )
     message("[INFO] R-squared annotation added successfully.")
   } else {
     message("[WARNING] R-squared annotation skipped due to missing value.")
   }
   return(p)
 }
+
 
 #' Add confidence interval to plot if available
 #'
@@ -361,7 +376,7 @@ create_error_plot <- function(residual_data, x) {
     geom_line(data = residual_data, aes(x = Year, y = Sqrt_Difference), 
               linewidth = 1, color = "blue") +
     geom_point(data = residual_data, aes(x = Year, y = Sqrt_Difference), 
-               size = 2, color = "blue") +
+               size = 1 , color = "blue") +
     labs(
       title = "Square Root Differences (Regression Error) Plot",
       x = "Year",
@@ -401,9 +416,17 @@ create_error_plot <- function(residual_data, x) {
 #' @param residual_data Data frame with residual information
 #' @param output_path Directory path for saving output files
 save_plots <- function(main_plot, residual_plots, residual_data, output_path) {
+
+  one_column_path <- file.path(output_path, "OneColumn")
+  if (dir.exists(one_column_path)) {
+    unlink(one_column_path, recursive = TRUE)
+    message("Directory created: ", one_column_path)
+  } 
+  dir.create(one_column_path, recursive = TRUE)
+
   # Save main regression plot
     ggsave(
-    filename = file.path(output_path, "Small_Regression_Articles_Plot.png"),
+    filename = file.path(output_path, "OneColumn/Small_Regression_Articles_Plot.png"),
     plot = main_plot,
     width = 3.5,      # Width for a single-column plot in IEEE format
     height = 2.625,   # Aspect ratio of 4:3 to keep the plot balanced
@@ -411,7 +434,7 @@ save_plots <- function(main_plot, residual_plots, residual_data, output_path) {
     )
   
   ggsave(
-    filename = file.path(output_path, "Small_Regression_Articles_Plot.svg"), 
+    filename = file.path(output_path, "OneColumn/Small_Regression_Articles_Plot.svg"), 
     plot = main_plot, 
     width = 3.5,      # Width for a single-column plot in IEEE format
     height = 2.625,   # Aspect ratio of 4:3 to keep the plot balanced
@@ -422,7 +445,7 @@ save_plots <- function(main_plot, residual_plots, residual_data, output_path) {
   
   # Save residual error plot
   ggsave(
-    filename = file.path(output_path, "Small_Squared_Differences_Plot.png"), 
+    filename = file.path(output_path, "OneColumn/Small_Squared_Differences_Plot.png"), 
     plot = residual_plots$error_plot, 
     width = 3.16, 
     height = 2.5, 
@@ -430,7 +453,7 @@ save_plots <- function(main_plot, residual_plots, residual_data, output_path) {
   )
   
   ggsave(
-    filename = file.path(output_path, "Small_Squared_Differences_Plot.svg"), 
+    filename = file.path(output_path, "OneColumn/Small_Squared_Differences_Plot.svg"), 
     plot = residual_plots$error_plot, 
     width = 3.16, 
     height = 2.5, 
@@ -441,13 +464,13 @@ save_plots <- function(main_plot, residual_plots, residual_data, output_path) {
   
   # Save histogram and Q-Q plot
   ggsave(
-    file.path(output_path, "Small_Histogram_Residuals.png"), 
+    file.path(output_path, "OneColumn/Small_Histogram_Residuals.png"), 
     plot = residual_plots$histogram, 
     dpi = 900
   )
   
   ggsave(
-    file.path(output_path, "Small_QQ_Plot_Residuals.png"), 
+    file.path(output_path, "OneColumn/Small_QQ_Plot_Residuals.png"), 
     plot = residual_plots$qq_plot, 
     dpi = 900
   )
@@ -456,13 +479,13 @@ save_plots <- function(main_plot, residual_plots, residual_data, output_path) {
   
   # Save ACF and PACF plots
   ggsave(
-    file.path(output_path, "Small_ACF_Residuals.png"), 
+    file.path(output_path, "OneColumn/Small_ACF_Residuals.png"), 
     plot = residual_plots$acf_plot, 
     dpi = 900
   )
   
   ggsave(
-    file.path(output_path, "Small_PACF_Residuals.png"), 
+    file.path(output_path, "OneColumn/Small_PACF_Residuals.png"), 
     plot = residual_plots$pacf_plot, 
     dpi = 900
   )
@@ -577,7 +600,7 @@ add_plot_model_supporting_features_small <- function(p, metric_regression, t_rea
     p <- p +
     geom_vline(xintercept = t0, linetype = "dashed", color = THEME_COLORS$Main[1]) +
     geom_text(
-        data = data.frame(x = t0, y = max(y_real) - 24),
+        data = data.frame(x = t0, y = max(y_real) - 6),
         aes(x = x, y = y, label = "t0"), 
         color = THEME_COLORS$Main[1], angle = 90, vjust = -0.5, hjust = -0.2,
         size = 7 / .pt  # Adjust font size for annotations (7 pt)
@@ -587,7 +610,7 @@ add_plot_model_supporting_features_small <- function(p, metric_regression, t_rea
     p <- p +
         geom_vline(xintercept = tr, linetype = "dashed", color = THEME_COLORS$Main[3]) +
         geom_text(
-        data = data.frame(x = tr, y = max(y_real) - 23),
+        data = data.frame(x = tr, y = max(y_real) - 5),
         aes(x = x, y = y, label = "tr"), 
         color = THEME_COLORS$Main[3], angle = 90, vjust = -0.5, hjust = -0.2,
         size = 7 / .pt  # Adjust font size for annotations (7 pt)
@@ -598,7 +621,7 @@ add_plot_model_supporting_features_small <- function(p, metric_regression, t_rea
     geom_hline(yintercept = N0, linetype = "dashed", color = THEME_COLORS$Main[5]) +
     geom_text(
         data = data.frame(x = min(t_real), y = N0),
-        aes(x = x, y = y, label = "N0")), 
+        aes(x = x, y = y, label = "N0"), 
         color = THEME_COLORS$Main[5], hjust = 0.0, vjust = -0.5,
         size = 7 / .pt  # Adjust font size for annotations (7 pt)
     ) 
