@@ -1,9 +1,6 @@
 # ---------------------------------------------------------------------------- #
 # Comprehensive Performance Metrics and Tests for Model Evaluation
 # ---------------------------------------------------------------------------- #
-
-
-
 get_performance_model <- function(x, y, models, best_model) {
   
   # Prepare data frame for model predictions
