@@ -16,6 +16,7 @@ This project focuses on automating the analysis and reporting of bibliometric da
 - [x] Bibliometrixs R Integration
 - [x] Module 1: Main Information
 - [x] Module 2: Annual Articles Production Trend
+- [ ] Module 3: Countries
 - [ ] Module 3: Authors
 - [ ] Module 4: Documents
 - [ ] Module 5: Clustering
