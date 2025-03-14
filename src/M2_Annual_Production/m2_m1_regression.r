@@ -80,14 +80,61 @@ M2_M1_Regression <- setRefClass(
         output_path = output_path
       )
 
-      create_regression_articles_small_plots(
+    message(' ')
+
+
+    message(' ')
+    message(' ')
+    message(' ')
+    message(' ')
+    message(' ')
+    message(' DEBUGGING =====> after predict')
+    message(' ')
+    message(' ')
+    message(' ')
+    message(' ')
+    message(' ')
+
+    lower_bound <- NULL
+    upper_bound <- NULL
+
+    message(' ')
+    message(' ')
+    message(' ')
+    message(' ')
+    message(' ')
+    message(' DEBUGGING =====> lower_bound')
+    message(lower_bound)
+    message(' ')
+    message(' ')
+    message(' DEBUGGING =====> upper_bound')
+    message(upper_bound)
+    message(' ')
+    message(' ')
+    message(' ')
+    message(' ')
+    message(' ')
+          
+      # Prepare regression_data structure
+      regression_data <- list(
         metric_regression = .self$results,
         models_regression = model_function_map,
         x = x, 
         y = y,
+        lower_bound = lower_bound,  # Ensure this exists
+        upper_bound = upper_bound   # Ensure this exists
+      )
+
+      # Prepare residual_data structure
+      residual_data <- calculate_residuals(x, y, regression_data)  # Ensure this function exists
+
+      # Call the new function to save all plots
+      save_all_m2_regression_plots(
+        regression_data = regression_data,
+        residual_data = residual_data,
         output_path = output_path
       )
-      
+
       # Additional derivative plots
       create_diff_nominal_articles_plots(
         x = .self$df, 
