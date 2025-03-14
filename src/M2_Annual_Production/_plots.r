@@ -41,12 +41,9 @@ create_regression_articles_small_plots <- function(metric_regression, x, y, outp
   residual_plots <- create_residual_plots(residual_data, x)
   
   # Save all plots
-  save_plots(
-    main_plot = main_plot,
-    residual_plots = residual_plots,
-    residual_data = residual_data,
-    output_path = output_path
-  )
+
+  save_plots(main_plot = main_plot, residual_plots = residual_plots, output_path = output_path)
+
   
   # Run statistical tests and save results
   # run_statistical_tests(residual_data, output_path)
@@ -151,9 +148,8 @@ create_main_regression_plot <- function(plot_data, model_info, lower_bound, uppe
   
   # Initialize plot
   p <- ggplot() +
-    geom_point(data = df_real, aes(x = Year, y = Articles), size = 2, shape = 21, fill = "white", color = "black", stroke = 0.7)
-    geom_line(data = df_regression, aes(x = Year, y = Articles), 
-              color = "black", linewidth = 0.5, linetype = "solid") +
+    geom_point(data = df_real, aes(x = Year, y = Articles), size = 1, shape = 20, fill = "white", color = "black", stroke = 0.7) +
+    geom_line(data = df_regression, aes(x = Year, y = Articles), color = "black", linewidth = 0.5, linetype = "solid") +
     labs(
       title = "Annual Articles Regression Plot",
       x = "Year",
@@ -214,7 +210,7 @@ add_model_name_annotation <- function(p, model_name, t_real, y_real) {
     p <- p + 
       geom_text(
         aes(x = min(t_real) + 0, y = min(y_real) + 16, label = model_name),
-        hjust = 0, vjust = 1, size = 2.5, color = "black", family = "Times New Roman"
+        hjust = 0, vjust = 1, size =  10 / .pt, color = "black", family = "Times New Roman"
       ) +
       geom_rect(
         aes(xmin = min(t_real) - 5, xmax = min(t_real) + 25,
@@ -240,8 +236,8 @@ add_r_squared_annotation <- function(p, r_squared, t_real, y_real) {
     label_r2 <- paste0("R^2 == ", sprintf("%.3f", r_squared))
     p <- p + 
       geom_text(
-        aes(x = min(t_real) + 0, y = min(y_real) + 24, label = label_r2),
-        hjust = 0, vjust = 1, size = 2.5, color = "black", parse = TRUE, family = "Times New Roman"
+        aes(x = min(t_real) + 0, y = min(y_real) + 28, label = label_r2),
+        hjust = 0, vjust = 1, size =  10 / .pt, color = "black", parse = TRUE, family = "Times New Roman"
       ) +
       geom_rect(
         aes(xmin = min(t_real) - 5, xmax = min(t_real) + 25,
@@ -321,48 +317,142 @@ calculate_residuals <- function(x, y, model_info) {
   )
 }
 
-#' Create residual analysis plots
-#'
-#' @param residual_data Data frame with residual information
-#' @param x Time points
-#' @return List of ggplot objects
 create_residual_plots <- function(residual_data, x) {
-  # Create error plot
-  p_diff <- create_error_plot(residual_data, x)
   
-  # Create histogram of residuals
-  p_hist <- ggplot(residual_data, aes(x = Sqrt_Difference)) +
-    geom_histogram(color = "black", fill = "skyblue", bins = 30) +
-    labs(title = "Histogram of Regression Residuals", 
-         x = "Residuals", y = "Frequency") +
-    theme_minimal()
+  # Compute regression model
+  regression_model <- lm(Residual ~ Year, data = residual_data)
+  residual_data$Fitted <- predict(regression_model)
+  residual_data$Sqrt_Difference <- sqrt(abs(residual_data$Residual))
   
-  # Create Q-Q plot
-  p_qq <- ggplot(residual_data, aes(sample = Sqrt_Difference)) +
-    stat_qq() + stat_qq_line(color = "red") +
-    labs(title = "Q-Q Plot of Residuals", 
-         x = "Theoretical Quantiles", y = "Sample Quantiles") +
-    theme_minimal()
+  # Compute Statistics
+  std_dev <- sd(residual_data$Residual, na.rm = TRUE)
+  y_max <- max(abs(residual_data$Residual), na.rm = TRUE)
+  residual_mean <- mean(residual_data$Residual, na.rm = TRUE)
+
+  # Define Common Theme for Plots
+  common_theme <- theme_minimal(base_size = 12) +
+    theme(
+      plot.title = element_text(hjust = 0.5, size = 12, face = "bold", family = "Times New Roman"),
+      axis.title = element_text(size = 11, family = "Times New Roman"),
+      axis.text = element_text(size = 10, family = "Times New Roman"),
+      axis.ticks = element_line(linewidth = 0.3),
+      panel.grid.major = element_line(linewidth = 0.3, color = "#dddddd"),
+      panel.grid.minor = element_line(linewidth = 0.2, color = "#eeeeee"),
+      panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5)
+    )
   
-  # Create ACF plot
-  p_acf <- autoplot(acf(residual_data$Sqrt_Difference, plot = FALSE)) + 
-    labs(title = "Autocorrelation Function (ACF) of Residuals") +
-    theme_minimal()
-  
-  # Create PACF plot
-  p_pacf <- autoplot(pacf(residual_data$Sqrt_Difference, plot = FALSE)) + 
-    labs(title = "Partial Autocorrelation Function (PACF) of Residuals") +
-    theme_minimal()
-  
-  # Return all plots as a list
+  # Residuals Over Time
+  p_diff <- ggplot(residual_data, aes(x = Year, y = Residual)) +
+    geom_point(size = 1, shape = 21, fill = "white", color = "black", stroke = 0.5) +
+    geom_line(color = "black", linewidth = 0.5, linetype = "solid") +
+    labs(title = "Residuals Over Time", x = "Year", y = "Residual") +
+    scale_y_continuous(limits = c(-y_max, y_max)) +
+    common_theme
+
+#
+
+# Define function to fit models and compute R-squared
+fit_model <- function(formula, data) {
+  model <- try(lm(formula, data = data), silent = TRUE)
+  if (inherits(model, "try-error")) return(NULL)
+  r_squared <- summary(model)$r.squared
+  return(list(model = model, r_squared = r_squared))
+}
+
+# Fit multiple models
+models <- list(
+  "Linear" = fit_model(Sqrt_Difference ~ Year, residual_data),
+  "Quadratic" = fit_model(Sqrt_Difference ~ poly(Year, 2, raw = TRUE), residual_data),
+  "Cubic" = fit_model(Sqrt_Difference ~ poly(Year, 3, raw = TRUE), residual_data),
+  "Exponential" = fit_model(log(Sqrt_Difference) ~ Year, residual_data),
+  "Logarithmic" = fit_model(Sqrt_Difference ~ log(Year), residual_data)
+)
+
+# Remove failed models
+models <- models[!sapply(models, is.null)]
+
+# Compute R² values for all models
+model_r2_values <- sapply(models, function(m) m$r_squared)
+
+# Log comparison table
+model_r2_df <- data.frame(Model = names(model_r2_values), R_squared = round(model_r2_values, 3))
+print(model_r2_df)
+
+# Select the best-fitting model based on R²
+best_model_name <- names(which.max(model_r2_values))
+best_model <- models[[best_model_name]]$model
+best_r2 <- round(models[[best_model_name]]$r_squared, 3)
+
+# Generate predictions for the best model
+residual_data$Fitted <- predict(best_model, newdata = residual_data)
+
+# Square Root Differences Plot with Regression
+p_sqrt_diff <- ggplot(residual_data, aes(x = Year, y = Sqrt_Difference)) +
+  geom_line(color = "black", linewidth = 0.5) +
+  geom_point(size = 1.2, shape = 21, fill = "white", color = "black", stroke = 0.5) +
+  geom_line(aes(y = Fitted), color = "black", linetype = "dashed", linewidth = 0.5) + 
+  geom_text(aes(
+    x = min(Year) + 5, 
+    y = max(Sqrt_Difference, na.rm = TRUE) * 0.9, 
+    label = paste(best_model_name, "\nR² =", best_r2)
+  ), color = "black", size = 3, hjust = 0, family = "Times New Roman") +
+  labs(title = "Square Root Differences (Regression Error)", x = "Year", y = "Difference Values") +
+  scale_y_continuous(limits = c(0, max(residual_data$Sqrt_Difference, na.rm = TRUE))) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 12, face = "bold", family = "Times New Roman"),
+    axis.title = element_text(size = 11, family = "Times New Roman"),
+    axis.text = element_text(size = 10, family = "Times New Roman"),
+    axis.ticks = element_line(linewidth = 0.3),
+    panel.grid.major = element_line(linewidth = 0.3, color = "#dddddd"),
+    panel.grid.minor = element_line(linewidth = 0.2, color = "#eeeeee"),
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5)
+  )
+
+# Log best model selection
+message("\n[INFO] Model Comparison - R² values:")
+print(model_r2_df)
+message("[INFO] Best Model: ", best_model_name, " with R² = ", best_r2)
+
+
+
+  # Histogram of Residuals
+  p_hist <- ggplot(residual_data, aes(x = Residual)) +
+    geom_histogram(aes(y = ..density..), color = "black", fill = "gray80", bins = 30) +
+    stat_function(fun = dnorm, args = list(mean = residual_mean, sd = std_dev), color = "black", linewidth = 1) +
+    geom_vline(aes(xintercept = residual_mean), color = "red", linewidth = 0.4, linetype = "dashed") +
+    labs(title = "Histogram of Residuals", x = "Residuals", y = "Density") +
+    common_theme
+
+  # Q-Q Plot
+  p_qq <- ggplot(residual_data, aes(sample = Residual)) +
+    stat_qq(size = 1, shape = 21, fill = "white", color = "black", stroke = 0.5) +
+    stat_qq_line(color = "black", linewidth = 0.8, linetype = "solid") +
+    labs(title = "Q-Q Plot of Residuals", x = "Theoretical Quantiles", y = "Sample Quantiles") +
+    scale_y_continuous(limits = c(-y_max, y_max)) +
+    common_theme
+
+  # ACF Plot
+  p_acf <- autoplot(acf(residual_data$Residual, plot = FALSE)) +
+    labs(title = "ACF of Residuals", x = "Lag", y = "Autocorrelation") +
+    common_theme
+
+  # PACF Plot
+  p_pacf <- autoplot(pacf(residual_data$Residual, plot = FALSE)) +
+    labs(title = "PACF of Residuals", x = "Lag", y = "Partial Autocorrelation") +
+    common_theme
+
+  # Return All Plots
   list(
     error_plot = p_diff,
+    sqrt_diff_plot = p_sqrt_diff,
     histogram = p_hist,
     qq_plot = p_qq,
     acf_plot = p_acf,
     pacf_plot = p_pacf
   )
 }
+
 
 #' Create error plot showing square root differences
 #'
@@ -415,83 +505,47 @@ create_error_plot <- function(residual_data, x) {
 #' @param residual_plots List of residual analysis plots
 #' @param residual_data Data frame with residual information
 #' @param output_path Directory path for saving output files
-save_plots <- function(main_plot, residual_plots, residual_data, output_path) {
+save_plots <- function(main_plot, residual_plots, output_path) {
 
+  # Define output directory
   one_column_path <- file.path(output_path, "OneColumn")
-  if (dir.exists(one_column_path)) {
-    unlink(one_column_path, recursive = TRUE)
-    message("Directory created: ", one_column_path)
-  } 
+  if (dir.exists(one_column_path)) unlink(one_column_path, recursive = TRUE)
   dir.create(one_column_path, recursive = TRUE)
 
+  # Helper function to save plots in PNG & SVG formats
+  save_plot <- function(plot, name) {
+    file_base <- file.path(one_column_path, paste0(name, "_Plot"))
+    
+    ggsave(filename = paste0(file_base, ".png"), plot = plot, 
+           width = 3.5, height = 2.625, dpi = 900)
+
+    ggsave(filename = paste0(file_base, ".svg"), plot = plot, 
+           width = 3.5, height = 2.625, device = "svg")
+  }
+
   # Save main regression plot
-    ggsave(
-    filename = file.path(output_path, "OneColumn/Small_Regression_Articles_Plot.png"),
-    plot = main_plot,
-    width = 3.5,      # Width for a single-column plot in IEEE format
-    height = 2.625,   # Aspect ratio of 4:3 to keep the plot balanced
-    dpi = 900         # High resolution for print quality
-    )
-  
-  ggsave(
-    filename = file.path(output_path, "OneColumn/Small_Regression_Articles_Plot.svg"), 
-    plot = main_plot, 
-    width = 3.5,      # Width for a single-column plot in IEEE format
-    height = 2.625,   # Aspect ratio of 4:3 to keep the plot balanced
-    device = "svg"
-  )
-  
+  save_plot(main_plot, "Small_Regression_Articles")
   message("[INFO] Regression plot saved successfully.")
-  
-  # Save residual error plot
-  ggsave(
-    filename = file.path(output_path, "OneColumn/Small_Squared_Differences_Plot.png"), 
-    plot = residual_plots$error_plot, 
-    width = 3.16, 
-    height = 2.5, 
-    dpi = 900
+
+  # Save all residual analysis plots
+  residual_plot_names <- c("Small_Squared_Differences", "Small_Histogram_Residuals",
+                           "Small_QQ_Plot_Residuals", "Small_ACF_Residuals",
+                           "Small_PACF_Residuals", "Small_Sqrt_Diff_Residuals")
+
+  residual_plot_list <- list(
+    residual_plots$error_plot, residual_plots$histogram,
+    residual_plots$qq_plot, residual_plots$acf_plot,
+    residual_plots$pacf_plot, residual_plots$sqrt_diff_plot
   )
+
+  # Loop through and save each residual plot
+  for (i in seq_along(residual_plot_names)) {
+    save_plot(residual_plot_list[[i]], residual_plot_names[i])
+  }
   
-  ggsave(
-    filename = file.path(output_path, "OneColumn/Small_Squared_Differences_Plot.svg"), 
-    plot = residual_plots$error_plot, 
-    width = 3.16, 
-    height = 2.5, 
-    device = "svg"
-  )
-  
-  message("[INFO] Squared differences plot saved successfully.")
-  
-  # Save histogram and Q-Q plot
-  ggsave(
-    file.path(output_path, "OneColumn/Small_Histogram_Residuals.png"), 
-    plot = residual_plots$histogram, 
-    dpi = 900
-  )
-  
-  ggsave(
-    file.path(output_path, "OneColumn/Small_QQ_Plot_Residuals.png"), 
-    plot = residual_plots$qq_plot, 
-    dpi = 900
-  )
-  
-  message("[INFO] Residual histogram and Q-Q plot saved successfully.")
-  
-  # Save ACF and PACF plots
-  ggsave(
-    file.path(output_path, "OneColumn/Small_ACF_Residuals.png"), 
-    plot = residual_plots$acf_plot, 
-    dpi = 900
-  )
-  
-  ggsave(
-    file.path(output_path, "OneColumn/Small_PACF_Residuals.png"), 
-    plot = residual_plots$pacf_plot, 
-    dpi = 900
-  )
-  
-  message("[INFO] ACF and PACF plots saved successfully.")
+  message("[INFO] All residual plots saved successfully.")
 }
+
 
 #' Run statistical tests on residuals and save results
 #'
@@ -596,9 +650,10 @@ add_plot_model_supporting_features_small <- function(p, metric_regression, t_rea
       stop("[ERROR] `THEME_COLORS` is not defined. Make sure you have a valid color scheme.")
     }
 
+
     # Add Features to Plot
     p <- p +
-    geom_vline(xintercept = t0, linetype = "dashed", color = THEME_COLORS$Main[1]) +
+    geom_vline(xintercept = t0, size= 0.5, linetype = "dashed", color = THEME_COLORS$Main[1]) +
     geom_text(
         data = data.frame(x = t0, y = max(y_real) - 6),
         aes(x = x, y = y, label = "t0"), 
@@ -608,7 +663,7 @@ add_plot_model_supporting_features_small <- function(p, metric_regression, t_rea
 
     if (!is.na(tr)) {
     p <- p +
-        geom_vline(xintercept = tr, linetype = "dashed", color = THEME_COLORS$Main[3]) +
+        geom_vline(xintercept = tr, size= 0.5, linetype = "dashed", color = THEME_COLORS$Main[3]) +
         geom_text(
         data = data.frame(x = tr, y = max(y_real) - 5),
         aes(x = x, y = y, label = "tr"), 
@@ -618,7 +673,7 @@ add_plot_model_supporting_features_small <- function(p, metric_regression, t_rea
     }
 
     p <- p +
-    geom_hline(yintercept = N0, linetype = "dashed", color = THEME_COLORS$Main[5]) +
+    geom_hline(yintercept = N0,  size= 0.5, linetype = "dashed", color = THEME_COLORS$Main[5]) +
     geom_text(
         data = data.frame(x = min(t_real), y = N0),
         aes(x = x, y = y, label = "N0"), 
