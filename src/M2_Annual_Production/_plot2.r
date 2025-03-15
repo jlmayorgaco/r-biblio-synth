@@ -331,7 +331,9 @@ Regression_Articles_Plot <- R6Class("Regression_Articles_Plot",
       #p <- self$add_confidence_interval(p, lower_bound, upper_bound)
 
       # Add supporting features (e.g., Gompertz model parameters)
-      p <- self$add_plot_model_supporting_features(p, metric_regression, t_real, y_real)
+      t_regression <- df_regression$Year
+      y_regression <- df_regression$Articles
+      p <- self$add_plot_model_supporting_features(p, metric_regression, t_real, y_real, t_regression, y_regression)
 
       # Apply axis scales
       p <- self$apply_axis_scales(p, t_real, y_real)
@@ -473,128 +475,18 @@ Regression_Articles_Plot <- R6Class("Regression_Articles_Plot",
         )
     },
 
-############################
-## Gompertz Model
-############################
-    extract_model_params = function(param_string) {
-        param_list <- strsplit(param_string, ", ")[[1]]  
-        param_dict <- list()
-        
-        for (param in param_list) {
-            parts <- strsplit(param, " = ")[[1]]  
-            if (length(parts) == 2) {
-            key <- trimws(parts[1])  
-            value <- as.numeric(parts[2])  
-            param_dict[[key]] <- value  
-            }
-        }
-    
-        return(param_dict)
-    },
-
-    validate_model_params = function(params) {
-        required_keys <- c("N0", "t0", "Nmax", "k", "y0")
-        if (!all(required_keys %in% names(params))) {
-            stop("[ERROR] Missing required parameters: ", paste(setdiff(required_keys, names(params)), collapse = ", "))
-        }
-    },
-
-    compute_tr = function(y_real, N0, t_real) {
-        tr_index <- which(y_real >= 0.9 * N0)[1]
-        return(if (!is.na(tr_index)) t_real[tr_index] else NA)
-    },
-
-    add_plot_features = function(p, N0, t0, tr, t_real, y_real, THEME_COLORS) {
-        p <- p +
-            geom_vline(xintercept = t0, size= 0.5, linetype = "dashed", color = THEME_COLORS$Main[1]) +
-            geom_text(
-            aes(x = t0, y = max(y_real) - 6, label = "t0"), 
-            color = THEME_COLORS$Main[1], angle = 90, vjust = -0.5, hjust = -0.2, size = 10 / .pt
-            ) +
-            geom_hline(yintercept = N0, size= 0.5, linetype = "dashed", color = THEME_COLORS$Main[5]) +
-            geom_text(
-            aes(x = min(t_real), y = N0, label = "N0"), 
-            color = THEME_COLORS$Main[5], hjust = 0.0, vjust = -0.5, size = 10 / .pt
-            )
-        
-        if (!is.na(tr)) {
-            p <- p +
-            geom_vline(xintercept = tr, size= 0.5, linetype = "dashed", color = THEME_COLORS$Main[3]) +
-            geom_text(
-                aes(x = tr, y = max(y_real) - 5, label = "tr"), 
-                color = THEME_COLORS$Main[3], angle = 90, vjust = -0.5, hjust = -0.2, size = 10 / .pt
-            )
-        }
-    
-        return(p)
-    },
-
-    process_latex_equation = function(eq_dir, params) {
-        eq_template <- file.path(eq_dir, "m2_regression_model_gompertz.tex")  
-        eq_rendered <- file.path(eq_dir, "m2_regression_model_gompertz_rendered.tex")  
-        pdf_file <- file.path(eq_dir, "m2_regression_model_gompertz_rendered.pdf")
-        eps_file <- file.path(eq_dir, "m2_regression_model_gompertz_rendered.eps")
-        svg_file <- file.path(eq_dir, "m2_regression_model_gompertz_rendered.svg")
-        
-        if (!file.exists(eq_template)) stop("[ERROR] Template LaTeX file not found: ", eq_template)
-
-        # Read and replace placeholders
-        latex_template <- readLines(eq_template)
-        format_number <- function(num) {
-            if (num < 1) return(sprintf("%.3f", num))
-            else if (num < 10) return(sprintf("%.1f", num))
-            else return(sprintf("%.0f", num))
-        }
-        
-        latex_rendered <- gsub("<<N0>>", format_number(params[["N0"]]), latex_template)
-        latex_rendered <- gsub("<<k>>", format_number(params[["k"]]), latex_rendered)
-        latex_rendered <- gsub("<<c>>", format_number(params[["Nmax"]]), latex_rendered)
-        latex_rendered <- gsub("<<t0>>", format_number(params[["t0"]]), latex_rendered)
-
-        # Save LaTeX file
-        writeLines(latex_rendered, eq_rendered)
-
-        # Compile LaTeX and convert formats
-        old_wd <- getwd()
-        setwd(eq_dir)
-        system(paste0("pdflatex -interaction=nonstopmode ", shQuote(basename(eq_rendered))))
-        
-        if (!file.exists(pdf_file)) stop("[ERROR] PDF file was not created: ", pdf_file)
-        system(paste0("pdftops -eps ", shQuote(basename(pdf_file)), " ", shQuote(basename(eps_file))))
-        if (!file.exists(eps_file)) stop("[ERROR] EPS file was not created: ", eps_file)
-        system(paste0("dvisvgm --eps --libgs=/opt/homebrew/lib/libgs.dylib --output=", 
-                        shQuote(basename(svg_file)), " ", shQuote(basename(eps_file))))
-        if (!file.exists(svg_file)) stop("[ERROR] SVG file was not created: ", svg_file)
-
-        setwd(old_wd)
-        
-        return(svg_file)
-    },
-
-    add_equation_to_plot = function(p, svg_file, t_real, y_real) {
-        svg_rendered <- rsvg::rsvg(svg_file, width = 5000)
-        grob_svg <- rasterGrob(svg_rendered, interpolate = TRUE)
-
-        x0 <- min(t_real) - 7
-        y0 <- max(y_real) - 70  
-        delta <- 50  
-
-        p <- p + annotation_custom(grob_svg, xmin = x0, xmax = x0 + delta, ymin = y0, ymax = y0 + delta)
-        return(p)
-    },
-############################
-## / Gompertz Model
-############################
-    add_plot_model_supporting_features = function(p, metric_regression, t_real, y_real) {
+    add_plot_model_supporting_features = function(p, metric_regression, t_real, y_real, t_regression, y_regression) {
         
         if (!inherits(p, "ggplot")) stop("[ERROR] `p` is NOT a ggplot object.")
         if (is.null(metric_regression) || !"model_name" %in% names(metric_regression)) stop("[ERROR] Invalid metric_regression.")
+
 
         if (metric_regression$model_name == 'Gompertz') {
             params <- metric_regression$best_model$params
             gompertz_plot <- Regression_Model_Gompertz_Plot$new()
             gompertz_plot$setP(p)
             gompertz_plot$setData(t_real, y_real)
+            gompertz_plot$setRegression(t_regression, y_regression)
             gompertz_plot$setColors(THEME_COLORS)
             gompertz_plot$setParams(params)
             #gompertz_plot$set_latex_directory("../../src/M2_Annual_Production/latex/")  # OPTIONAL
@@ -615,6 +507,136 @@ Regression_Articles_Plot <- R6Class("Regression_Articles_Plot",
   )
 )
 
+# -------------------------------------------
+# Residuals Squared Plot
+# -------------------------------------------
+Residuals_Squared_Plot <- R6Class("Residuals_Squared_Plot",
+  inherit = R_IEEE_Plot,
+  public = list(
+    initialize = function(residual_data) {
+      super$initialize("Residuals Squared Over Time", "Year", "Residuals²")
+
+      self$plot <- ggplot(residual_data, aes(x = Year, y = Residual^2)) +
+        geom_point(size = 1, shape = 21, fill = "white", color = "black", stroke = 0.5) +
+        geom_smooth(method = "loess", color = "blue", linetype = "dashed", size = 0.5) +
+        super$getTheme()
+
+      self$metrics <- list(
+        mean_squared_residual = mean(residual_data$Residual^2, na.rm = TRUE),
+        max_squared_residual = max(residual_data$Residual^2, na.rm = TRUE)
+      )
+    }
+  )
+)
+
+# -------------------------------------------
+# Residuals Squared Model Fit Plot
+# -------------------------------------------
+Residuals_Squared_Model_Fit_Plot <- R6Class("Residuals_Squared_Model_Fit_Plot",
+  inherit = R_IEEE_Plot,
+  public = list(
+    initialize = function(residual_data) {
+      super$initialize("Residuals Squared Model Fit", "Year", "Residuals²")
+
+      # Define models
+      fit_model <- function(formula, data) {
+        model <- try(lm(formula, data = data), silent = TRUE)
+        if (inherits(model, "try-error")) return(NULL)
+        return(list(model = model, r_squared = summary(model)$r.squared))
+      }
+
+      models <- list(
+        "Linear" = fit_model(I(Residual^2) ~ Year, residual_data),
+        "Quadratic" = fit_model(I(Residual^2) ~ poly(Year, 2, raw = TRUE), residual_data),
+        "Cubic" = fit_model(I(Residual^2) ~ poly(Year, 3, raw = TRUE), residual_data),
+        "Exponential" = fit_model(log(Residual^2) ~ Year, residual_data),
+        "Logarithmic" = fit_model(I(Residual^2) ~ log(Year), residual_data)
+      )
+
+      # Select best model based on R²
+      models <- models[!sapply(models, is.null)]
+      best_model_name <- names(which.max(sapply(models, function(m) m$r_squared)))
+      best_model <- models[[best_model_name]]$model
+
+      # Generate plot
+      residual_data$Fitted <- predict(best_model, newdata = residual_data)
+      self$plot <- ggplot(residual_data, aes(x = Year, y = Residual^2)) +
+        geom_point(size = 1.2, shape = 21, fill = "white", color = "black", stroke = 0.5) +
+        geom_smooth(method = "lm", color = "red", linetype = "dashed", size = 0.5) +
+        geom_line(aes(y = Fitted), color = "black", linewidth = 0.5, linetype = "dashed") +
+        super$getTheme()
+
+      self$metrics <- list(
+        best_model = best_model_name,
+        r_squared = models[[best_model_name]]$r_squared
+      )
+    }
+  )
+)
+
+# -------------------------------------------
+# FFT Analysis of Residuals
+# -------------------------------------------
+FFT_Residuals_Plot <- R6Class("FFT_Residuals_Plot",
+  inherit = R_IEEE_Plot,
+  public = list(
+    initialize = function(residual_data) {
+      super$initialize("FFT Analysis of Residuals", "Period (Years)", "Normalized Power")
+
+      # Compute FFT
+      n <- length(residual_data$Residual)
+      residual_fft <- fft(residual_data$Residual)
+
+      # Frequency computation
+      dt <- mean(diff(residual_data$Year))  # Time step (years)
+      freq <- seq(0, 1 / (2 * dt), length.out = floor(n / 2))  # Nyquist frequency limit
+      
+      power <- Mod(residual_fft[1:floor(n / 2)])^2  # Compute Power Spectrum
+      power <- power / max(power)  # Normalize power to [0,1]
+
+      # Convert Frequency to Period (Years)
+      period <- ifelse(freq > 0, 1 / freq, NA)  
+
+      # Filter valid periods (e.g., 100-year max cutoff)
+      valid_idx <- !is.na(period) & period < 100  
+      fft_data <- data.frame(Period = period[valid_idx], Power = power[valid_idx])
+
+      # Sort by period for clarity
+      fft_data <- fft_data[order(fft_data$Period), ]
+
+      # Apply LOESS Smoothing (Less Aggressive)
+      fft_data$Smoothed_Power <- predict(loess(Power ~ Period, data = fft_data, span = 0.4))  
+
+      # Identify dominant period
+      dominant_period <- fft_data$Period[which.max(fft_data$Power)]
+
+      # Improve label positioning
+      label_x <- dominant_period * 1.1  # Slight shift right
+      label_y <- max(fft_data$Smoothed_Power) * 1.05  # Slight shift up
+
+      # Generate improved FFT plot
+      self$plot <- ggplot(fft_data, aes(x = Period, y = Smoothed_Power)) +
+        geom_line(color = "blue", linewidth = 0.4) +  # **Thinner Line**
+        geom_vline(xintercept = dominant_period, linetype = "dashed", color = "red", linewidth = 0.6) +  # **Thinner Dashed Line**
+        geom_text(aes(x = label_x, y = label_y, 
+                      label = paste0("Dominant: ", round(dominant_period, 1), " yrs")), 
+                  color = "red", vjust = 0, hjust = 0, size = 8 / .pt) +  # **Repositioned Label**
+        scale_x_log10(breaks = c(1, 2, 5, 10, 20, 50, 100)) +  
+        scale_y_continuous(limits = c(0, max(fft_data$Smoothed_Power) * 1.1)) +  # **Added 10% Padding**
+        super$getTheme()
+
+      # Store FFT metrics
+      self$metrics <- list(
+        dominant_period = dominant_period,
+        max_power = max(fft_data$Power)
+      )
+    }
+  )
+)
+
+
+
+
 
 
 # -------------------------------------------
@@ -630,27 +652,33 @@ save_all_m2_regression_plots <- function(regression_data, residual_data, output_
   dir.create(double_column_path, recursive = TRUE)
 
   # Instantiate all plot classes (Residuals + Regression)
-  plot_classes <- list(
-    Regression_Articles_Plot$new(regression_data$metric_regression, 
-                                 regression_data$x, 
-                                 regression_data$y, 
-                                 regression_data$models_regression, 
-                                 regression_data$lower_bound, 
-                                 regression_data$upper_bound),
-    ACF_Residuals_Plot$new(residual_data),
-    PACF_Residuals_Plot$new(residual_data),
-    Histogram_Residuals_Plot$new(residual_data),
-    QQ_Residuals_Plot$new(residual_data),
-    DW_Test_Plot$new(residual_data),
-    BP_Test_Plot$new(residual_data),
-    Shapiro_Wilk_Plot$new(residual_data),
-    Standardized_Residuals_Plot$new(residual_data)
-  )
+plot_classes <- list(
+  Regression_Articles_Plot$new(regression_data$metric_regression, 
+                               regression_data$x, 
+                               regression_data$y, 
+                               regression_data$models_regression, 
+                               regression_data$lower_bound, 
+                               regression_data$upper_bound),
+  ACF_Residuals_Plot$new(residual_data),
+  PACF_Residuals_Plot$new(residual_data),
+  Histogram_Residuals_Plot$new(residual_data),
+  QQ_Residuals_Plot$new(residual_data),
+  DW_Test_Plot$new(residual_data),
+  BP_Test_Plot$new(residual_data),
+  Shapiro_Wilk_Plot$new(residual_data),
+  Standardized_Residuals_Plot$new(residual_data),
+  Residuals_Squared_Plot$new(residual_data),  # NEW ✅
+  Residuals_Squared_Model_Fit_Plot$new(residual_data),  # NEW ✅
+  FFT_Residuals_Plot$new(residual_data)  # NEW ✅
+)
 
   # Define names for each plot type
-  plot_names <- c("Regression_Articles", "ACF_Residuals", "PACF_Residuals",
-                  "Histogram_Residuals", "QQ_Residuals", "DW_Test", 
-                  "BP_Test", "Shapiro_Wilk", "Standardized_Residuals")
+plot_names <- c("Regression_Articles", "ACF_Residuals", "PACF_Residuals",
+                "Histogram_Residuals", "QQ_Residuals", "DW_Test", 
+                "BP_Test", "Shapiro_Wilk", "Standardized_Residuals",
+                "Residuals_Squared", "Residuals_Squared_Model_Fit",
+                "FFT_Residuals")  # NEW ✅
+
 
   # Helper function to save plots in PNG & SVG formats
   save_plot <- function(plot_obj, name) {
