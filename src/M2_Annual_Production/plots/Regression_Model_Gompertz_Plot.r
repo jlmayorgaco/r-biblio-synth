@@ -11,6 +11,8 @@ Regression_Model_Gompertz_Plot <- R6Class("Regression_Model_Gompertz_Plot",
     p = NULL,              # Plot object
     t_real = NULL,         # Time series data
     y_real = NULL,         # Real y-values
+    t_regression = NULL,         # Time series data
+    y_regression = NULL,         # Real y-values
     THEME_COLORS = NULL,   # Theme colors
     model_params = NULL,   # Extracted model parameters
     eq_dir = NULL,         # Optional LaTeX directory
@@ -33,6 +35,10 @@ Regression_Model_Gompertz_Plot <- R6Class("Regression_Model_Gompertz_Plot",
     setData = function(t_real, y_real) {
       self$t_real <- t_real
       self$y_real <- y_real
+    },
+    setRegression = function(t_regression, y_regression) {
+      self$t_regression <- t_regression
+      self$y_regression <- y_regression
     },
 
     setColors = function(colors) {
@@ -76,8 +82,8 @@ Regression_Model_Gompertz_Plot <- R6Class("Regression_Model_Gompertz_Plot",
     # -------------------------------------------
     compute_tr = function() {
       N0 <- self$model_params[["y0"]] + self$model_params[["N0"]]
-      tr_index <- which(self$y_real >= 0.9 * N0)[1]
-      return(if (!is.na(tr_index)) self$t_real[tr_index] else NA)
+      tr_index <- which(self$y_regression >= 0.9 * N0)[1]
+      return(if (!is.na(tr_index)) self$t_regression[tr_index] else NA)
     },
 
     # -------------------------------------------
@@ -92,12 +98,12 @@ Regression_Model_Gompertz_Plot <- R6Class("Regression_Model_Gompertz_Plot",
 
       if (!is.na(tr)) {
         tr_label_text <- "t[r]"
-        tr_label_pos_x <- (tr - 3)
-        tr_label_pos_y <- max(self$y_real) - 9
+        tr_label_pos_x <- (tr)
+        tr_label_pos_y <- max(self$y_real)
         tr_label_angle <- 0
         tr_label_size <- 10/ .pt
-        t0_label_just_v <- 2.0
-        t0_label_just_h <- 1.0
+        tr_label_just_v <- 1.0
+        tr_label_just_h <- 1.5
         tr_color <- self$THEME_COLORS$Main[3]
         tr_line_size <- 0.5
         tr_line_type <- "dashed"
@@ -125,7 +131,7 @@ Regression_Model_Gompertz_Plot <- R6Class("Regression_Model_Gompertz_Plot",
         t0_label_pos_y <- max(self$y_real)
         t0_label_angle <- 0
         t0_label_size <- 10/ .pt
-        t0_label_just_v <- 2.0
+        t0_label_just_v <- 1.0
         t0_label_just_h <- 1.0
         t0_color <- self$THEME_COLORS$Main[1]
         t0_line_size <- 0.5
