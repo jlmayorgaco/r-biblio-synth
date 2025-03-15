@@ -76,7 +76,8 @@ packages <- c(packages,
   "tseries",     # Time series analysis
   "lmtest",      # Hypothesis testing for regression models
   "BayesFactor", # Bayesian analysis
-  "psych"        # Descriptive statistics
+  "psych",        # Descriptive statistics
+  "wavelets"
 )
 
 # 🛠️ Model Fitting and Optimization
