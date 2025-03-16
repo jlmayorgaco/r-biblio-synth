@@ -604,31 +604,58 @@ FFT_Residuals_Plot <- R6Class("FFT_Residuals_Plot",
       # Sort by period for clarity
       fft_data <- fft_data[order(fft_data$Period), ]
 
-      # Apply LOESS Smoothing (Less Aggressive)
-      fft_data$Smoothed_Power <- predict(loess(Power ~ Period, data = fft_data, span = 0.4))  
-
       # Identify dominant period
       dominant_period <- fft_data$Period[which.max(fft_data$Power)]
 
+      # **✅ Fix Peak Detection**
+      find_peaks <- function(y) {
+        peaks <- which(diff(sign(diff(y))) == -2) + 1  # Identify local maxima
+        return(peaks)
+      }
+
+    # **Step 1: Find all peaks**
+    peak_indices <- find_peaks(fft_data$Power)
+
+    # **Step 2: Extract periods & power values at peak locations**
+    peak_periods <- fft_data$Period[peak_indices]
+    peak_powers <- fft_data$Power[peak_indices]
+
+    # **Step 3: Sort by power (descending order) & select top N peaks**
+    N <- 5  # Number of top peaks to keep
+    if (length(peak_powers) > N) {
+    top_indices <- order(peak_powers, decreasing = TRUE)[1:N]  # Top N indices
+    peak_indices <- peak_indices[top_indices]  # Update peak indices
+    peak_periods <- peak_periods[top_indices]  # Keep only top N periods
+    peak_powers <- peak_powers[top_indices]  # Keep only top N powers
+    }
+
+
       # Improve label positioning
-      label_x <- dominant_period * 1.1  # Slight shift right
-      label_y <- max(fft_data$Smoothed_Power) * 1.05  # Slight shift up
+      label_x <- dominant_period * 1.2  # Slight shift right
+      label_y <- max(fft_data$Power) * 1.07  # Slight shift up
 
       # Generate improved FFT plot
-      self$plot <- ggplot(fft_data, aes(x = Period, y = Smoothed_Power)) +
-        geom_line(color = "blue", linewidth = 0.4) +  # **Thinner Line**
-        geom_vline(xintercept = dominant_period, linetype = "dashed", color = "red", linewidth = 0.6) +  # **Thinner Dashed Line**
+      self$plot <- ggplot(fft_data, aes(x = Period, y = Power)) +
+        geom_point(color = "black", size = 1.5, shape = 21, fill = "white") +  # **Add Data Points**
+        geom_line(color = "black", linewidth = 0.4) +  # **Keep Black Line**
+        geom_vline(xintercept = dominant_period, linetype = "dashed", color = "red", linewidth = 0.36) +  # **Thinner Dashed Line**
         geom_text(aes(x = label_x, y = label_y, 
                       label = paste0("Dominant: ", round(dominant_period, 1), " yrs")), 
-                  color = "red", vjust = 0, hjust = 0, size = 8 / .pt) +  # **Repositioned Label**
-        scale_x_log10(breaks = c(1, 2, 5, 10, 20, 50, 100)) +  
-        scale_y_continuous(limits = c(0, max(fft_data$Smoothed_Power) * 1.1)) +  # **Added 10% Padding**
+                  color = "red", vjust = 0, hjust = 0, size = 7 / .pt) +  # **Repositioned Label**
+        geom_point(data = fft_data[peak_indices,], aes(x = Period, y = Power), 
+                   color = "red", size = 2.5, shape = 8) +  # **✅ Fixed Red Star Position**
+        scale_x_log10(breaks = c(1, 2, 5, 10, 20, 50)) +  # **Better Spacing**
+        scale_y_continuous(limits = c(0, max(fft_data$Power) * 1.1)) +  # **Added 10% Padding**
         super$getTheme()
 
       # Store FFT metrics
       self$metrics <- list(
         dominant_period = dominant_period,
-        max_power = max(fft_data$Power)
+        max_power = max(fft_data$Power),
+        meaningful_peaks = list(
+          periods = peak_periods,
+          power = peak_powers
+        )
       )
     }
   )
@@ -686,11 +713,11 @@ plot_names <- c("Regression_Articles", "ACF_Residuals", "PACF_Residuals",
     one_col_plot <- plot_obj$getOneColumnPlot()
     double_col_plot <- plot_obj$getDoubleColumnPlot()
 
-    ggsave(filename = file.path(one_column_path, paste0(name, ".png")), plot = one_col_plot$plot, width = one_col_plot$width, height = one_col_plot$height, dpi = one_col_plot$dpi)
-    ggsave(filename = file.path(one_column_path, paste0(name, ".svg")), plot = one_col_plot$plot, width = one_col_plot$width, height = one_col_plot$height, device = "svg")
+    ggsave(filename = file.path(one_column_path, paste0("M2_Regression_", name, ".png")), plot = one_col_plot$plot, width = one_col_plot$width, height = one_col_plot$height, dpi = one_col_plot$dpi)
+    ggsave(filename = file.path(one_column_path, paste0("M2_Regression_", name, ".svg")), plot = one_col_plot$plot, width = one_col_plot$width, height = one_col_plot$height, device = "svg")
     
-    ggsave(filename = file.path(double_column_path, paste0(name, ".png")), plot = double_col_plot$plot, width = double_col_plot$width, height = double_col_plot$height, dpi = double_col_plot$dpi)
-    ggsave(filename = file.path(double_column_path, paste0(name, ".svg")), plot = double_col_plot$plot, width = double_col_plot$width, height = double_col_plot$height, device = "svg")
+    ggsave(filename = file.path(double_column_path, paste0("M2_Regression_", name, ".png")), plot = double_col_plot$plot, width = double_col_plot$width, height = double_col_plot$height, dpi = double_col_plot$dpi)
+    ggsave(filename = file.path(double_column_path, paste0("M2_Regression_", name, ".svg")), plot = double_col_plot$plot, width = double_col_plot$width, height = double_col_plot$height, device = "svg")
   
   }
 
