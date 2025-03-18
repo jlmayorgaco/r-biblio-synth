@@ -6,7 +6,7 @@ library(grid)
 library(ggrepel)
 library(bibliometrix)
 
-BubbleCountryAnalysis <- R6Class("BubbleCountryAnalysis",
+BubbleCountryAnalysis0 <- R6Class("BubbleCountryAnalysis",
   public = list(
     data = NULL,
     df = NULL,
