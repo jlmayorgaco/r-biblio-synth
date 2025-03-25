@@ -77,7 +77,10 @@ packages <- c(packages,
   "lmtest",      # Hypothesis testing for regression models
   "BayesFactor", # Bayesian analysis
   "psych",        # Descriptive statistics
-  "wavelets"
+  "wavelets",
+  "fitdistrplus", 
+  "ineq", 
+  "moments"
 )
 
 # 🛠️ Model Fitting and Optimization
@@ -138,8 +141,13 @@ packages <- c(packages,
 # 📋 Miscellaneous Utilities
 packages <- c(packages,
   "pander",      # Format tables and figures in RMarkdown
-  "rlang"        # Programming with tidyverse
+  "rlang",        # Programming with tidyverse
+  "purrr",
+  "skimr", 
+  "GGally",
+  "ggbrace"
 )
+
 
 
 # Install and load necessary packages
@@ -157,6 +165,7 @@ source('../../src/Config/PaletteGenerator.r')
 source('../../src/Config/PlotThemes.r')
 source('../../src/M1_Main_Information/M1_Main_Information.r')
 source('../../src/M2_Annual_Production/M2_Annual_Production.r')
+source('../../src/M4_Countries/M4_Countries.r')
 #source('../../src/M3_Most_Prod_Authors/M3_Most_Prod_Authors.r')
 
 
@@ -387,6 +396,50 @@ SystematicReview <- setRefClass(
     do_m3_authors = function(){},
 
     do_m4_countries = function(){
+
+      # Step 0: Setup output folders
+      output_dir <- "results/M4_Countries"
+      figures_dir <- file.path(output_dir, "figures")
+      jsons_dir <- file.path(output_dir, "jsons")
+
+      if (dir.exists(output_dir)) {
+        unlink(output_dir, recursive = TRUE)
+        message("[INFO] Deleted existing directory: ", output_dir)
+      }
+
+      dir.create(figures_dir, recursive = TRUE, showWarnings = FALSE)
+      dir.create(jsons_dir, recursive = TRUE, showWarnings = FALSE)
+      message("[INFO] Created new directory structure: ", output_dir)
+
+      # Step 1: Get original data
+      raw_data <- .self$data
+      message("\nM4 :: Analyzing Countries...\n")
+      message("\nM4 :: Available columns:")
+      print(colnames(raw_data))
+
+      # Step 2: Extract country metadata safely
+      df_countries <- extract_country_data(raw_data)
+
+      # Step 3: Check and filter
+      if (!"Country" %in% colnames(df_countries)) {
+        stop("[ERROR] 'Country' column not found. Extraction failed.")
+      }
+
+      df_countries <- df_countries %>%
+        dplyr::filter(!is.na(Country) & !is.na(Year)) %>%
+        dplyr::select(Country, Year, dplyr::everything())
+
+
+
+      message("\nM4 :: After Filter:")
+      # Step 4: Initialize and run analysis
+      m4_analysis <- M4_Countries$new(df_countries, country_col = "Country", year_col = "Year")
+      m4_analysis$runMetrics()
+
+      message("[INFO] Countries analysis completed.\n")
+    },
+
+    do_m4_countries2 = function(){
 
       data <- .self$data
 
