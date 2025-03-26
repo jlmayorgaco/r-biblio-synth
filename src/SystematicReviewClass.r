@@ -145,7 +145,8 @@ packages <- c(packages,
   "purrr",
   "skimr", 
   "GGally",
-  "ggbrace"
+  "ggbrace",
+  "DescTools"
 )
 
 
