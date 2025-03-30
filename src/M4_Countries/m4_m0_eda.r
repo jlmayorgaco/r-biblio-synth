@@ -88,18 +88,32 @@ M4_M0_EDA <- setRefClass(
       agg_by_country$Cluster <- as.factor(kmeans_result$cluster)
 
       # Step 6: Top/Bottom statistics
-      top_bottom <- function(df, colname) {
-        message("\n[DEBUG] top_bottom() called for column:", colname)
+        top_bottom <- function(df, colname, country_col = "Country") {
+            message("\n[DEBUG] top_bottom() called for column: ", colname)
 
-        if (!colname %in% names(df)) stop(paste("[ERROR] Column", colname, "not found in dataframe"))
-        vec <- df[[colname]]
-        if (!is.numeric(vec)) stop(paste("[ERROR] Column", colname, "is not numeric."))
+            # Validación: columna numérica existe
+            if (!colname %in% names(df)) stop(paste("[ERROR] Column", colname, "not found in dataframe"))
+            if (!country_col %in% names(df)) stop(paste("[ERROR] Column", country_col, "not found in dataframe"))
 
-        top10 <- tryCatch({ df[order(-vec), ][1:10, ] }, error = function(e) NULL)
-        bottom10 <- tryCatch({ df[!is.na(vec) & vec > 0, ][order(vec[!is.na(vec) & vec > 0]), ][1:10, ] }, error = function(e) NULL)
+            # Limpiar valores "NA" como texto y NA reales en columna de país
+            df[[country_col]][df[[country_col]] == "NA"] <- NA
+            df <- df[!is.na(df[[country_col]]), ]
 
-        list(top10 = top10, bottom10 = bottom10)
-      }
+            # Limpiar NA en la columna numérica
+            vec <- df[[colname]]
+            if (!is.numeric(vec)) stop(paste("[ERROR] Column", colname, "is not numeric."))
+            df <- df[!is.na(vec), ]
+
+            # Top 10 y Bottom 10 (excluye ceros en bottom)
+            top10 <- tryCatch({ df[order(-df[[colname]]), ][1:10, ] }, error = function(e) NULL)
+            bottom10 <- tryCatch({
+                df_bottom <- df[df[[colname]] > 0, ]
+                df_bottom[order(df_bottom[[colname]]), ][1:10, ]
+            }, error = function(e) NULL)
+
+            list(top10 = top10, bottom10 = bottom10)
+    }
+
 
 
 
