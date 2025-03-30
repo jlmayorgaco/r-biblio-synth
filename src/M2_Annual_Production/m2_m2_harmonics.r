@@ -64,24 +64,30 @@ M2_M2_Harmonic <- setRefClass(
     save_plot = function(output_path) {
       message(" ==> M2_M2 :: save_plot")
 
+      # **Create Directory Paths**
+      one_column_path <- file.path(output_path, "OneColumn")
+      double_column_path <- file.path(output_path, "DoubleColumn")
+      json_output_path <- gsub("figures", "jsons", output_path)
+
       x <- .self$df[[.self$year_col]]
       y <- .self$df[[.self$articles_col]]
 
-      # FFT Plot
-      create_fft_plot(.self$results$fft, output_path)
+      # Instantiate Plot Classes
+      plot_classes <- list(
+        FFT_Harmonics_Plot$new(.self$results$fft),
+        Lomb_Scargle_Plot$new(.self$results$lomb_scargle),
+        R2_vs_Frequency_Plot$new(.self$results$r_squared_table),
+        Wavelet_Power_Spectrum_Plot$new(.self$results$wavelet, years = x)  # Pass years to adjust x-axis
+      )
 
-      # Lomb-Scargle Plot
-      create_lomb_scargle_plot(.self$results$lomb_scargle, output_path)
+      # Define names for each plot type
+      plot_names <- c("FFT_Harmonics", "Lomb_Scargle", "R2_vs_Frequency", "Wavelet_Power")
 
-      # R^2 vs. Frequency Plot
-      create_r2_vs_frequency_plot(.self$results$r_squared_table, output_path)
+      # Loop through and save each plot
+      for (i in seq_along(plot_classes)) {
+        m2_save_plot(plot_classes[[i]], "M2_Harmonics", plot_names[i], one_column_path, double_column_path)
+      }
 
-
-      str(.self$results$wavelet)
-
-      # Wavelet Power Spectrum Plot
-      years <- x
-      create_wavelet_power_plot(.self$results$wavelet, years, output_path)
     },
 
     # Save Results to JSON
