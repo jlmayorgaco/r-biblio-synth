@@ -37,7 +37,7 @@ Plot_TopBottom10_Countries <- R6::R6Class("Plot_TopBottom10_Countries",
  
         
       super$initialize(
-        title = paste(title_prefix, "Countries by", metric, "", year_suffix),
+        title = paste(title_prefix, "Countries by", metric, ""),
         x_label = metric,
         y_label = "Country"
       )
@@ -60,129 +60,155 @@ Plot_TopBottom10_Countries <- R6::R6Class("Plot_TopBottom10_Countries",
 generatePlot = function() {
   message("🔧 [1] Iniciando generatePlot...")
 
-  fill_color <- ifelse(self$type == "top", "steelblue", "darkred")
-  message("🎨 [2] Color definido: ", fill_color)
+  # ---------------------------
+  # 📌 Validaciones iniciales
+  # ---------------------------
+  if (!(self$value_col %in% names(self$data)) || !(self$country_col %in% names(self$data))) {
+    stop("❌ Las columnas especificadas no existen en self$data.")
+  }
 
-  # Sort and compute top 80%
+  # Limpiar valores "NA" como texto
+  self$data[[self$country_col]][self$data[[self$country_col]] == "NA"] <- NA
+  self$data <- self$data[!is.na(self$data[[self$country_col]]), ]
+
+  # ---------------------------
+  # 📊 Cálculo de top 80%
+  # ---------------------------
   df_sorted <- self$data[order(-self$data[[self$value_col]]), ]
-  message("📊 [3] Data ordenada")
-
   cum_sum <- cumsum(df_sorted[[self$value_col]])
   total_sum <- sum(df_sorted[[self$value_col]], na.rm = TRUE)
-  index_80 <- which(cum_sum >= 0.8 * total_sum)[1]
+  index_80 <- which(cum_sum > 0.8 * total_sum)[1]
   top80_countries <- df_sorted[[self$country_col]][1:index_80]
-  message("📈 [4] Index que acumula 80%: ", index_80)
-
-  # Flag countries
   self$data$Highlight <- self$data[[self$country_col]] %in% top80_countries
-  message("🏷️ [5] Marcas de Highlight aplicadas")
 
-  # Iniciar ggplot
-  p <- ggplot(self$data, aes_string(
-    x = self$value_col,
-    y = paste0("reorder(", self$country_col, ", ", self$value_col, ")")
-  ))
-  message("📐 [6] ggplot creado")
+  # ---------------------------
+  # 🏷️ Título con año si aplica
+  # ---------------------------
+  if (!is.null(self$year_range) && length(self$year_range) == 2) {
+    self$title <- paste0(self$title, " (", self$year_range[1], "–", self$year_range[2], ")")
+  }
 
-  p <- p + geom_bar(stat = "identity", aes(fill = Highlight))  # Asegura uso de aes para fill
-  message("📊 [7] Barras agregadas")
+  # ---------------------------
+  # 🎨 Estética y colores
+  # ---------------------------
+  fill_color <- ifelse(self$type == "top", "steelblue", "darkred")
 
-  p <- p + geom_text(
-    aes_string(label = self$value_col),
-    hjust = -0.2, size = 3.5, family = "serif"
-  )
-  message("📝 [8] Etiquetas agregadas")
+  # ---------------------------
+  # 📈 Crear gráfico principal
+  # ---------------------------
+  p <- ggplot(data = self$data, aes(
+    x = .data[[self$value_col]],
+    y = reorder(.data[[self$country_col]], .data[[self$value_col]])
+  )) +
+   geom_bar(
+    aes(fill = Highlight),  # ✅ Aquí se aplica fill con Highlight
+    stat = "identity",
+    show.legend = FALSE
+  ) +
+    geom_text(aes(label = .data[[self$value_col]]),
+              hjust = -0.2, size = 3.5, family = "serif") +
+    scale_fill_manual(
+      values = c("TRUE" = fill_color, "FALSE" = alpha("gray60", 0.3))
+    ) +
+    labs(title = self$title, x = "", y = NULL) +
+    super$getTheme() +
+    theme(
+      axis.title.y = element_blank(),
+      plot.margin = margin(5, 5, 5, 5),
+      axis.text.y = element_text(margin = margin(r = 3))
+    )
 
-  p <- p + super$getTheme()
-  message("🎨 [9] Tema IEEE aplicado")
-
-  p <- p + theme(
-    axis.title.y = element_blank(),
-    plot.margin = margin(5, 5, 5, 5),
-    axis.text.y = element_text(margin = margin(r = 3))
-  )
-
-  p <- p + labs(
-    title = self$title,
-    x = "",  # o usa self$x_label si prefieres
-    y = NULL
-  )
-  message("🏷️ [10] Título y etiquetas aplicadas")
-
+  # ---------------------------
+  # 🔧 Ajuste dinámico del eje X
+  # ---------------------------
   max_val <- max(self$data[[self$value_col]], na.rm = TRUE)
   p <- p + xlim(0, max_val * 1.1)
-  message("📏 [11] Limite X ajustado")
 
-  # Línea horizontal y etiqueta del 80%
-  if(FALSE){
+  # ---------------------------
+  # 📏 Línea horizontal 80%
+  # ---------------------------
   country_80 <- df_sorted[[self$country_col]][index_80]
   threshold_df <- data.frame(
     x = max_val * 0.95,
     y = country_80,
     label = "80%"
   )
- 
 
-  p <- p +
-    geom_hline(
-      yintercept = index_80,
-      linetype = "dashed",
-      color = "black",
-      linewidth = 0.5
-    ) +
-    geom_text(
-      data = threshold_df,
-      aes(x = x, y = y, label = label),
-      vjust = -0.3,
-      hjust = 1,
-      family = "serif",
-      size = 3
-    )
-  message("🧭 [12] Línea y etiqueta del 80% agregadas")
+  #p <- p + geom_hline(yintercept = index_80, linetype = "dashed", color = "black", linewidth = 0.5) + geom_text(data = threshold_df, aes(x = x, y = y, label = label), vjust = -0.3, hjust = 1, family = "serif", size = 3)
 
-   }
-
-# Gini inset (Lorenz curve + Gini value)
-if (!is.null(self$data) && self$value_col %in% names(self$data)) {
-  message("📈 Generando curva de Lorenz...")
-
-  # Ordenar valores
+  # ---------------------------
+  # 📉 Subgráfico: Lorenz + Gini
+  # ---------------------------
   values <- sort(self$data[[self$value_col]], decreasing = FALSE, na.last = NA)
-
-  # Calcular curva de Lorenz
-  lorenz_data <- as.data.frame(DescTools::Lc(values))
+  lc_obj <- DescTools::Lc(values)
+  lorenz_df <- data.frame(p = lc_obj$p, L = lc_obj$L)
   gini_val <- DescTools::Gini(values)
 
-  # Crear gráfico de Lorenz con Gini como etiqueta
-  gini_plot <- ggplot(lorenz_data, aes(x = p, y = L)) +
-    geom_line(color = "black", size = 0.5) +
-    geom_abline(intercept = 0, slope = 1, linetype = "dotted", color = "gray") +
-    annotate("text", x = 0.5, y = 0.1, label = paste0("Gini = ", round(gini_val, 3)),
-             size = 3, family = "serif", fontface = "bold") +
-    theme_void() +
-    theme(
-      plot.background = element_rect(fill = "white", color = "black", linewidth = 0.3)
-    )
+  # Suavizado con spline
+  smooth_curve <- as.data.frame(spline(lorenz_df$p, lorenz_df$L))
+  gini_label_df <- data.frame(
+    x = 0.35,
+    y = 0.85,
+    label = paste0("Gini = ", round(gini_val, 3))
+  )
+gini_plot <- ggplot(smooth_curve, aes(x = x, y = y)) +
+  geom_line(color = "black", linewidth = 0.5) +
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "gray") +
+  geom_text(
+    data = gini_label_df,
+    aes(x = x, y = y, label = label),
+    size = 3, family = "serif", fontface = "bold",
+    inherit.aes = FALSE
+  ) +
+  labs(x = "", y = "") +
+  scale_x_continuous(expand = c(0, 0)) +
+  scale_y_continuous(expand = c(0, 0)) +
+  theme_minimal(base_family = "serif") +
+theme(
+  panel.background = element_rect(fill = "white", color = NA), # fondo blanco
+  plot.background = element_blank(),                           # sin fondo extra
+  panel.grid = element_blank(),                                # sin grilla
+  axis.text = element_blank(),                                 # sin texto
+  axis.ticks.length = unit(1, "pt"),
+  axis.ticks = element_line(color = "black"),
+  axis.line = element_blank(),                                 # 🔁 desactiva líneas individuales
+  panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5)  # 🔥 borde rectangular negro
+)
+
 
   gini_grob <- ggplotGrob(gini_plot)
 
-  p <- p + annotation_custom(
+  # ---------------------------
+  # 🧩 Incrustar subgráfico
+  # ---------------------------
+    x0 <- max_val * 0.35  # esquina inferior izquierda X
+    y0 <- -0.5            # esquina inferior izquierda Y
+    xf <- max_val * 1.25   # esquina superior derecha X
+    yf <- 6               # esquina superior derecha Y
+
+    p <- p + annotation_custom(
     grob = gini_grob,
-    xmin = max_val * 0.6, xmax = max_val * 1.05,
-    ymin = -Inf, ymax = Inf
-  )
+    xmin = x0,
+    xmax = xf,
+    ymin = y0,
+    ymax = yf
+    )
 
-  message("✅ Curva de Lorenz incrustada con Gini = ", round(gini_val, 3))
-}
-
-
+  # ---------------------------
+  # ✅ Finalizar
+  # ---------------------------
   self$plot <- p
-  message("✅ [14] Plot generado y asignado a self$plot")
+  message("✅ [Final] Plot generado correctamente")
 }
 
 
 
-,
+
+
+
+
+
+        ,
 
 
     # Save plot to path with filename based on metric and type
