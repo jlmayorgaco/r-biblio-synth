@@ -66,7 +66,7 @@ M2_M1_Regression <- setRefClass(
     # Save the regression plots
     save_plot = function(output_path) {
       message(" ==> M2_M1 :: save_plot")
-      
+
       # Extract year and article data
       x <- .self$df[[.self$year_col]]
       y <- .self$df[[.self$articles_col]]
@@ -87,12 +87,51 @@ M2_M1_Regression <- setRefClass(
       # Prepare residual_data structure
       residual_data <- calculate_residuals(x, y, regression_data)  # Ensure this function exists
 
-      # Call the new function to save all plots
-      save_all_m2_regression_plots(
-        regression_data = regression_data,
-        residual_data = residual_data,
-        output_path = output_path
+      # **Create Directory Paths**
+      one_column_path <- file.path(output_path, "OneColumn")
+      double_column_path <- file.path(output_path, "DoubleColumn")
+      json_output_path <- gsub("figures", "jsons", output_path)
+
+      # **Ensure Clean Directories**
+      create_clean_directory(one_column_path)
+      create_clean_directory(double_column_path)
+      create_clean_directory(json_output_path)
+
+      # **List of Plot Classes**
+      plot_classes <- list(
+      Regression_Articles_Plot$new(regression_data$metric_regression, 
+                                  regression_data$x, 
+                                  regression_data$y, 
+                                  regression_data$models_regression, 
+                                  regression_data$lower_bound, 
+                                  regression_data$upper_bound),
+      ACF_Residuals_Plot$new(residual_data),
+      PACF_Residuals_Plot$new(residual_data),
+      Histogram_Residuals_Plot$new(residual_data),
+      QQ_Residuals_Plot$new(residual_data),
+      DW_Test_Plot$new(residual_data),
+      BP_Test_Plot$new(residual_data),
+      Shapiro_Wilk_Plot$new(residual_data),
+      Standardized_Residuals_Plot$new(residual_data),
+      Residuals_Squared_Plot$new(residual_data),
+      Residuals_Squared_Model_Fit_Plot$new(residual_data),
+      FFT_Residuals_Plot$new(residual_data)
       )
+
+      # **List of Corresponding Plot Names**
+      plot_names <- c("Regression_Articles", "ACF_Residuals", "PACF_Residuals",
+                  "Histogram_Residuals", "QQ_Residuals", "DW_Test", 
+                  "BP_Test", "Shapiro_Wilk", "Standardized_Residuals",
+                  "Residuals_Squared", "Residuals_Squared_Model_Fit",
+                  "FFT_Residuals")
+
+      # **Save Each Plot**
+      for (i in seq_along(plot_classes)) {
+      m2_save_plot(plot_classes[[i]], "M1_Regression", plot_names[i], one_column_path, double_column_path)
+      }
+
+      # **Generate JSON Report**
+      m2_save_json_report(plot_classes, json_output_path)
     },
     
     # Save the results to JSON
