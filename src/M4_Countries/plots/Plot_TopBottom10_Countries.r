@@ -160,20 +160,31 @@ gini_plot <- ggplot(smooth_curve, aes(x = x, y = y)) +
     size = 3, family = "serif", fontface = "bold",
     inherit.aes = FALSE
   ) +
-  labs(x = "", y = "") +
-  scale_x_continuous(expand = c(0, 0)) +
-  scale_y_continuous(expand = c(0, 0)) +
+  labs(
+    title = "Inequality (Lorenz) Curve",
+    x = "", y = ""
+  ) +
+  scale_x_continuous(
+    expand = c(0, 0),
+    breaks = seq(0, 0.9, 0.1)  # Remueve el 1.0
+  ) +
+  scale_y_continuous(
+    expand = c(0, 0),
+    breaks = seq(0, 0.9, 0.1)
+  ) +
   theme_minimal(base_family = "serif") +
-theme(
-  panel.background = element_rect(fill = "white", color = NA), # fondo blanco
-  plot.background = element_blank(),                           # sin fondo extra
-  panel.grid = element_blank(),                                # sin grilla
-  axis.text = element_blank(),                                 # sin texto
-  axis.ticks.length = unit(1, "pt"),
-  axis.ticks = element_line(color = "black"),
-  axis.line = element_blank(),                                 # 🔁 desactiva líneas individuales
-  panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5)  # 🔥 borde rectangular negro
-)
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 10, face = "bold"),
+    panel.background = element_rect(fill = "white", color = NA),
+    plot.background = element_blank(),
+    panel.grid = element_blank(),
+    axis.text = element_blank(),
+    axis.ticks.length = unit(2, "pt"),
+    axis.ticks = element_line(color = "black", linewidth = 0.4),
+    axis.line = element_blank(),
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5)
+  )
+
 
 
   gini_grob <- ggplotGrob(gini_plot)
@@ -183,8 +194,20 @@ theme(
   # ---------------------------
     x0 <- max_val * 0.35  # esquina inferior izquierda X
     y0 <- -0.5            # esquina inferior izquierda Y
-    xf <- max_val * 1.25   # esquina superior derecha X
+    xf <- max_val * 1.20   # esquina superior derecha X
     yf <- 6               # esquina superior derecha Y
+
+    message(' ')
+    message(' ')
+    message(' ')
+    message(' 🧩 Incrustar subgráfico ')
+    message(' ')
+    message(' x0 ', x0)
+    message(' xf ', xf)
+    message(' y0 ', y0)
+    message(' yf ', yf)
+    message(' ')
+    
 
     p <- p + annotation_custom(
     grob = gini_grob,
