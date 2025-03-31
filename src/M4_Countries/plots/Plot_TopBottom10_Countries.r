@@ -174,28 +174,44 @@ gini_plot <- ggplot(smooth_curve, aes(x = x, y = y)) +
   ) +
   theme_minimal(base_family = "serif") +
   theme(
+
+    # Plot Settings
     plot.title = element_text(hjust = 0.5, size = 10, face = "bold"),
-    panel.background = element_rect(fill = "white", color = NA),
-    plot.background = element_blank(),
+    plot.background = element_rect(fill = "red", color = NA),
+    plot.margin = margin(0, 0, 0, 0),
+
+    # Panel Settings
+    panel.background = element_rect(fill = "white", color = NA), 
     panel.grid = element_blank(),
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
+
+    # Axis Settings
     axis.text = element_blank(),
     axis.ticks.length = unit(2, "pt"),
     axis.ticks = element_line(color = "black", linewidth = 0.4),
     axis.line = element_blank(),
-    panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5)
+    axis.title = element_blank()
   )
 
 
-
   gini_grob <- ggplotGrob(gini_plot)
+  gini_grob_with_bg <- grobTree(
+  rectGrob(
+    gp = gpar(fill = "red", col = NA)  # rojo sin borde
+  ),
+  gini_grob  # tu gráfico encima
+)
 
   # ---------------------------
   # 🧩 Incrustar subgráfico
   # ---------------------------
-    x0 <- max_val * 0.35  # esquina inferior izquierda X
-    y0 <- -0.5            # esquina inferior izquierda Y
-    xf <- max_val * 1.20   # esquina superior derecha X
+
+    y0 <- 0            # esquina inferior izquierda Y
     yf <- 6               # esquina superior derecha Y
+
+    x0 <- max_val * 0.5  # esquina inferior izquierda X
+    xf <- max_val * 1   # esquina superior derecha X
+
 
     message(' ')
     message(' ')
