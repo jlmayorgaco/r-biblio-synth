@@ -146,7 +146,8 @@ packages <- c(packages,
   "skimr", 
   "GGally",
   "ggbrace",
-  "DescTools"
+  "DescTools",
+  "cowplot"
 )
 
 
