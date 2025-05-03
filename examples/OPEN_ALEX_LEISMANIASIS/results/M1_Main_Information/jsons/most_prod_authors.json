@@ -1,0 +1,76 @@
+{
+  "analysis_date": "2025-01-27",
+  "source": "Scopus Dataset",
+  "data": [
+    {
+      "Authors": "SHYAM SUNDAR",
+      "Articles": 35,
+      "Authors.1": "CARLOS HENRIQUE MARCHIORI",
+      "Articles Fractionalized": "10.00",
+      "Rank": 1
+    },
+    {
+      "Authors": "DINESH MONDAL",
+      "Articles": 25,
+      "Authors.1": "SHYAM SUNDAR",
+      "Articles Fractionalized": "4.65",
+      "Rank": 2
+    },
+    {
+      "Authors": "GREG MATLASHEWSKI",
+      "Articles": 20,
+      "Authors.1": "CLAUDIA FERNANDEZ DE CORDOBA FARINI",
+      "Articles Fractionalized": "3.00",
+      "Rank": 3
+    },
+    {
+      "Authors": "OM PRAKASH SINGH",
+      "Articles": 20,
+      "Authors.1": "GREG MATLASHEWSKI",
+      "Articles Fractionalized": "2.54",
+      "Rank": 4
+    },
+    {
+      "Authors": "GRAHAM F. MEDLEY",
+      "Articles": 19,
+      "Authors.1": "AMIT SHARMA",
+      "Articles Fractionalized": "2.54",
+      "Rank": 5
+    },
+    {
+      "Authors": "FABIANA ALVES",
+      "Articles": 18,
+      "Authors.1": "OM PRAKASH SINGH",
+      "Articles Fractionalized": "2.52",
+      "Rank": 6
+    },
+    {
+      "Authors": "KRISHNA PANDEY",
+      "Articles": 18,
+      "Authors.1": "DINESH MONDAL",
+      "Articles Fractionalized": "2.31",
+      "Rank": 7
+    },
+    {
+      "Authors": "PRADEEP DAS",
+      "Articles": 18,
+      "Authors.1": "VIJAY KUMAR",
+      "Articles Fractionalized": "2.20",
+      "Rank": 8
+    },
+    {
+      "Authors": "PAUL M. KAYE",
+      "Articles": 16,
+      "Authors.1": "ALBERTO PANIZ‐MONDOLFI",
+      "Articles Fractionalized": "2.18",
+      "Rank": 9
+    },
+    {
+      "Authors": "PRAKASH GHOSH",
+      "Articles": 16,
+      "Authors.1": "GRAHAM F. MEDLEY",
+      "Articles Fractionalized": "2.17",
+      "Rank": 10
+    }
+  ]
+}
