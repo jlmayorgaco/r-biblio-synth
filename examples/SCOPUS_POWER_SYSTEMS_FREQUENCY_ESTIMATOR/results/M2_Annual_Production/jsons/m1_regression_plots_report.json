@@ -1,0 +1,166 @@
+{
+  "Annual Articles Regression Plot": {
+    "model_name": "Gompertz",
+    "r_squared": 0.9393,
+    "fitted_params": {
+      "N0": 89.0405,
+      "Nmax": 9.399,
+      "k": 0.1966,
+      "t0": 1999.229,
+      "y0": 4.8982
+    }
+  },
+  "Autocorrelation Function (ACF) \n of Residuals": {
+    "acf_values": [
+      [
+        [1]
+      ],
+      [
+        [-0.2152]
+      ],
+      [
+        [0.0798]
+      ],
+      [
+        [-0.0472]
+      ],
+      [
+        [-0.0526]
+      ],
+      [
+        [-0.1465]
+      ],
+      [
+        [-0.0727]
+      ],
+      [
+        [-0.1039]
+      ],
+      [
+        [0.1441]
+      ],
+      [
+        [-0.0899]
+      ],
+      [
+        [-0.2378]
+      ],
+      [
+        [0.2225]
+      ],
+      [
+        [-0.0464]
+      ],
+      [
+        [0.066]
+      ],
+      [
+        [0.0359]
+      ],
+      [
+        [0.1063]
+      ],
+      [
+        [-0.0265]
+      ]
+    ]
+  },
+  "Partial Autocorrelation Function (PACF)\nof Residuals": {
+    "pacf_values": [
+      [
+        [-0.2152]
+      ],
+      [
+        [0.0351]
+      ],
+      [
+        [-0.0242]
+      ],
+      [
+        [-0.0735]
+      ],
+      [
+        [-0.1781]
+      ],
+      [
+        [-0.1472]
+      ],
+      [
+        [-0.1589]
+      ],
+      [
+        [0.0811]
+      ],
+      [
+        [-0.0723]
+      ],
+      [
+        [-0.3933]
+      ],
+      [
+        [0.026]
+      ],
+      [
+        [-0.0055]
+      ],
+      [
+        [-0.0083]
+      ],
+      [
+        [-0.0238]
+      ],
+      [
+        [0.0256]
+      ],
+      [
+        [-0.066]
+      ]
+    ]
+  },
+  "Histogram of Residuals": {
+    "mean_residual": 0.0019,
+    "std_dev_residual": 9.2655
+  },
+  "Q-Q Plot of Residuals": {
+    "residual_summary": {
+      "Min.": -35.4156,
+      "1st Qu.": -3.8982,
+      "Median": 0.0806,
+      "Mean": 0.0019,
+      "3rd Qu.": 3.8732,
+      "Max.": 22.9119
+    }
+  },
+  "Durbin-Watson Test for\nResidual Autocorrelation": {
+    "DW_statistic": 2.1204,
+    "p_value": 0.6056
+  },
+  "Breusch-Pagan Test for\nHeteroscedasticity": {
+    "BP_statistic": 9.496,
+    "p_value": 0.0021
+  },
+  "Shapiro-Wilk Test for\nResidual Normality": {
+    "W_statistic": 0.9092,
+    "p_value": 0.0013
+  },
+  "Standardized Residuals": {
+    "mean_standardized_residuals": 0.0002,
+    "std_dev_standardized_residuals": 1
+  },
+  "Residuals Squared Over Time": {
+    "mean_squared_residual": 84.0611,
+    "max_squared_residual": 1254.2638
+  },
+  "Residuals Squared Model Fit": {
+    "best_model": "Exponential",
+    "r_squared": 0.2688
+  },
+  "FFT Analysis of Residuals": {
+    "dominant_period": 2.6248,
+    "max_power": 1,
+    "meaningful_peaks": {
+      "periods": [2.6248, 3.3967, 4.4419, 14.4362, 9.6241],
+      "power": [1, 0.9604, 0.7098, 0.6235, 0.3645]
+    }
+  }
+}
