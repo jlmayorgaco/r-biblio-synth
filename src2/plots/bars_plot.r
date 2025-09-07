@@ -1,37 +1,38 @@
 # src/plots/bar_plot.r
+
 # -------------------------------------------------------------------
-# IEEE Transactions Style Bar Plot for Top-N Countries (with Pareto)
+# IEEE-style Top-N bar chart with clearer spacing + annotated Pareto
 # -------------------------------------------------------------------
 bar_plot_topn <- function(
   df,
   value_col,
   top_n          = 10,
-  fill_color     = "grey20",      # grayscale -> better for print
+  fill_color     = "grey20",
   outline_col    = NA,
   y_label        = NULL,
   title          = NULL,
   show_pareto    = TRUE,
-  pareto_target  = 0.80,          # dashed guide at 80% cumulative
-  ticks_n        = 5,             # fewer ticks for single-column figures
+  pareto_target  = 0.80,
+  ticks_n        = 4,              # fewer ticks => cleaner single-column
   label_mode     = c("auto","inside","outside","none"),
-  label_top_k    = 3,             # annotate only top-3 (cleaner for print)
-  inside_cut     = 0.35,          # share of max required to keep label inside
-  label_size     = 2.8,           # good for single-column @ 3.5in
-  label_pad_frac = 0.015,         # outside label pad as share of max
+  label_top_k    = 3,
+  inside_cut     = 0.35,
+  label_size     = 2.8,
+  label_pad_frac = 0.015,
   base_family    = "Times New Roman"
 ) {
   stopifnot(is.data.frame(df), value_col %in% names(df))
   if (nrow(df) == 0) stop("bar_plot_topn(): empty data frame.")
   label_mode <- match.arg(label_mode)
 
-  # --- slice, order, rank (modern dplyr; deterministic ties) -----------------
+  # ---- pick & rank ----------------------------------------------------------
   df_top <- df |>
     dplyr::mutate(value = .data[[value_col]]) |>
     dplyr::filter(!is.na(value)) |>
     dplyr::slice_max(order_by = value, n = top_n, with_ties = FALSE) |>
     dplyr::arrange(value) |>
     dplyr::mutate(
-      rank      = dplyr::row_number(),                         # ascending
+      rank      = dplyr::row_number(),
       country_r = paste0(top_n - rank + 1, ". ", .data$country)
     ) |>
     dplyr::mutate(country_r = stats::reorder(country_r, value))
@@ -55,70 +56,95 @@ bar_plot_topn <- function(
       ),
       hjust     = dplyr::case_when(
         is.na(label_x)   ~ 0.5,
-        label_x <= value ~ 1,      # inside → right-justified (white text)
-        TRUE             ~ 0       # outside → left-justified (black text)
+        label_x <= value ~ 1,
+        TRUE             ~ 0
       ),
       col       = ifelse(hjust == 1, "white", "black")
     )
 
-  # Keep labels only for the top_k values (by value, not the rank string)
   if (is.finite(label_top_k)) {
     keep_idx <- tail(order(df_top$value), label_top_k)
     df_top$label  [!seq_len(nrow(df_top)) %in% keep_idx] <- NA_character_
     df_top$label_x[!seq_len(nrow(df_top)) %in% keep_idx] <- NA_real_
   }
 
-  # --- base chart ------------------------------------------------------------
+  # headroom (more if labels are outside)
+  headroom_mult <- if (label_mode == "outside") 1.15 else 1.05
+  y_max_limit   <- max_val * headroom_mult
+
+  # ---- plot -----------------------------------------------------------------
   p <- ggplot2::ggplot(df_top, ggplot2::aes(x = country_r, y = value)) +
-    ggplot2::geom_col(fill = fill_color, colour = outline_col, width = 0.65) +
+    ggplot2::geom_col(fill = fill_color, colour = outline_col, width = 0.85) +  # thinner -> more space between bars
     ggplot2::coord_flip(clip = "off") +
     ggplot2::labs(x = NULL, y = y_label %||% "Publications (TP)", title = title) +
+    # add padding between categories so labels aren’t cramped
+    ggplot2::scale_x_discrete(expand = ggplot2::expansion(add = c(0.1, 0.1))) +
     theme_ieee(base_family = base_family) +
     ggplot2::theme(
       plot.title         = ggplot2::element_text(face = "bold", size = 10, hjust = 0.5),
       axis.title.y       = ggplot2::element_blank(),
       axis.title.x       = ggplot2::element_text(size = 9, margin = ggplot2::margin(t = 6)),
-      axis.text.y        = ggplot2::element_text(size = 9),
+      axis.text.y        = ggplot2::element_text(size = 9, lineheight = 0.7, margin = ggplot2::margin(r = 3)), # clearer stacking
       axis.text.x        = ggplot2::element_text(size = 9),
-      panel.grid.major.y = ggplot2::element_line(color = "grey80", linewidth = 0.3),
-      panel.grid.major.x = ggplot2::element_line(color = "grey85", linewidth = 0.3),
+      panel.grid.major.y = ggplot2::element_line(color = "grey85", linewidth = 0.3),
+      panel.grid.major.x = ggplot2::element_line(color = "grey88", linewidth = 0.3),
       panel.grid.minor   = ggplot2::element_blank(),
-      # a bit more room on the left for long country names, and on the right for labels
       plot.margin        = grid::unit(c(6, 14, 6, 10), "pt")
     )
 
-  # Primary scale + optional secondary axis for cumulative share
+  # numeric axis: no padding, fewer ticks, tight limits so bars fill width
   p <- p + ggplot2::scale_y_continuous(
+    limits   = c(0, y_max_limit),
     breaks   = scales::pretty_breaks(n = ticks_n),
     labels   = scales::comma,
-    expand   = ggplot2::expansion(mult = c(0, 0.12)),
+    expand   = c(0, 0),
     sec.axis = if (show_pareto) {
-      ggplot2::sec_axis(
-        ~ . / total_all,
-        name   = "Cumulative share",
-        labels = scales::percent_format(accuracy = 1)
-      )
+      ggplot2::sec_axis(~ . / total_all, name = "Cumulative share",
+                        labels = scales::percent_format(accuracy = 1))
     } else ggplot2::waiver()
   )
 
-  # Pareto layer (subtle; behind labels)
+  # ---- Pareto layer + concise explanations ----------------------------------
   if (show_pareto) {
+    # point where 80% is first reached
+    star_idx <- which(df_top$cum_share >= pareto_target)[1]
+    star_x   <- if (length(star_idx)) df_top$country_r[star_idx] else NA
+    star_y   <- pareto_target * total_all
+
+    # overall share of Top-N
+    topn_share <- tail(df_top$cum_share, 1)
+
     p <- p +
-      ggplot2::geom_line(
-        ggplot2::aes(y = cum_value, group = 1),
-        linewidth = 0.45, color = "black"
-      ) +
-      ggplot2::geom_point(
-        ggplot2::aes(y = cum_value),
-        size = 1.4, color = "black", stroke = 0
-      ) +
-      ggplot2::geom_hline(
-        yintercept = pareto_target * total_all,
-        linetype = "dashed", linewidth = 0.35, colour = "grey35"
+      ggplot2::geom_line(ggplot2::aes(y = cum_value, group = 1),
+                         linewidth = 0.45, color = "black") +
+      ggplot2::geom_point(ggplot2::aes(y = cum_value),
+                          size = 1.4, color = "black", stroke = 0) +
+      ggplot2::geom_hline(yintercept = star_y, linetype = "dashed",
+                          linewidth = 0.35, colour = "grey35")
+
+    # annotate “80% reached at k countries”
+    if (!is.na(star_x)) {
+      p <- p +
+        ggplot2::annotate(
+          "text",
+          x = star_x, y = star_y,
+          label = paste0(round(pareto_target*100), "% reached at Top-", (top_n - star_idx + 1)),
+          vjust = -0.6, size = 2.5, family = base_family
+        )
+    }
+
+    # annotate Top-N share on the last point
+    p <- p +
+      ggplot2::annotate(
+        "text",
+        x = tail(df_top$country_r, 1),
+        y = tail(df_top$cum_value, 1),
+        label = paste0("Top-", top_n, " share = ", scales::percent(topn_share, 1)),
+        vjust = -0.6, size = 2.5, family = base_family
       )
   }
 
-  # Value labels (use colour identity to avoid vector-length checks)
+  # value labels
   df_lab <- dplyr::filter(df_top, !is.na(label) & !is.na(label_x))
   if (nrow(df_lab) > 0) {
     p <- p +
@@ -132,6 +158,7 @@ bar_plot_topn <- function(
 
   p
 }
+
 
 
 
