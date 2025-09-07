@@ -32,6 +32,7 @@ LogarithmicModel <- R6::R6Class(
         type   = "logarithmic",
          formula = deparse(formula(self$model)),
         coef    = as.list(coef(self$model)),
+        Robustness = robust_for_json(self$robust),
         stats   = list(
       rss  = tryCatch(deviance(self$model), error = function(e) NA_real_),
       R2   = self$r2(),
