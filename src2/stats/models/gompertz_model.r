@@ -139,8 +139,6 @@ GompertzModel <- R6::R6Class(
              param_value = b, param_axis = NULL),
         list(param_name = "c", param_latex = "$c$", 
              param_value = c, param_axis = NULL),
-        list(param_name = "t0", param_latex = "$t_0$", 
-             param_value = t0, param_axis = "x"),
         list(param_name = "t5", param_latex = "$t_{5\\%}$", 
              param_value = t5, param_axis = "x"),
         list(param_name = "t95", param_latex = "$t_{95\\%}$", 
