@@ -1,27 +1,63 @@
 # plots/regression_plot.R
-
-# plots/regression_plot.R
-
-# ================================================================
-# IEEE-style regression plot for R6 models
-# ================================================================
-plot_regression <- function(df, model, model_name = "Model", title = NULL) {
-
+plot_regression <- function(
+  df,
+  model,
+  model_name = "Model",
+  title = NULL,
+  xlab = "Year",
+  ylab = "Articles",
+  r2_threshold = 0.7
+) {
   library(latex2exp)
-  
+
   if (is.null(model)) return(NULL)
+  stopifnot(all(c("Year", "Value") %in% names(df)))
 
   # --- Predictions via R6 method ---
-  df$Pred <- tryCatch(model$predict(df), error = function(e) NA)
+  df$Pred <- tryCatch(model$predict(df), error = function(e) NA_real_)
 
-  # --- Summarize model (R6 summary) ---
-  smry <- model$summary()
-  r2   <- if (!is.null(smry$stats$R2)) round(smry$stats$R2, 3) else NA
+  # --- Summary & metrics (robust access + fallbacks) ---
+  smry <- tryCatch(model$summary(), error = function(e) NULL)
+  r2   <- tryCatch(round(smry$stats$R2, 3),    error = function(e) NA_real_)
+  adjr2<- tryCatch(round(smry$stats$AdjR2, 3), error = function(e) NA_real_)
+  aic  <- tryCatch(round(smry$stats$AIC, 2),   error = function(e) NA_real_)
+  bic  <- tryCatch(round(smry$stats$BIC, 2),   error = function(e) NA_real_)
+  rse  <- tryCatch(round(smry$stats$RSE, 3),   error = function(e) NA_real_)
+
+  # Residuals from predictions
+  resid <- df$Value - df$Pred
+  resid <- resid[is.finite(resid)]
+  rmse  <- if (length(resid)) round(sqrt(mean(resid^2, na.rm = TRUE)), 3) else NA_real_
+  nrmse_mean <- rmse / mean(df$Value, na.rm=TRUE)
+
+  # Pick the "other fit metric" in priority order
+  fit2_label <-
+    if (!is.na(adjr2)) paste0("Adj R² = ", formatC(adjr2, format = "f", digits = 3))
+    else if (!is.na(aic)) paste0("AIC = ", aic)
+    else if (!is.na(bic)) paste0("BIC = ", bic)
+    else if (!is.na(rse)) paste0("RSE = ", rse)
+    else "—"
+
+  # Capitalize first letter of model name
+  model_name_cap <- if (nzchar(model_name)) {
+    paste0(toupper(substr(model_name, 1, 1)), substr(model_name, 2, nchar(model_name)))
+  } else {
+    "Model"
+  }
+
+  # Compose the 4-line label
+  lbl <- paste(
+    model_name_cap,
+    paste0("R² = ", ifelse(is.na(r2), "NA", formatC(r2, format = "f", digits = 3))),
+    fit2_label,
+    paste0("RMSE = ", ifelse(is.na(nrmse_mean), "NA", formatC(nrmse_mean, format = "f", digits = 3))),
+    sep = "\n"
+  )
 
   # --- Base plot (IEEE compact style) ---
   p <- ggplot2::ggplot(df, ggplot2::aes(x = Year, y = Value)) +
-    ggplot2::geom_point(shape = 20, size = 1.2, color = "black") +
-    ggplot2::labs(x = "Year", y = "Articles", title = title) +
+    ggplot2::geom_point(shape = 20, size = 1, color = "black") +
+    ggplot2::labs(x = xlab, y = ylab, title = title) +
     ggplot2::theme_minimal(base_size = 8, base_family = "Times New Roman") +
     ggplot2::theme(
       panel.background = ggplot2::element_rect(fill = "white", color = "black"),
@@ -33,11 +69,11 @@ plot_regression <- function(df, model, model_name = "Model", title = NULL) {
       panel.grid.minor = ggplot2::element_line(linewidth = 0.2, color = "#eeeeee"),
       panel.border     = ggplot2::element_rect(color = "black", fill = NA, linewidth = 0.5),
       plot.title       = ggplot2::element_text(face = "bold", hjust = 0.5, size = 9, family = "serif"),
-      plot.margin      = ggplot2::margin(5, 5, 5, 5)   # <- FIX
+      plot.margin      = ggplot2::margin(5, 5, 5, 5)
     )
 
-  if (!is.na(r2) && r2 >= 0.7) {
-    # --- Add regression line ---
+  # Regression line only if fit is reasonable (keeps your behavior)
+  if (!is.na(r2) && r2 >= r2_threshold) {
     p <- p + ggplot2::geom_line(
       ggplot2::aes(y = Pred),
       color = "black",
@@ -45,44 +81,33 @@ plot_regression <- function(df, model, model_name = "Model", title = NULL) {
       na.rm = TRUE
     )
 
-    # --- Add annotation (IEEE-style: R² + model name) ---
-    p <- p + ggplot2::geom_text(
-      data = data.frame(
-        Year  = min(df$Year, na.rm = TRUE) + diff(range(df$Year, na.rm = TRUE)) * 0.02,
-        Value = max(df$Value, na.rm = TRUE) * 0.1,
-        label = paste0(model_name, "\nR² = ", r2)
-      ),
-      ggplot2::aes(x = Year, y = Value, label = label),
-      hjust = 0, vjust = 0,
-      family = "Times New Roman",
-      size = 2.5
-    )
-
-    # --- Add model guides ---
-    p <- add_model_guides(
-      p       = p,
-      model   = model,
-      df      = df,
-      colors  = list(x = "darkred", y = "darkgreen", none = "blue"),
-      line_width = 0.4,
-      text_size  = 2.5,
-      font_family= "Times New Roman"
-    )
-  } else {
-    # --- Just report scatter + R² + dispersion ---
-    dispersion <- round(sd(df$Value, na.rm = TRUE), 2)
-    p <- p + ggplot2::geom_text(
-      data = data.frame(
-        Year  = min(df$Year, na.rm = TRUE) + diff(range(df$Year, na.rm = TRUE)) * 0.05,
-        Value = max(df$Value, na.rm = TRUE) * 0.9,
-        label = paste0("High dispersion\nR² = ", r2, "\nSD = ", dispersion)
-      ),
-      ggplot2::aes(x = Year, y = Value, label = label),
-      hjust = 0, vjust = 1,
-      family = "Times New Roman",
-      size = 2.5
-    )
+    # Optional model guides (if available)
+    if (exists("add_model_guides", mode = "function")) {
+      p <- add_model_guides(
+        p         = p,
+        model     = model,
+        df        = df,
+        colors    = list(x = "darkred", y = "darkgreen", none = "blue"),
+        line_width= 0.4,
+        text_size = 2.5,
+        font_family = "Times New Roman"
+      )
+    }
   }
+
+  # --- Single 4-line label, no white box ---
+  xr <- range(df$Year,  na.rm = TRUE)
+  yr <- range(df$Value, na.rm = TRUE)
+  x_ann <- xr[1] + diff(xr) * 0.02
+  y_ann <- yr[1] + diff(yr) * 0.10
+
+  p <- p + ggplot2::geom_text(
+    data = data.frame(Year = x_ann, Value = y_ann, label = lbl),
+    ggplot2::aes(x = Year, y = Value, label = label),
+    hjust = 0, vjust = 0,
+    family = "Times New Roman",
+    size = 2.5
+  )
 
   return(p)
 }
@@ -126,10 +151,8 @@ plot_tp_vs_tc <- function(df_tp, df_tc, corr) {
 
 # 1. ACF de residuales
 plot_resid_acf <- function(df, model, title = "Residual ACF") {
-  resid <- get_residuals(model, df)
-  if (length(resid) == 0) {
-    stop("[plot_resid_acf] ERROR: No residuals available for ACF.")
-  }
+  resid <- get_residuals(model)
+  if (length(resid) == 0) stop("[plot_resid_acf] ERROR: No residuals available for ACF.")
 
   acf_data <- stats::acf(resid, plot = FALSE)
   df_acf <- data.frame(lag = acf_data$lag, acf = acf_data$acf)
@@ -142,7 +165,7 @@ plot_resid_acf <- function(df, model, title = "Residual ACF") {
 
 # 2. Durbin–Watson
 plot_resid_dw <- function(df, model, title = "Durbin–Watson Test") {
-  resid <- get_residuals(model, df)
+  resid <- get_residuals(model)
   if (length(resid) < 2) {
     stop("[plot_resid_dw] ERROR: Not enough residuals for DW test.")
   }
@@ -162,7 +185,7 @@ plot_resid_dw <- function(df, model, title = "Durbin–Watson Test") {
 
 # 3. Histograma de residuales
 plot_resid_hist <- function(df, model, title = "Residual Histogram") {
-  resid <- get_residuals(model, df)
+  resid <- get_residuals(model)
   ggplot2::ggplot(data.frame(resid = resid), ggplot2::aes(x = resid)) +
     ggplot2::geom_histogram(bins = 20, fill = "grey60", color = "black") +
     ggplot2::labs(x = "Residuals", y = "Frequency", title = title) +
@@ -171,7 +194,7 @@ plot_resid_hist <- function(df, model, title = "Residual Histogram") {
 
 # 4. QQ-plot de residuales
 plot_resid_qq <- function(df, model, title = "Residual QQ-plot") {
-  resid <- get_residuals(model, df)
+  resid <- get_residuals(model)
   if (length(resid) == 0) {
     stop("[plot_resid_qq] ERROR: No residuals available for QQ-plot.")
   }
