@@ -30,6 +30,7 @@ LogisticModel <- R6::R6Class(
         type    = "logistic",
         formula = deparse(formula(self$model)),
         coef    = as.list(coef(self$model)),
+        Robustness = robust_for_json(self$robust),
         confint = tryCatch(as.data.frame(confint(self$model)), error = function(e) NULL),
         stats   = list(
       rss  = tryCatch(deviance(self$model), error = function(e) NA_real_),
