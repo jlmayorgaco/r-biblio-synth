@@ -34,7 +34,7 @@ M3_Countries <- R6::R6Class(
                           country_col  = "Country_Array",
                           year_col     = "Year",
                           citation_col = "Times Cited",
-                          report_path  = "results/M3_Countries",
+                          report_path  = "results2/M3",
                           ...) {
       super$initialize(input = df, module_index = "M3")
       self$df                 <- as.data.frame(df)
@@ -243,9 +243,19 @@ M3_Countries <- R6::R6Class(
         top_wide = t9$top_wide             # one row per cell with a concatenated list of top themes
       )
 
-      # 3) Example: make a heatmap for one country
-      p_us <- themes_country_heatmap(t9$themes, country = "United States", top_k_terms = 15)
-      print(p_us)
+      # --- 4) Run on your object ---------------------------------------------------
+      payload <- build_general_and_specific(t9$top_wide)
+      save_general_specific_json(payload, "M9_general_specific_themes.json")
+
+      # --- Run it -----------------------------------------------------------------
+      payload <- build_general_and_specific_from_themes(
+        t9$themes,
+        # optional knobs:
+        # min_share = 0.05,
+        # min_tfidf = 2.0,
+        # top_k_per_cy = 25
+      )
+      save_general_specific_json(payload)
 
         # 9.2 Based on the cooperation clusters, take the main theames that are similar in the cluster and differs with the other clusters.
         # 9.3 Based on the Clusters/Communities, make a stats tests about TP,TC,MCP,SCP in all years - Is there a grupal diffrerences? or not?
