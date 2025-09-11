@@ -112,21 +112,15 @@ M3_Countries <- R6::R6Class(
       entries     <- private$build_country_plot_entries(df_cy_norm)
 
       # Save to IEEE single column size (PNG+SVG) using user's saver
-      # You already have save_countries_plots_ieee() in your codebase.
-      # Use the class plot dir as root.
       save_countries_plots_ieee(
         plots_by_countries = entries,
         root_out  = self$path_results_plots,
         width_in  = private$FIG_WIDTH_IN,
         height_in = private$FIG_HEIGHT_IN,
-        dpi       = 300 
+        dpi       = 300
       )
 
-
-      #Quadtrans TP,TC
-      #Quadrants SCP,MCP
-            
-      # Run the plot generator
+      # 7) Quadrants (TP–TC and SCP–MCP)
       qb <- quad_bubble_plot(
         df = df_cy,
         year_col = "year",
@@ -146,23 +140,115 @@ M3_Countries <- R6::R6Class(
       out_dir <- file.path("results2/M3", "quadrants")
       if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE)
 
-      # Recommended IEEE-ish single-column size (~3.5 in wide). Bump height if labels are crowded.
-      w_in <- 7.16          # 182 mm
-      h_in <- 3.6           # ~2:1 ratio; good for crowded plots
-      dpi  <- 600           # 300 for color photos; 600 for line art; 1200 for B/W
+      # IEEE-ish single-column width (182mm ≈ 7.16in). Height ~2:1 for readability.
+      w_in <- 7.16
+      h_in <- 3.6
+      dpi  <- 600
 
       ggsave(file.path(out_dir, "quad_tp_tc.png"),   qb$plots$tp_tc,   width = w_in, height = h_in, units = "in", dpi = dpi)
       ggsave(file.path(out_dir, "quad_scp_mcp.png"), qb$plots$scp_mcp, width = w_in, height = h_in, units = "in", dpi = dpi)
-
-      # SVG (vector) – requires svglite
       ggsave(file.path(out_dir, "quad_tp_tc.svg"),   qb$plots$tp_tc,   width = w_in, height = h_in, units = "in", device = "svg")
       ggsave(file.path(out_dir, "quad_scp_mcp.svg"), qb$plots$scp_mcp, width = w_in, height = h_in, units = "in", device = "svg")
 
-      #self$plots$quad_tp_tc   <- qb$plots$tp_tc
-      #self$plots$quad_scp_mcp <- qb$plots$scp_mcp
       self$results$quad_metrics <- qb$metrics
       self$results$quad_data    <- qb$data
 
+      # 8) International co-authorship (country collaboration) network — clusters
+      message(" ")
+      message(" ====================== M3 COUNTRIES, COLLAB NETWORK =================== ")
+
+      # Params
+      cc_country_col <- private$detect_country_col(self$df, preferred = self$country_col)
+      cc_sep_regex   <- ";|,|\\|"
+      cc_min_w       <- 2
+      cc_min_deg     <- 2
+      cc_label_top   <- 15
+      cc_method      <- "louvain"   # or "leiden" if leidenbase installed
+      cc_title       <- "International Co-authorship Network — Communities"
+
+      # Build + plot via helper (returns plot, metrics, nodes, edges)
+      cc <- country_cluster_plot(
+        df = self$df,
+        country_col = self$country_col,
+        min_edge_weight = 2,
+        min_degree = 2,
+        label_top = 15,
+        community_method = "louvain",
+        title = "International Co-authorship Network — Communities",
+        arrange = "auto",
+        spread = 5,
+        intra_scale = 4,
+        top_k_legend = 5,
+        base_size = 9
+      )
+
+      # Reconstruct the config you actually used (so the payload records it)
+      cfg_used <- cc_config(
+        country_col      = self$country_col,
+        sep_regex        = ";|,|\\|",
+        min_edge_weight  = 2,
+        min_degree       = 2,
+        label_top        = 15,
+        community_method = "louvain",
+        title            = "International Co-authorship Network — Communities",
+        base_size        = 9,
+        top_k_legend     = 5,
+        spread           = 5,
+        intra_scale      = 4,
+        arrange          = "auto",
+        legend_upper     = TRUE,
+        seed             = 42
+      )
+
+      # Build the communities payload
+      comm_payload <- cc_summarize_communities(
+        cc          = cc,
+        cfg         = cfg_used,
+        country_col = cfg_used$country_col,
+        sep_regex   = cfg_used$sep_regex
+      )
+   
+      # Save (PNG + SVG) 
+      out_png <- file.path(out_dir, "country_collab_clusters_w.png") 
+      out_svg <- file.path(out_dir, "country_collab_clusters_w.svg") 
+      ggplot2::ggsave(out_png, plot = cc$plot, width =  7.5, height = 7, units = "in", dpi = 600) 
+      ggplot2::ggsave(out_svg, plot = cc$plot, width = 7.5, height = 7, units = "in", device = "svg")
+      #ggplot2::ggsave(out_png, plot = cc$plot, width = 7.16, height = 5, units = "in", dpi = 600) 
+      #ggplot2::ggsave(out_svg, plot = cc$plot, width = 7.16, height = 5, units = "in", device = "svg")
+      
+      self$results$country_clusters <- list(
+        communities  = comm_payload,
+        metrics = cc$metrics,
+        nodes   = cc$nodes,
+        edges   = cc$edges
+      )
+
+
+      # 9) (Reserved) Keywords/Thematic by Countries
+        # 9.1 What are the main themes for each country in each years
+      t9 <- themes_country_year(
+        df            = self$df,
+        country_col   = NULL,              # let it auto-detect (or set "Country_List"/"Country_Array")
+        sep_regex     = ";|,|\\|",
+        min_docs_cell = 5,                 # require at least 5 docs for (Country, Year)
+        n_top         = 12,                # keep top 12 terms per cell
+        use_tfidf     = TRUE               # rank themes by TF–IDF
+      )
+
+      # 2) Store in your results object
+      self$results$themes_9_1 <- list(
+        groups   = t9$groups,              # (Country, Year, n_docs)
+        themes   = t9$themes,              # (Country, Year, term, n_docs_term, n_docs, share, tfidf)
+        top      = t9$top,                 # top-K per (Country, Year)
+        top_wide = t9$top_wide             # one row per cell with a concatenated list of top themes
+      )
+
+      # 3) Example: make a heatmap for one country
+      p_us <- themes_country_heatmap(t9$themes, country = "United States", top_k_terms = 15)
+      print(p_us)
+
+        # 9.2 Based on the cooperation clusters, take the main theames that are similar in the cluster and differs with the other clusters.
+        # 9.3 Based on the Clusters/Communities, make a stats tests about TP,TC,MCP,SCP in all years - Is there a grupal diffrerences? or not?
 
       invisible(self)
     },
@@ -204,8 +290,6 @@ M3_Countries <- R6::R6Class(
           mcp_flag     = .n_countries >= 2,
           scp_flag     = .n_countries == 1
         )
-
-      #self$results$docs_raw <- df_docs
 
       # Expand documents → country-level rows
       df_expanded <- df_docs %>%
@@ -298,10 +382,13 @@ M3_Countries <- R6::R6Class(
     save_plots = function(out_dir = self$path_results_plots) {
       if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE)
       for (nm in names(self$plots)) {
-        ggplot2::ggsave(file.path(out_dir, paste0("M3_", nm, ".png")),
-                        plot = self$plots[[nm]], width = 7, height = 5, dpi = 600)
-        ggplot2::ggsave(file.path(out_dir, paste0("M3_", nm, ".svg")),
-                        plot = self$plots[[nm]], width = 7, height = 5, dpi = 600)
+        # Only save ggplot objects here; base-graphics plots were already saved in run()
+        if (inherits(self$plots[[nm]], "gg")) {
+          ggplot2::ggsave(file.path(out_dir, paste0("M3_", nm, ".png")),
+                          plot = self$plots[[nm]], width = 7, height = 5, dpi = 600)
+          ggplot2::ggsave(file.path(out_dir, paste0("M3_", nm, ".svg")),
+                          plot = self$plots[[nm]], width = 7, height = 5, dpi = 600)
+        }
       }
       message("[M3] Saved plots at: ", out_dir)
     }
@@ -317,6 +404,8 @@ M3_Countries <- R6::R6Class(
     FIG_HEIGHT_IN = 1.8,
 
     # ------------------------- Utility helpers ----------------------------- #
+    .or = function(a, b) if (is.null(a) || length(a) == 0) b else a,
+
     slugify = function(x) {
       x <- trimws(x)
       x <- gsub("[^A-Za-z0-9]+", "_", x)
@@ -424,6 +513,132 @@ M3_Countries <- R6::R6Class(
       }
 
       plots_by_countries
+    },
+
+    # ---------------- Country column auto-detect ---------------------------- #
+    detect_country_col = function(df, preferred = NULL) {
+      if (!is.null(preferred) && preferred %in% names(df)) return(preferred)
+
+      common <- c("Country_List", "Country_Array", "country_list", "country_array",
+                  "Countries", "Country", "country", "countries")
+
+      name_hits <- unique(c(common, names(df)[grepl("country", names(df), ignore.case = TRUE)]))
+      candidates <- name_hits[name_hits %in% names(df)]
+      if (!length(candidates)) {
+        stop("[M3] No country list column found. Tried common names like Country_List / Country_Array. ",
+             "Pass country_col='Country_List' (or correct name) to M3_Countries$new(...).")
+      }
+
+      score_col <- function(col) {
+        x <- df[[col]]
+        if (is.null(x)) return(-Inf)
+        if (is.list(x)) {
+          return(sum(vapply(x, function(v) length(na.omit(v)) > 0, logical(1))))
+        } else {
+          x <- as.character(x); x[is.na(x)] <- ""
+          parts <- strsplit(x, "\\s*[,;|]\\s*")
+          return(sum(vapply(parts, function(v) any(nzchar(trimws(v))), logical(1))))
+        }
+      }
+
+      scores <- vapply(candidates, score_col, numeric(1))
+      sel <- candidates[which.max(scores)]
+      if (length(sel) == 0 || is.infinite(scores[which.max(scores)])) {
+        stop("[M3] Could not find a usable country list column among: ",
+             paste(candidates, collapse = ", "), ".")
+      }
+      sel
+    },
+
+    # ---------------- Country collaboration network builders ---------------- #
+    .build_country_edges = function(df, country_col = "Country_Array", sep_regex = ";|,|\\|") {
+      # Robust: if not found, auto-detect
+      if (!country_col %in% names(df)) {
+        country_col <- private$detect_country_col(df, preferred = country_col)
+      }
+
+      # Ensure per-row id for grouping
+      if (!("PaperID" %in% names(df))) {
+        df$PaperID <- seq_len(nrow(df))
+      }
+
+      norm <- df %>%
+        mutate(.raw = .data[[country_col]]) %>%
+        mutate(.raw = ifelse(is.na(.raw), "", .raw)) %>%
+        mutate(.list = if (is.list(.raw)) .raw else strsplit(as.character(.raw), sep_regex)) %>%
+        select(PaperID, .list) %>%
+        tidyr::unnest_longer(.list, values_to = "Country") %>%
+        mutate(Country = trimws(Country)) %>%
+        filter(nchar(Country) > 0) %>%
+        group_by(PaperID) %>%
+        summarise(Countries = list(sort(unique(Country))), .groups = "drop") %>%
+        filter(lengths(Countries) >= 2)
+
+      comb2 <- function(x) {
+        if (length(x) < 2) return(NULL)
+        m <- t(combn(x, 2))
+        data.frame(from = m[,1], to = m[,2], stringsAsFactors = FALSE)
+      }
+
+      edges <- norm %>%
+        mutate(pairs = purrr::map(Countries, comb2)) %>%
+        select(pairs) %>%
+        tidyr::unnest(pairs) %>%
+        group_by(from, to) %>%
+        summarise(weight = dplyr::n(), .groups = "drop")
+
+      edges
+    },
+
+    .build_country_graph = function(edges,
+                                    min_edge_weight = 2,
+                                    min_degree = 2,
+                                    community_method = c("louvain","leiden")) {
+      community_method <- match.arg(community_method)
+
+      e <- edges %>% filter(weight >= min_edge_weight)
+      if (nrow(e) == 0) {
+        g <- igraph::make_empty_graph(directed = FALSE)
+        return(list(graph = g,
+                    metrics = list(n_nodes = 0, n_edges = 0, n_communities = 0,
+                                   modularity = NA_real_, density = 0,
+                                   avg_degree = 0, avg_wdegree = 0)))
+      }
+
+      g <- igraph::graph_from_data_frame(e, directed = FALSE)
+      g <- igraph::simplify(g, remove.loops = TRUE, edge.attr.comb = list(weight = "sum"))
+
+      deg <- igraph::degree(g)
+      keep <- V(g)[deg >= min_degree]
+      g <- igraph::induced_subgraph(g, vids = keep)
+
+      # communities
+      if (community_method == "leiden" && requireNamespace("leidenbase", quietly = TRUE)) {
+        part <- leidenbase::leiden_find_partition(g, resolution_parameter = 1.0, seed = 42)
+        comm <- part$membership
+      } else {
+        comm <- igraph::cluster_louvain(g, weights = E(g)$weight)$membership
+      }
+      V(g)$community <- as.integer(comm)
+
+      V(g)$degree  <- igraph::degree(g)
+      V(g)$wdegree <- igraph::strength(g, vids = V(g), mode = "all", weights = E(g)$weight)
+
+      mods <- tryCatch(igraph::modularity(g, membership = V(g)$community, weights = E(g)$weight),
+                       error = function(...) NA_real_)
+      dens <- igraph::edge_density(g, loops = FALSE)
+
+      metrics <- list(
+        n_nodes       = igraph::vcount(g),
+        n_edges       = igraph::ecount(g),
+        n_communities = length(unique(V(g)$community)),
+        modularity    = round(mods, 3),
+        density       = round(dens, 5),
+        avg_degree    = round(mean(V(g)$degree), 2),
+        avg_wdegree   = round(mean(V(g)$wdegree), 2)
+      )
+
+      list(graph = g, metrics = metrics)
     }
   )
 )
