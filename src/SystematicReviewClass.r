@@ -50,6 +50,7 @@ packages <- c(packages,
 packages <- c(packages,
   "rworldmap",   # World maps
   "maps",        # Geospatial data
+  "geosphere",
   "countrycode"  # Convert country names to codes
 )
 
@@ -135,6 +136,8 @@ packages <- c(packages,
 
 # 📊 Graph and Network Analysis
 packages <- c(packages,
+  "ggraph",
+  "tidygraph",
   "igraph"       # Network analysis and graph theory
 )
 
@@ -147,6 +150,7 @@ packages <- c(packages,
   "GGally",
   "ggbrace",
   "DescTools",
+  "text2vec",
   "cowplot"
 )
 
@@ -167,8 +171,8 @@ source('../../src/Config/PaletteGenerator.r')
 source('../../src/Config/PlotThemes.r')
 source('../../src/M1_Main_Information/M1_Main_Information.r')
 source('../../src/M2_Annual_Production/M2_Annual_Production.r')
-source('../../src/M4_Countries/M4_Countries.r')
 #source('../../src/M3_Most_Prod_Authors/M3_Most_Prod_Authors.r')
+source('../../src/M4_Countries/M4_Countries.r')
 
 
 # ---------------------------------------------------------------------------- #
@@ -430,8 +434,6 @@ SystematicReview <- setRefClass(
       df_countries <- df_countries %>%
         dplyr::filter(!is.na(Country) & !is.na(Year)) %>%
         dplyr::select(Country, Year, dplyr::everything())
-
-
 
       message("\nM4 :: After Filter:")
       # Step 4: Initialize and run analysis
