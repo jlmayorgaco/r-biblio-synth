@@ -195,3 +195,116 @@ themes_country_heatmap <- function(themes_tbl, country, top_k_terms = 15) {
 }
 # ==============================================================================
 
+suppressPackageStartupMessages({
+  library(dplyr); library(tidyr); library(stringr); library(purrr); library(jsonlite)
+})
+
+# --- 1) Parse helper (lowercase, trim, split by comma) ----------------------
+tw_parse_themes <- function(top_wide) {
+  stopifnot(all(c("Country","Year","TopThemes") %in% names(top_wide)))
+  top_wide %>%
+    mutate(TopThemes = coalesce(as.character(TopThemes), "")) %>%
+    mutate(theme = str_split(TopThemes, "\\s*,\\s*")) %>%
+    select(Country, Year, theme) %>%
+    unnest_longer(theme, values_to = "theme") %>%
+    mutate(theme = str_squish(str_to_lower(theme))) %>%
+    filter(theme != "")
+}
+
+# --- 2) Main: general intersection + specific-by-country-year ----------------
+build_general_and_specific <- function(top_wide) {
+  themes_long <- tw_parse_themes(top_wide)
+
+  # Theme set per (Country, Year)
+  per_cy <- themes_long %>%
+    group_by(Country, Year) %>%
+    summarise(theme_set = list(sort(unique(theme))), .groups = "drop")
+
+  # (A) GENERAL = intersection across all available country-year sets
+  sets <- per_cy$theme_set
+  general_terms <- if (length(sets) == 0L) character(0) else Reduce(intersect, sets)
+  general_terms <- sort(unique(general_terms))
+
+  # (B) SPECIFIC = themes in a country-year that are NOT in general
+  specific_df <- per_cy %>%
+    mutate(specific_terms = map(theme_set, ~ setdiff(.x, general_terms))) %>%
+    select(Country, Year, specific_terms) %>%
+    arrange(Country, Year)
+
+  # Nested list: country -> year -> [specific terms]
+  by_country <- split(specific_df, specific_df$Country)
+  specific_by_country <- lapply(by_country, function(df) {
+    yrs <- as.character(df$Year)
+    specs <- df$specific_terms
+    # name each year's vector by its year; JSON keys must be strings
+    setNames(lapply(specs, unname), yrs)
+  })
+
+  list(
+    general_terms = unname(general_terms),
+    specific_by_country = specific_by_country
+  )
+}
+
+suppressPackageStartupMessages({
+  library(dplyr); library(tidyr); library(stringr); library(purrr); library(jsonlite)
+})
+
+# --- Normalize + (optional) filter -----------------------------------------
+themes_normalize <- function(themes, min_share = NULL, min_tfidf = NULL) {
+  stopifnot(all(c("Country","Year","term") %in% names(themes)))
+  x <- themes %>%
+    mutate(
+      term = str_squish(str_to_lower(as.character(term)))
+    ) %>%
+    filter(term != "")
+  if (!is.null(min_share))  x <- x %>% filter(!is.na(share),  share  >= min_share)
+  if (!is.null(min_tfidf))  x <- x %>% filter(!is.na(tfidf),  tfidf  >= min_tfidf)
+  x
+}
+
+# --- Build general (intersection across all Country×Year) + specifics -------
+build_general_and_specific_from_themes <- function(themes,
+                                                   min_share = NULL,
+                                                   min_tfidf = NULL,
+                                                   top_k_per_cy = NULL) {
+  th <- themes_normalize(themes, min_share, min_tfidf)
+
+  # terms per (Country, Year), ranked by tf-idf then share, then alphabetically
+  per_cy <- th %>%
+    group_by(Country, Year) %>%
+    arrange(desc(coalesce(tfidf, 0)), desc(coalesce(share, 0)), term, .by_group = TRUE) %>%
+    summarise(terms = list(unique(term)), .groups = "drop")
+
+  if (!is.null(top_k_per_cy) && is.finite(top_k_per_cy)) {
+    per_cy <- per_cy %>% mutate(terms = map(terms, ~ head(.x, top_k_per_cy)))
+  }
+
+  sets <- per_cy$terms
+  general_terms <- if (length(sets) == 0L) character(0) else Reduce(intersect, sets)
+  general_terms <- sort(unique(general_terms))
+
+  specific_df <- per_cy %>%
+    mutate(specific_terms = map(terms, ~ setdiff(.x, general_terms))) %>%
+    select(Country, Year, specific_terms) %>%
+    arrange(Country, Year)
+
+  # country -> year -> [specific terms]
+  specific_by_country <- specific_df %>%
+    group_split(Country) %>%
+    set_names(map_chr(., ~ unique(.x$Country))) %>%
+    map(~ setNames(lapply(.x$specific_terms, unname), as.character(.x$Year)))
+
+  list(
+    general_terms = unname(general_terms),
+    specific_by_country = specific_by_country
+  )
+}
+
+# --- Save JSON --------------------------------------------------------------
+save_general_specific_json <- function(payload,
+                                       out_path = "M9_general_specific_themes_from_themes.json") {
+  write_json(payload, path = out_path, auto_unbox = TRUE, pretty = TRUE)
+  message(sprintf("Wrote %s", normalizePath(out_path, mustWork = FALSE)))
+}
+
