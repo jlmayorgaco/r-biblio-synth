@@ -94,7 +94,7 @@ AnalysisPipeline <- R6::R6Class(
                                       "M2_Production",
                                       "M3_Countries",
                                       "M4_World_Context"),
-                          out_dir = "results/") {
+                          out_dir = "results2/") {
       self$bib_file <- bib_file
       self$modules  <- modules
       self$out_dir  <- out_dir
@@ -152,7 +152,7 @@ AnalysisPipeline <- R6::R6Class(
         
         mod$run()
         mod$export(out_dir = self$out_dir)
-        self$results[[mod_name]] <- mod$results
+        self$results[[mod_name]] <- compact_results(mod$results)
         
         if (!is.null(mod$results$df)) self$df <- mod$results$df
       }
