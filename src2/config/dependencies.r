@@ -76,7 +76,7 @@ packages <- c(
   "kableExtra","knitr","pander",
   
   # 📊 Networks
-  "ggraph","tidygraph","igraph", "concaveman",
+  "ggraph","tidygraph","igraph", "concaveman", "PRISMA2020", "htmlwidgets", "webshot2",
   
   # Misc
   "purrr","skimr","GGally","ggbrace","DescTools","text2vec","cowplot", "latex2exp", "patchwork"
