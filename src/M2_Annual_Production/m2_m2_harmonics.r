@@ -353,13 +353,6 @@ create_wavelet_power_plot <- function(wavelet_result, years, output_path) {
     Period = wavelet_result$period
   )
   df_wavelet$Power <- c(wavelet_result$power)
-
-  # Debugging outputs
-  message("[DEBUG] Wavelet data frame structure:")
-  print(head(df_wavelet))
-  message(' ')
-  print(years)
-
   # Create the plot
  
 p <- ggplot(data = df_wavelet, aes(x = Time, y = Period, fill = Power)) +
