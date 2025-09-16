@@ -154,6 +154,8 @@ M1_DataIngestion <- R6::R6Class(
         manual_overrides = manual_prisma
       )
 
+      self$prisma_diagram()
+
       cat("[M1] Ingestion completed. Documents loaded:", nrow(df), "\n")
       invisible(self)
     },
@@ -187,6 +189,14 @@ M1_DataIngestion <- R6::R6Class(
             new_studies          = p$included$studies,
             interactive          = FALSE
           )
+
+          print('self$params$prisma_format')
+          print(self$params$prisma_format)
+          print('wdgt')
+          print(wdgt)
+
+          stop(' ======= STOP =======')
+
           if (requireNamespace("htmlwidgets", quietly = TRUE)) {
             if ("html" %in% self$params$prisma_format) {
               htmlwidgets::saveWidget(wdgt, file = file.path(out_dir, "PRISMA_2020.html"), selfcontained = TRUE)
@@ -198,9 +208,16 @@ M1_DataIngestion <- R6::R6Class(
                                 vwidth = 1400, vheight = 1000)
             }
           }
+          else {
+        stop(" NO htmlwidgets")
+      }
           return(invisible(TRUE))
-        }
+        } else {
+        stop(" Non %in% ls(getNamespace(PRISMA2020)")
+      }
         message("[M1] PRISMA2020 installed, but PRISMA_flowdiagram() not found; trying 'prisma' fallback.")
+      } else {
+        stop(" NO PRIMSA2020 ")
       }
 
       message("[M1] No PRISMA diagram package found. Install one of:\n",
