@@ -87,7 +87,7 @@ json_performance_model <- toJSON(performance, pretty = TRUE, auto_unbox = TRUE)
 compute_model_fit_metrics <- function(y, y_pred, model) {
   
     # Print debug info
-    message("[DEBUG] Computing model fit metrics...")
+    #message("[DEBUG] Computing model fit metrics...")
     
     # Compute R² for non-lm models using correlation or manual method
     if ("lm" %in% class(model)) {
@@ -117,10 +117,10 @@ compute_model_fit_metrics <- function(y, y_pred, model) {
     bic <- tryCatch(BIC(model), error = function(e) NA)
     
     # Print debug info for metrics
-    message("[DEBUG] R-squared: ", r_squared)
-    message("[DEBUG] Adjusted R-squared: ", adj_r_squared)
-    message("[DEBUG] AIC: ", aic)
-    message("[DEBUG] BIC: ", bic)
+    #message("[DEBUG] R-squared: ", r_squared)
+    #message("[DEBUG] Adjusted R-squared: ", adj_r_squared)
+    #message("[DEBUG] AIC: ", aic)
+    #message("[DEBUG] BIC: ", bic)
     
     # Lookup table for R-squared interpretation
     r_squared_interpretation <- list(
@@ -341,14 +341,14 @@ compute_heteroscedasticity_tests <- function(model) {
     
     # Check if model is lm
     if ("lm" %in% class(model)) {
-        message("[DEBUG] lm model detected. Using bptest for Breusch-Pagan Test.")
+        #message("[DEBUG] lm model detected. Using bptest for Breusch-Pagan Test.")
         # Safe execution of bptest for lm models
         tests$breusch_pagan <- tryCatch(bptest(model), error = function(e) NA)
         tests$white <- tryCatch(bptest(model, ~ fitted(model) + I(fitted(model)^2)), error = function(e) NA)
         tests$goldfeld_quandt <- tryCatch(gqtest(model), error = function(e) NA)
         
     } else {
-        message("[DEBUG] Non-lm model detected. Using residuals for Breusch-Pagan Test.")
+        #message("[DEBUG] Non-lm model detected. Using residuals for Breusch-Pagan Test.")
         # For non-lm models, compute residuals manually
         residuals <- residuals(model)
         fitted_vals <- fitted(model)
@@ -440,7 +440,7 @@ compute_heteroscedasticity_tests <- function(model) {
 # ---------------------------------------------------------------------------- #
 compute_autocorrelation_tests <- function(model, residuals) {
   
-  message("[DEBUG] Computing autocorrelation tests...")
+  #message("[DEBUG] Computing autocorrelation tests...")
   
   # Initialize test results
   tests <- list(
@@ -451,12 +451,12 @@ compute_autocorrelation_tests <- function(model, residuals) {
   
   # Check if model is lm
   if ("lm" %in% class(model)) {
-    message("[DEBUG] lm model detected. Using dwtest and bgtest.")
+    #message("[DEBUG] lm model detected. Using dwtest and bgtest.")
     # Safe execution of tests for lm models
     tests$durbin_watson <- tryCatch(dwtest(model), error = function(e) NA)
     tests$breusch_godfrey <- tryCatch(bgtest(model), error = function(e) NA)
   } else {
-    message("[DEBUG] Non-lm model detected. Using manual Durbin-Watson calculation.")
+    #message("[DEBUG] Non-lm model detected. Using manual Durbin-Watson calculation.")
     # For non-lm models, compute Durbin-Watson manually
     dw_stat <- sum(diff(residuals)^2) / sum(residuals^2)
     dw_test <- list(statistic = dw_stat, p.value = NA)
@@ -537,7 +537,7 @@ compute_autocorrelation_tests <- function(model, residuals) {
   # Name the list elements
   names(autocorrelation_tests) <- names(tests)
   
-  message("[DEBUG] Autocorrelation tests results:")
+  #message("[DEBUG] Autocorrelation tests results:")
   print(autocorrelation_tests)
   
   return(autocorrelation_tests)
@@ -549,7 +549,7 @@ compute_autocorrelation_tests <- function(model, residuals) {
 # ---------------------------------------------------------------------------- #
 compute_linearity_tests <- function(model) {
   
-  message("[DEBUG] Computing linearity tests...")
+  #message("[DEBUG] Computing linearity tests...")
   
   # Initialize test results
   tests <- list(
@@ -562,12 +562,12 @@ compute_linearity_tests <- function(model) {
   
   # Check if model is lm
   if ("lm" %in% class(model)) {
-    message("[DEBUG] lm model detected. Using harvtest and resettest.")
+    #message("[DEBUG] lm model detected. Using harvtest and resettest.")
     # Safe execution of tests for lm models
     tests$harvey_collier <- tryCatch(harvtest(model), error = function(e) NA)
     tests$ramsey_reset <- tryCatch(resettest(model), error = function(e) NA)
   } else {
-    message("[DEBUG] Non-lm model detected. Performing alternative linearity checks.")
+    #message("[DEBUG] Non-lm model detected. Performing alternative linearity checks.")
     
     # Extract residuals and fitted values for non-lm models
     residuals <- residuals(model)
@@ -678,7 +678,7 @@ compute_linearity_tests <- function(model) {
 # ---------------------------------------------------------------------------- #
 compute_robustness_metrics <- function(x, y, y_pred, residuals) {
   
-  message("[DEBUG] Computing robustness metrics...")
+  #message("[DEBUG] Computing robustness metrics...")
   
   # Basic Metrics
   mae <- mean(abs(residuals))
@@ -743,8 +743,8 @@ compute_robustness_metrics <- function(x, y, y_pred, residuals) {
   )
   
   # Print for Debugging
-  message("[DEBUG] Robustness metrics computed successfully.")
-  print(robustness_metrics)
+  #message("[DEBUG] Robustness metrics computed successfully.")
+  #print(robustness_metrics)
   
   return(robustness_metrics)
 }
@@ -764,7 +764,7 @@ compute_spectral_analysis <- function(model, y, y_pred, residuals, data) {
     stop("[ERROR] Residuals cannot be NULL or empty.")
   }
   
-  message("[DEBUG] Performing spectral analysis...")
+  #message("[DEBUG] Performing spectral analysis...")
   
   # Compute Fast Fourier Transform (FFT)
   fft_res <- fft(residuals)
@@ -862,7 +862,7 @@ compute_spectral_analysis <- function(model, y, y_pred, residuals, data) {
     )
   )
   
-  message("[DEBUG] Spectral analysis completed.")
+  #message("[DEBUG] Spectral analysis completed.")
   return(spectral_analysis)
 }
 
@@ -876,7 +876,7 @@ compute_predictive_power <- function(model, y, y_pred, residuals, data) {
   library(Metrics)
   library(boot)
   
-  message("[DEBUG] Computing predictive power metrics...")
+  #message("[DEBUG] Computing predictive power metrics...")
   
   # 1. Adjusted Prediction Error (APE)
   adj_pred_error <- mean(abs(residuals)) / (1 - length(y_pred) / length(y))
@@ -984,8 +984,8 @@ compute_predictive_power <- function(model, y, y_pred, residuals, data) {
     )
   )
   
-  message("[DEBUG] Predictive power metrics results:")
-  print(predictive_power)
+  #message("[DEBUG] Predictive power metrics results:")
+  #print(predictive_power)
   
   return(predictive_power)
 }
