@@ -183,8 +183,6 @@ fn_m1_mtrc3_analyze_and_plot_most_prod_authors <- function(data) {
   # Step 5: Save the Plot as PNG
   save_plot(plot, "M1_G3_MOST_PROD_AUTHORS_BAR_PLOT", width = 8, height = 6, dpi = 600)
   
-  # Step 6: Log Success Message
-  message("[INFO] Most Productive Authors analysis completed successfully.")
 }
 
 # ---------------------------------------------------------------------------- #
@@ -227,10 +225,6 @@ fn_m1_mtrc3_generate_lorenz_curve <- function(data, output_dir) {
       file_name = "M1_G3_AUTHOR_CONTRIBUTIONS_LORENZ_PLOT",
       theme_colors = THEME_COLORS
     )
-
-    # Log the Gini coefficient for reporting
-    message("[INFO] Gini Coefficient for Author Contributions: ", round(gini, 3))
-    message("[INFO] Lorenz Curve for Author Contributions generated and saved successfully.")
   }, error = function(e) {
     message("[ERROR] Failed to generate Lorenz Curve: ", e$message)
   })
@@ -262,7 +256,6 @@ fn_m1_mtrc4_analyze_and_plot_most_cited_papers <- function(data) {
       data$TCperYear <- suppressWarnings(as.numeric(data$TCperYear))
     }
     if (any(is.na(data[[citation_col]]))) {
-      message("[INFO] Removing rows with invalid citation values.")
       data <- data[!is.na(data[[citation_col]]), ]
     }
 
@@ -300,9 +293,6 @@ fn_m1_mtrc4_analyze_and_plot_most_cited_papers <- function(data) {
       height = 6,
       dpi = 600
     )
-
-    # Log completion
-    message("[INFO] Most Cited Papers analysis completed successfully.")
   }, error = function(e) {
     message("[ERROR] An error occurred in fn_m1_mtrc4_analyze_and_plot_most_cited_papers: ", e$message)
   })
@@ -318,11 +308,9 @@ fn_m1_mtrc4_analyze_and_plot_citations_per_year <- function(data) {
 
   # Check for required columns
   if (!("TCperYear" %in% colnames(data))) {
-    message("[INFO] Available columns: ", paste(colnames(data), collapse = ", "))
     stop("[ERROR] 'TCperYear' column is missing in the dataset.")
   }
   if (!all(c("Paper", "PaperID") %in% colnames(data))) {
-    message("[INFO] Available columns: ", paste(colnames(data), collapse = ", "))
     stop("[ERROR] 'Paper' or 'PaperID' column is missing in the dataset.")
   }
 
@@ -330,7 +318,6 @@ fn_m1_mtrc4_analyze_and_plot_citations_per_year <- function(data) {
   data$TCperYear <- suppressWarnings(as.numeric(data$TCperYear))
   if (any(is.na(data$TCperYear))) {
     num_invalid <- sum(is.na(data$TCperYear))
-    message("[WARNING] Removing ", num_invalid, " rows with invalid 'Citations Per Year' values.")
     data <- data[!is.na(data$TCperYear), ]
   }
 
@@ -368,8 +355,6 @@ fn_m1_mtrc4_analyze_and_plot_citations_per_year <- function(data) {
     dpi = 600
   )
 
-  # Log completion
-  message("[INFO] Citations Per Year analysis completed successfully.")
 }
 
 
@@ -395,10 +380,7 @@ fn_m1_mtrc4_generate_bubble_chart <- function(data) {
     data <- validate_and_prepare_data(data)
     
     # Plot Chart 1: Median-Based Quadrants
-    message("[INFO] Generating bubble chart for Median-Based Quadrants...")
     region_data <- create_region_data(data)
-
-    message("[INFO]  geom_median <- create_median_quadrant_layers(region_data, data)...")
     geom_median <- create_median_quadrant_layers(data = data, text_size = text_size, alpha = 0.1)
 
     bubble_chart <- generate_and_save_plot(
