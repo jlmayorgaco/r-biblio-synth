@@ -154,7 +154,7 @@ M1_DataIngestion <- R6::R6Class(
         manual_overrides = manual_prisma
       )
 
-      self$prisma_diagram()
+      #self$prisma_diagram()
 
       cat("[M1] Ingestion completed. Documents loaded:", nrow(df), "\n")
       invisible(self)
