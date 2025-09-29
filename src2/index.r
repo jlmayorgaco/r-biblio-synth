@@ -14,6 +14,8 @@ suppressPackageStartupMessages({
 this_file <- normalizePath(sys.frame(1)$ofile, winslash = "/")
 root <- dirname(this_file)
 
+options(m5i.debug = TRUE)
+
 # ----------------------------------------------------------------
 # 1. Load Dependencies & Config
 # ----------------------------------------------------------------
@@ -80,6 +82,7 @@ AnalysisPipeline <- R6::R6Class(
     out_dir  = NULL,
     df       = NULL,
     results  = list(),
+     M        = NULL,
     available_models = NULL,  # << inject here
     
     # New bibliographic metadata
@@ -93,7 +96,9 @@ AnalysisPipeline <- R6::R6Class(
                           modules = c("M1_DataIngestion",
                                       "M2_Production",
                                       "M3_Countries",
-                                      "M4_World_Context"),
+                                      "M4_World_Context",
+                                      "M5_Institutions"
+                                      ),
                           out_dir = "results2/") {
       self$bib_file <- bib_file
       self$modules  <- modules
@@ -144,17 +149,24 @@ AnalysisPipeline <- R6::R6Class(
 
       for (mod_name in self$modules) {
         cat("\n[INFO] Running", mod_name, "...\n")
-        
+
         if (!exists(mod_name)) stop(paste("[ERROR] Module class", mod_name, "not found."))
-        
+
         module_class <- get(mod_name)
-        mod <- if (is.null(self$df)) module_class$new(self$bib_file) else module_class$new(self$df)
-        
+        # Pass M (bibliometrix object) when available
+
+        mod <- if (is.null(self$df)) {
+          module_class$new(self$bib_file, M_biblio = self$M)
+        } else {
+          module_class$new(self$df, M_biblio = self$M)
+        }
         mod$run()
         mod$export(out_dir = self$out_dir)
         self$results[[mod_name]] <- compact_results(mod$results)
-        
-        if (!is.null(mod$results$df)) self$df <- mod$results$df
+
+        # Update pipeline state
+        if (!is.null(mod$results$df))       self$df <- mod$results$df
+        if (!is.null(mod$results$M_biblio)) self$M  <- mod$results$M_biblio  # <-- NEW
       }
       
       cat("\n[INFO] Analysis complete. Results saved to", self$out_dir, "\n")
