@@ -1,11 +1,22 @@
 {
-    "title":"Power Systems Frequency Estimator",
-    "database":"SCOPUS",
-    "timestamp":"Wednesday, July 10, 2024 1:50:56 AM",
-    "query":"TITLE-ABS-KEY ( power AND system AND frequency AND estimator )",
-    "keywords": ["power", "system", "frequency", "estimator"],
-    "years":{
-        "from":"1965",
-        "to":"2024"
-    }
+  "title": "Power Systems Frequency Estimator",
+  "database": "SCOPUS",
+  "timestamp": "Wednesday, July 10, 2024 1:50:56 AM",
+  "query": "TITLE-ABS-KEY ( power AND system AND frequency AND estimator )",
+  "keywords": ["power", "system", "frequency", "estimator"],
+  "years": {
+    "from": "1965",
+    "to": "2024"
+  },
+  "prisma": {
+    "identified_other": 0,
+    "removed_other": 0,
+    "screened": 1654,
+    "excluded_screen": 987,
+    "sought": 667,
+    "not_retrieved": 0,
+    "assessed": 667,
+    "excluded_fulltext": 547,
+    "included": 120
+  }
 }
