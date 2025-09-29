@@ -13,6 +13,7 @@ M2_Production <- R6::R6Class(
   public = list(
 
     initialize = function(df,
+    M_biblio = NULL,
                           year_col     = "Year",
                           tc_col       = "Times_Cited",
                           json_compact = TRUE) {
@@ -213,57 +214,103 @@ M2_Production <- R6::R6Class(
       }, error = function(e) NULL)
     },
 
-    harmonic_analysis = function(df, model, label) {
-      cat("[M2][harmonic] Running harmonic analysis for", label, "...\n")
-      ts_data <- stats::ts(df$Value, start = min(df$Year), frequency = 1)
+   harmonic_analysis = function(df, model, label,
+                                   base_family = "Times",   # IEEE likes Times/Times New Roman
+                                   kind        = "single",  # m3c_ieee_dims widths
+                                   aspect      = 0.55,
+                                   out_base    = NULL,      # e.g. "out/harmonics_tp"
+                                   log_y       = FALSE,     # optional: log10 spectral density
+                                   show_period_axis = TRUE  # show secondary axis in years
+) {
+  stopifnot(all(c("Year","Value") %in% names(df)))
+  ts_data <- stats::ts(df$Value, start = min(df$Year), frequency = 1)
 
-      # --- FFT spectrum (only for dominant period) ---
-      spec <- stats::spectrum(ts_data, plot = FALSE)
-      dominant_freq <- spec$freq[which.max(spec$spec)]
-      period <- ifelse(dominant_freq > 0, 1 / dominant_freq, NA)
+  # --- FFT spectrum (dominant period) ---
+  spec <- stats::spectrum(ts_data, plot = FALSE)
+  dominant_freq  <- spec$freq[which.max(spec$spec)]
+  period         <- ifelse(dominant_freq > 0, 1 / dominant_freq, NA_real_)
+  spec_df        <- data.frame(freq = spec$freq, spec = as.numeric(spec$spec))
 
-      # --- Residuals spectrum (for flags/tests) ---
-      resid <- tryCatch(get_residuals(model), error = function(e) rep(NA_real_, nrow(df)))
-      resid_spec <- tryCatch(stats::spectrum(resid, plot = FALSE), error = function(e) NULL)
+  # --- Residuals + tests (unchanged) ---
+  resid <- tryCatch(get_residuals(model), error = function(e) rep(NA_real_, nrow(df)))
+  fisher_p   <- tryCatch(geneCycle::Fisher.g.test(ts_data)$p.value,   error = function(e) NA_real_)
+  bartlett_p <- tryCatch(Box.test(resid, type = "Ljung-Box")$p.value, error = function(e) NA_real_)
+  bgtest_p   <- tryCatch(lmtest::bgtest(resid ~ 1)$p.value,           error = function(e) NA_real_)
+  resid_spec <- tryCatch(stats::spectrum(resid, plot = FALSE), error = function(e) NULL)
+  resid_spec_df <- if (!is.null(resid_spec)) data.frame(freq = resid_spec$freq,
+                                                        spec = as.numeric(resid_spec$spec)) else NULL
 
-      # --- Statistical tests ---
-      fisher_p   <- tryCatch(geneCycle::Fisher.g.test(ts_data)$p.value,   error = function(e) NA_real_)
-      bartlett_p <- tryCatch(Box.test(resid, type = "Ljung-Box")$p.value, error = function(e) NA_real_)
-      bgtest_p   <- tryCatch(lmtest::bgtest(resid ~ 1)$p.value,           error = function(e) NA_real_)
+  is_periodic <- isTRUE(!is.na(fisher_p) && fisher_p < 0.05)
+  dom_period_yrs <- ifelse(is.finite(period), round(period, 2), NA_real_)
 
-      # --- Arrays (dropped from JSON in compact mode) ---
-      spec_df <- data.frame(freq = spec$freq, spec = spec$spec)
-      resid_spec_df <- if (!is.null(resid_spec)) {
-        data.frame(freq = resid_spec$freq, spec = resid_spec$spec)
-      } else NULL
+  # --- IEEE-styled spectrum plot ---------------------------------------------
+  # y-scale
+  y_map   <- if (log_y) ggplot2::scale_y_log10() else ggplot2::scale_y_continuous()
 
-      # --- Derived flags ---
-      is_periodic <- isTRUE(!is.na(fisher_p) && fisher_p < 0.05)
-      dominant_period_in_years <- ifelse(!is.na(period), round(period, 1), NA)
+  # secondary axis (period in years) – maps 1/f
+  sec_ax <- if (show_period_axis) {
+    ggplot2::sec_axis(trans = ~ ifelse(. > 0, 1/. , NA_real_),
+                      name = "Period (years)")
+  } else ggplot2::waiver()
 
-      # --- Plot (stored in self$plots, not JSON) ---
-      plot_obj <- ggplot2::ggplot(spec_df, ggplot2::aes(x = freq, y = spec)) +
-        ggplot2::geom_line(color = "black") +
-        ggplot2::labs(
-          x = "Frequency",
-          y = "Spectral Density",
-          title = paste0("Harmonic Spectrum - ", label,
-                         " (Dominant Period ≈ ", dominant_period_in_years, " yrs)")
-        ) +
-        ggplot2::theme_minimal(base_size = 8, base_family = "Times New Roman")
+  # peak marker data
+  peak_df <- data.frame(freq = dominant_freq,
+                        spec = spec_df$spec[which.max(spec_df$spec)],
+                        lab  = paste0("f = ", round(dominant_freq, 3),
+                                      "\nT ≈ ", dom_period_yrs, " yr"))
 
-      list(
-        dominant_freq            = dominant_freq,
-        dominant_period          = period,
-        dominant_period_in_years = dominant_period_in_years,
-        is_periodic              = is_periodic,
-        fisher_p                 = fisher_p,
-        bartlett_p               = bartlett_p,
-        bgtest_p                 = bgtest_p,
-        spectrum                 = spec_df,        # removed if json_compact=TRUE
-        resid_spectrum           = resid_spec_df,  # removed if json_compact=TRUE
-        plot                     = plot_obj        # removed from JSON above
-      )
-    }
+  # plot
+  p <- ggplot2::ggplot(spec_df, ggplot2::aes(freq, spec)) +
+    ggplot2::geom_line(linewidth = 0.45, colour = "black") +
+    ggplot2::geom_vline(xintercept = dominant_freq, linewidth = 0.35, linetype = "dashed") +
+    ggplot2::geom_point(data = peak_df, size = 1.6, colour = "black") +
+    ggplot2::geom_label(
+      data = peak_df,
+      ggplot2::aes(label = lab),
+      hjust = 0, vjust = -0.2, label.size = 0.15,
+      size = 2.6, fill = "white", colour = "black"
+    ) +
+    ggplot2::labs(
+      x = "Frequency (cycles / year)",
+      y = "Spectral Density",
+      title = sprintf("Harmonic Spectrum — %s", label),
+      subtitle = sprintf("Dominant period ≈ %s years  •  Fisher p = %s",
+                         ifelse(is.finite(dom_period_yrs), dom_period_yrs, "NA"),
+                         ifelse(is.finite(fisher_p), formatC(fisher_p, format = "e", digits = 2), "NA"))
+    ) +
+    y_map +
+    ggplot2::scale_x_continuous(
+      limits = c(0, 0.5),         # Nyquist for annual data
+      breaks = seq(0, 0.5, by = 0.1),
+      sec.axis = sec_ax
+    ) +
+    m3c_ieee_theme(base_size = 8.5, base_family = base_family) +
+    ggplot2::theme(
+      panel.grid.major.y = ggplot2::element_line(size = 0.25, colour = "grey75"),
+      panel.grid.major.x = ggplot2::element_line(size = 0.25, colour = "grey85"),
+      panel.grid.minor   = ggplot2::element_blank(),
+      plot.title         = ggplot2::element_text(face = "bold"),
+      plot.subtitle      = ggplot2::element_text(margin = ggplot2::margin(t = 2))
+    )
+
+  # save if requested
+  if (!is.null(out_base)) {
+    m3c_ieee_save(p, out_base, kind = kind, aspect = aspect, formats = c("png","svg"))
+  }
+
+  list(
+    dominant_freq            = dominant_freq,
+    dominant_period          = period,
+    dominant_period_in_years = dom_period_yrs,
+    is_periodic              = is_periodic,
+    fisher_p                 = fisher_p,
+    bartlett_p               = bartlett_p,
+    bgtest_p                 = bgtest_p,
+    spectrum                 = spec_df,
+    resid_spectrum           = resid_spec_df,
+    plot                     = p
+  )
+}
+
   )
 )
