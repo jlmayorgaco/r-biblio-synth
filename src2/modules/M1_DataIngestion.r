@@ -24,7 +24,9 @@ M1_DataIngestion <- R6::R6Class(
                             doc_types_keep = c("Article", "Conference Paper")
                           ),
                           prisma_out_dir = "results2/figures",
-                          prisma_format  = c("html","png")) {
+                          prisma_format  = c("html","png"),
+                          M_biblio = NULL,
+                          ...) {
 
       self$input <- bib_file
       self$params$dbsource <- dbsource
@@ -66,7 +68,42 @@ M1_DataIngestion <- R6::R6Class(
         stop("[M1] Error: could not read input file. ", conditionMessage(e))
       })
 
+      # ---- Normalize bibliometrix object for downstream AU_UN ----
+      # Some versions return class "bibliometrixDB" w/o a DB attribute.
+      # We add the legacy class and ensure the DB attribute is set.
+
+      # Add legacy class if missing
+      if (inherits(df_raw, "bibliometrixDB") && !inherits(df_raw, "bibliometrixData")) {
+        class(df_raw) <- c("bibliometrixData", class(df_raw))
+      }
+
+      # Ensure DB attribute is set (SCOPUS / ISI / OPENALEX)
+      if (is.null(attr(df_raw, "DB")) || !nzchar(as.character(attr(df_raw, "DB")))) {
+        dbmap <- c(scopus = "SCOPUS", wos = "ISI", webofscience = "ISI", openalex = "OPENALEX")
+        attr(df_raw, "DB") <- dbmap[tolower(self$params$dbsource)] %||% toupper(self$params$dbsource)
+      }
+
+      # Optional debug prints
+      if (isTRUE(getOption("m5i.debug", FALSE))) {
+        cat("[M1][debug] class(df_raw): ", paste(class(df_raw), collapse = ", "), "\n")
+        cat("[M1][debug] attr(df_raw,'DB'):", as.character(attr(df_raw, "DB")), "\n")
+        cat("[M1][debug] rows:", tryCatch(nrow(df_raw), error = function(e) NA_integer_), "\n")
+      }
+
+      # ---- Save bibliometrix object into results and STOP for inspection ----
+      self$results$M_biblio <- df_raw
+
+      # Strong, explicit debug so you can see it's stored
+      cat("[M1][debug] Saved M_biblio into results.\n")
+      cat("[M1][debug] results$M_biblio class: ",
+          paste(class(self$results$M_biblio), collapse = ", "), "\n")
+      cat("[M1][debug] results$M_biblio attr(DB): ",
+          as.character(attr(self$results$M_biblio, "DB")), "\n")
+      cat("[M1][debug] results$M_biblio nrow: ",
+          tryCatch(nrow(self$results$M_biblio), error = function(e) NA_integer_), "\n")
+
       # --- Apply stable mapping to friendly names & basic typing ---
+      # (unreached while debugging; keep code for when you remove the stop)
       df <- private$.apply_standard_mapping(df_raw)
 
       # --- Country extraction if Affiliations present ---
@@ -95,7 +132,7 @@ M1_DataIngestion <- R6::R6Class(
       # --- Keep standardized df in memory ---
       self$df <- df
       self$results$df <- df
-
+      self$results$M_biblio  <- df_raw # keep canonical bibliometrix object
       # --- Lock the schema ---
       self$schema <- list(
         Year                 = "Year",
@@ -154,10 +191,8 @@ M1_DataIngestion <- R6::R6Class(
         manual_overrides = manual_prisma
       )
 
-      #self$prisma_diagram()
-
       cat("[M1] Ingestion completed. Documents loaded:", nrow(df), "\n")
-      invisible(self)
+      invisible(self) 
     },
 
     # ------------------------
@@ -172,57 +207,46 @@ M1_DataIngestion <- R6::R6Class(
 
       p <- self$results$prisma
 
-      # Prefer PRISMA2020 (Haddaway et al.)
-      if (requireNamespace("PRISMA2020", quietly = TRUE)) {
+      if (requireNamespace("PRISMA2020", quietly = TRUE) &&
+          "PRISMA_flowdiagram" %in% ls(getNamespace("PRISMA2020"))) {
         message("[M1] Generating PRISMA diagram via PRISMA2020...")
-        if ("PRISMA_flowdiagram" %in% ls(getNamespace("PRISMA2020"))) {
-          wdgt <- PRISMA2020::PRISMA_flowdiagram(
-            database_results     = p$identified$db,
-            other_results        = p$identified$other,
-            duplicates           = p$removed$duplicates,
-            records_screened     = p$screening$screened,
-            records_excluded     = p$screening$excluded,
-            reports_sought       = p$eligibility$sought,
-            reports_notretrieved = p$eligibility$not_retrieved,
-            reports_assessed     = p$eligibility$assessed,
-            reports_excluded     = p$eligibility$excluded,
-            new_studies          = p$included$studies,
-            interactive          = FALSE
-          )
-
-          print('self$params$prisma_format')
-          print(self$params$prisma_format)
-          print('wdgt')
-          print(wdgt)
-
-          stop(' ======= STOP =======')
-
-          if (requireNamespace("htmlwidgets", quietly = TRUE)) {
-            if ("html" %in% self$params$prisma_format) {
-              htmlwidgets::saveWidget(wdgt, file = file.path(out_dir, "PRISMA_2020.html"), selfcontained = TRUE)
-            }
-            if (requireNamespace("webshot2", quietly = TRUE) && "png" %in% self$params$prisma_format) {
-              tmp_html <- tempfile(fileext = ".html")
-              htmlwidgets::saveWidget(wdgt, file = tmp_html, selfcontained = TRUE)
-              webshot2::webshot(tmp_html, file.path(out_dir, "PRISMA_2020.png"),
-                                vwidth = 1400, vheight = 1000)
-            }
+        wdgt <- PRISMA2020::PRISMA_flowdiagram(
+          database_results     = p$identified$db,
+          other_results        = p$identified$other,
+          duplicates           = p$removed$duplicates,
+          records_screened     = p$screening$screened,
+          records_excluded     = p$screening$excluded,
+          reports_sought       = p$eligibility$sought,
+          reports_notretrieved = p$eligibility$not_retrieved,
+          reports_assessed     = p$eligibility$assessed,
+          reports_excluded     = p$eligibility$excluded,
+          new_studies          = p$included$studies,
+          interactive          = FALSE
+        )
+        if (requireNamespace("htmlwidgets", quietly = TRUE)) {
+          if ("html" %in% self$params$prisma_format) {
+            htmlwidgets::saveWidget(wdgt, file = file.path(out_dir, "PRISMA_2020.html"), selfcontained = TRUE)
           }
-          else {
-        stop(" NO htmlwidgets")
-      }
-          return(invisible(TRUE))
+          if (requireNamespace("webshot2", quietly = TRUE) && "png" %in% self$params$prisma_format) {
+            tmp_html <- tempfile(fileext = ".html")
+            htmlwidgets::saveWidget(wdgt, file = tmp_html, selfcontained = TRUE)
+            webshot2::webshot(tmp_html, file.path(out_dir, "PRISMA_2020.png"),
+                              vwidth = 1400, vheight = 1000)
+          }
         } else {
-        stop(" Non %in% ls(getNamespace(PRISMA2020)")
-      }
-        message("[M1] PRISMA2020 installed, but PRISMA_flowdiagram() not found; trying 'prisma' fallback.")
-      } else {
-        stop(" NO PRIMSA2020 ")
+          warning("[M1] htmlwidgets not installed; skipping PRISMA HTML/PNG export.")
+        }
+        return(invisible(TRUE))
       }
 
-      message("[M1] No PRISMA diagram package found. Install one of:\n",
-              "  remotes::install_github('nealhaddaway/PRISMA2020')\n",
-              "  install.packages('prisma')\n")
+      if (requireNamespace("prisma", quietly = TRUE)) {
+        message("[M1] 'prisma' package detected; implement fallback drawing here if desired.")
+        return(invisible(FALSE))
+      }
+
+      message("[M1] No PRISMA diagram package found. Install one of:",
+              "\n  remotes::install_github('nealhaddaway/PRISMA2020')",
+              "\n  install.packages('prisma')")
       invisible(FALSE)
     },
 
@@ -247,7 +271,12 @@ M1_DataIngestion <- R6::R6Class(
           prisma   = self$results$prisma
         )
         json_file <- file.path(out_dir, "M1_DataIngestion.json")
-        io_helpers$export_json(json_payload, json_file)
+        if (exists("io_helpers", inherits = TRUE) && is.list(io_helpers) &&
+            is.function(io_helpers$export_json)) {
+          io_helpers$export_json(json_payload, json_file)
+        } else {
+          jsonlite::write_json(json_payload, json_file, pretty = TRUE, auto_unbox = TRUE)
+        }
         cat("[M1] Exported JSON:", json_file, "\n")
       }
 
@@ -440,4 +469,6 @@ M1_DataIngestion <- R6::R6Class(
 )
 
 # small helper for NULL-coalescing
-`%||%` <- function(a, b) if (is.null(a)) b else a
+if (!exists("%||%", mode = "function")) {
+  `%||%` <- function(a, b) if (is.null(a)) b else a
+}
