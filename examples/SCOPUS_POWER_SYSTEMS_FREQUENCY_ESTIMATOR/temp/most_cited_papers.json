@@ -1,0 +1,82 @@
+[
+  {
+    "Paper": "YE H, 2018, IEEE WIRELESS COMMUN LETT COMPUT SCI RES DEVEL DEV",
+    "DOI": "10.1109/LWC.2017.2757490 10.1007/s00450-016-0312-9",
+    "TC": 1357,
+    "TCperYear": 169.6,
+    "NTC": "47.09",
+    "PaperID": "[691]"
+  },
+  {
+    "Paper": "WOO A, 2003, SENSYS PROC FIRST INT CONF EMBEDDED NETWORKED SENSOR SYST",
+    "DOI": "10.1145/958491.958494",
+    "TC": 1144,
+    "TCperYear": 49.7,
+    "NTC": "17.05",
+    "PaperID": "[1657]"
+  },
+  {
+    "Paper": "MALINOWSKI M, 2004, IEEE TRANS IND ELECTRON",
+    "DOI": "10.1109/TIE.2004.825278",
+    "TC": 687,
+    "TCperYear": 31.2,
+    "NTC": "18.57",
+    "PaperID": "[1669]"
+  },
+  {
+    "Paper": "MINN H, 2003, IEEE TRANS WIRELESS COMMUN",
+    "DOI": "10.1109/TWC.2003.814346",
+    "TC": 594,
+    "TCperYear": 25.8,
+    "NTC": "8.86",
+    "PaperID": "[1661]"
+  },
+  {
+    "Paper": "KEMP B, 2000, IEEE TRANS BIOMED ENG",
+    "DOI": "10.1109/10.867928",
+    "TC": 549,
+    "TCperYear": 21.1,
+    "NTC": "11.37",
+    "PaperID": "[1684]"
+  },
+  {
+    "Paper": "TAROKH V, 1999, IEEE TRANS COMMUN",
+    "DOI": "10.1109/26.752125",
+    "TC": 477,
+    "TCperYear": 17.7,
+    "NTC": "9.77",
+    "PaperID": "[1722]"
+  },
+  {
+    "Paper": "BAZERQUE JA, 2010, IEEE TRANS SIGNAL PROCESS",
+    "DOI": "10.1109/TSP.2009.2038417",
+    "TC": 399,
+    "TCperYear": 24.9,
+    "NTC": "23.88",
+    "PaperID": "[1250]"
+  },
+  {
+    "Paper": "LI Y, 2017, IEEE TRANS SIGNAL PROCESS",
+    "DOI": "10.1109/TSP.2017.2706179",
+    "TC": 384,
+    "TCperYear": 42.7,
+    "NTC": "19.12",
+    "PaperID": "[607]"
+  },
+  {
+    "Paper": "BÖLCSKEI H, 2001, IEEE TRANS COMMUN",
+    "DOI": "10.1109/26.930629",
+    "TC": 322,
+    "TCperYear": 12.9,
+    "NTC": "9.08",
+    "PaperID": "[1748]"
+  },
+  {
+    "Paper": "PRODANOVIĆ M, 2003, IEEE TRANS POWER ELECTRON",
+    "DOI": "10.1109/TPEL.2002.807166",
+    "TC": 293,
+    "TCperYear": 12.7,
+    "NTC": "4.37",
+    "PaperID": "[1682]"
+  }
+]
