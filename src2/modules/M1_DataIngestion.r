@@ -1,7 +1,40 @@
-# ================================================================
+# ============================================================================ #
 # M1_DataIngestion — Module 1: Load & Convert Bibliographic Data
+# + Auto-discover Scopus/WoS files, merge & deduplicate
+# + Year filter (keep <= year_max; default = last year)
 # + PRISMA counters & diagram generation hooks
-# ================================================================
+# ============================================================================ #
+
+suppressPackageStartupMessages({
+  library(bibliometrix)
+  library(stringr)
+  library(jsonlite)
+})
+
+M1_DEFAULT_YEAR_MAX <- as.integer(format(Sys.Date(), "%Y")) - 1L
+
+# ---------- Load helpers (mirror of M5_Institutions) --------------------------
+# If you already define `root` elsewhere, this will use it; otherwise fallback.
+if (!exists("root", inherits = FALSE)) root <- getwd()
+
+helpers_dir_m1 <- file.path(root, "helpers", "helpers__m1_data_ingestion")
+
+# Always use the exact file name we created: 00_loader.R (capital R).
+loader_path_m1 <- file.path(helpers_dir_m1, "00_loader.R")
+if (!file.exists(loader_path_m1)) {
+  stop("[M1] Missing helpers loader at: ", loader_path_m1,
+       "\nExpected directory: ", helpers_dir_m1,
+       "\nTip: ensure the folder is named helpers/helpers__m1_data_ingestion and the file is 00_loader.R")
+}
+
+# Source the loader and then load all helper files for M1 (m1i_*)
+source(loader_path_m1, local = FALSE)
+if (!exists("m1i_source_helpers", mode = "function")) {
+  stop("[M1] m1i_source_helpers() not found after sourcing loader: ", loader_path_m1)
+}
+m1i_source_helpers(helpers_dir_m1)
+# ----------------------------------------------------------------------------- 
+
 
 M1_DataIngestion <- R6::R6Class(
   "M1_DataIngestion",
@@ -9,104 +42,117 @@ M1_DataIngestion <- R6::R6Class(
 
   public = list(
 
-    # ------------------------
-    # Predeclared fields
-    # ------------------------
     df = NULL,
     schema = NULL,
 
-    initialize = function(bib_file,
-                          index_json = "data/index.json",
-                          dbsource   = "scopus",
-                          format     = "bibtex",
-                          prisma_filters = list(
+    initialize = function(bib_file         = NULL,
+                          input_dir        = "data",
+                          auto_discover    = TRUE,
+                          index_json       = file.path("data", "index.json"),
+                          dbsource         = "scopus",
+                          format           = "bibtex",
+                          prisma_filters   = list(
                             language = "English",
                             doc_types_keep = c("Article", "Conference Paper")
                           ),
-                          prisma_out_dir = "results2/figures",
-                          prisma_format  = c("html","png"),
-                          M_biblio = NULL,
+                          prisma_out_dir   = "results2/figures",
+                          prisma_format    = c("html","png"),
+                          M_biblio         = NULL,
+                          year_max         = M1_DEFAULT_YEAR_MAX,
                           ...) {
 
       self$input <- bib_file
+      self$params$input_dir      <- input_dir
+      self$params$auto_discover  <- isTRUE(auto_discover)
+
       self$params$dbsource <- dbsource
       self$params$format   <- format
       self$params$index_json <- index_json
       self$params$prisma_filters <- prisma_filters
       self$params$prisma_out_dir <- prisma_out_dir
       self$params$prisma_format  <- prisma_format
+      self$params$year_max       <- as.integer(year_max)
+
       self$results <- list()
       self$plots   <- list()
     },
 
-    # ------------------------
-    # Run ingestion pipeline
-    # ------------------------
     run = function() {
-      cat("[M1] Reading bibliographic data from:", self$input, "\n")
+      # 1) Discover sources (Scopus/WoS)
+      sources <- m1i_discover_sources(
+        input_dir     = self$params$input_dir,
+        auto_discover = self$params$auto_discover
+      )
 
-      # Load manual PRISMA counters from index.json (if present)
+      if (length(sources$scopus_files) + length(sources$wos_files) == 0) {
+        if (!is.null(self$input) && file.exists(self$input)) {
+          cat("[M1] Auto-discovery found nothing. Falling back to single file:", self$input, "\n")
+        } else {
+          stop("[M1] No input files found. Place scopus_*.bib and/or wos_*.txt in '",
+               self$params$input_dir, "' or provide bib_file.")
+        }
+      } else {
+        cat("[M1] Discovered files in '", self$params$input_dir, "':\n", sep = "")
+        if (length(sources$scopus_files)) cat("  - Scopus: ", length(sources$scopus_files), " files\n", sep = "")
+        if (length(sources$wos_files))    cat("  - WoS   : ", length(sources$wos_files), " files\n", sep = "")
+      }
+
+      # 2) Manual PRISMA counters from index.json (optional)
       manual_prisma <- list()
       if (!is.null(self$params$index_json) && file.exists(self$params$index_json)) {
         index_meta <- jsonlite::fromJSON(self$params$index_json, simplifyVector = TRUE)
-        self$results$index_meta <- index_meta  # provenance
+        self$results$index_meta <- index_meta
         if (!is.null(index_meta$prisma)) manual_prisma <- index_meta$prisma
       }
 
-      # --- Load raw data from bibliometrix ---
-      df_raw <- tryCatch({
-        suppressMessages(
-          suppressWarnings(
-            bibliometrix::convert2df(
-              file     = self$input,
-              dbsource = self$params$dbsource,
-              format   = self$params$format
-            )
-          )
-        )
-      }, error = function(e) {
-        stop("[M1] Error: could not read input file. ", conditionMessage(e))
-      })
+      # 3) Convert each source
+      M_scopus <- NULL
+      M_wos    <- NULL
 
-      # ---- Normalize bibliometrix object for downstream AU_UN ----
-      # Some versions return class "bibliometrixDB" w/o a DB attribute.
-      # We add the legacy class and ensure the DB attribute is set.
+      if (length(sources$scopus_files)) {
+        cat("[M1] Reading Scopus BibTeX ...\n")
+        M_scopus <- m1i_safe_convert(files = sources$scopus_files, db = "scopus", format = "bibtex")
+      }
 
-      # Add legacy class if missing
+      if (length(sources$wos_files)) {
+        cat("[M1] Reading WoS PlainText ...\n")
+        M_wos <- m1i_safe_convert(files = sources$wos_files, db = "wos", format = "plaintext")
+      }
+
+      # 4) Fallback single explicit file; else merge
+      if (is.null(M_scopus) && is.null(M_wos) && !is.null(self$input) && file.exists(self$input)) {
+        cat("[M1] Reading explicit file via parameters: ", self$input, "\n", sep = "")
+        df_raw <- m1i_safe_convert(files = self$input, db = self$params$dbsource, format = self$params$format)
+      } else {
+        df_raw <- m1i_merge_sources(M_scopus, M_wos, dbsource_fallback = self$params$dbsource)
+      }
+
+      # Normalize class/DB attribute
       if (inherits(df_raw, "bibliometrixDB") && !inherits(df_raw, "bibliometrixData")) {
         class(df_raw) <- c("bibliometrixData", class(df_raw))
       }
-
-      # Ensure DB attribute is set (SCOPUS / ISI / OPENALEX)
       if (is.null(attr(df_raw, "DB")) || !nzchar(as.character(attr(df_raw, "DB")))) {
-        dbmap <- c(scopus = "SCOPUS", wos = "ISI", webofscience = "ISI", openalex = "OPENALEX")
-        attr(df_raw, "DB") <- dbmap[tolower(self$params$dbsource)] %||% toupper(self$params$dbsource)
+        attr(df_raw, "DB") <- if (!is.null(M_scopus) && !is.null(M_wos)) "MULTI" else
+          c(scopus = "SCOPUS", wos = "ISI", openalex = "OPENALEX")[tolower(self$params$dbsource)] %||%
+          toupper(self$params$dbsource)
       }
 
-      # Optional debug prints
-      if (isTRUE(getOption("m5i.debug", FALSE))) {
-        cat("[M1][debug] class(df_raw): ", paste(class(df_raw), collapse = ", "), "\n")
-        cat("[M1][debug] attr(df_raw,'DB'):", as.character(attr(df_raw, "DB")), "\n")
-        cat("[M1][debug] rows:", tryCatch(nrow(df_raw), error = function(e) NA_integer_), "\n")
+      m1i_dbg("class(df_raw): %s", paste(class(df_raw), collapse = ", "))
+      m1i_dbg("attr(DB): %s", as.character(attr(df_raw, "DB")))
+      m1i_dbg("rows: %s", tryCatch(nrow(df_raw), error = function(e) NA_integer_))
+
+      # 5) Standard mapping
+      df <- m1i_apply_standard_mapping(df_raw)
+
+      # 6) Year filter (<= year_max)
+      if (!is.null(self$params$year_max) && !is.na(self$params$year_max)) {
+        pre_n <- nrow(df)
+        df <- df[!is.na(df$Year) & df$Year <= self$params$year_max, , drop = FALSE]
+        cat(sprintf("[M1] Year filter applied: keeping Year <= %d. %d → %d rows.\n",
+                    self$params$year_max, pre_n, nrow(df)))
       }
 
-      # ---- Save bibliometrix object into results and STOP for inspection ----
-      self$results$M_biblio <- df_raw
-
-      # Strong, explicit debug so you can see it's stored
-      cat("[M1][debug] Saved M_biblio into results.\n")
-      cat("[M1][debug] results$M_biblio class: ",
-          paste(class(self$results$M_biblio), collapse = ", "), "\n")
-      cat("[M1][debug] results$M_biblio attr(DB): ",
-          as.character(attr(self$results$M_biblio, "DB")), "\n")
-      cat("[M1][debug] results$M_biblio nrow: ",
-          tryCatch(nrow(self$results$M_biblio), error = function(e) NA_integer_), "\n")
-
-      # --- Apply stable mapping to friendly names & basic typing ---
-      # (unreached while debugging; keep code for when you remove the stop)
-      df <- private$.apply_standard_mapping(df_raw)
-
-      # --- Country extraction if Affiliations present ---
+      # 7) Optional country extraction (if helpers exist in your project)
       if ("Affiliations" %in% names(df)) {
         aff_chr <- as.character(df$Affiliations)
 
@@ -129,11 +175,12 @@ M1_DataIngestion <- R6::R6Class(
         }, FUN.VALUE = character(1))
       }
 
-      # --- Keep standardized df in memory ---
+      # 8) Store
       self$df <- df
       self$results$df <- df
-      self$results$M_biblio  <- df_raw # keep canonical bibliometrix object
-      # --- Lock the schema ---
+      self$results$M_biblio <- df_raw
+
+      # 9) Schema lock
       self$schema <- list(
         Year                 = "Year",
         Times_Cited          = "Times_Cited",
@@ -173,41 +220,37 @@ M1_DataIngestion <- R6::R6Class(
         AU_UN_NR             = "AU_UN_NR"
       )
 
-      # --- Metadata & compact EDA ---
+      # 10) Metadata & EDA
       self$results$metadata <- list(
         n_docs    = nrow(df),
         n_columns = ncol(df),
         columns   = names(df),
-        source    = self$params$dbsource,
-        format    = self$params$format,
-        schema    = self$schema
+        source    = attr(df_raw, "DB"),
+        format    = "mixed",
+        schema    = self$schema,
+        discovered = sources
       )
-      self$results$eda <- private$.compute_eda(df)
+      self$results$eda <- m1i_compute_eda(df)
 
-      # --- PRISMA counters (auto + manual overrides from index.json)
-      self$results$prisma <- private$.compute_prisma_counts(
+      # 11) PRISMA counts
+      self$results$prisma <- m1i_compute_prisma_counts(
         df               = df,
         filters          = self$params$prisma_filters,
         manual_overrides = manual_prisma
       )
 
       cat("[M1] Ingestion completed. Documents loaded:", nrow(df), "\n")
-      invisible(self) 
+      invisible(self)
     },
 
-    # ------------------------
-    # Generate PRISMA diagram (optional; call explicitly)
-    # ------------------------
     prisma_diagram = function() {
-      if (is.null(self$results$prisma))
-        stop("[M1] PRISMA counters not found. Run() first.")
-
+      if (is.null(self$results$prisma)) stop("[M1] PRISMA counters not found. Run() first.")
       out_dir <- self$params$prisma_out_dir
       if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 
       p <- self$results$prisma
 
-      if (requireNamespace("PRISMA2020", quietly = TRUE) &&
+      if (m1i_try_require("PRISMA2020") &&
           "PRISMA_flowdiagram" %in% ls(getNamespace("PRISMA2020"))) {
         message("[M1] Generating PRISMA diagram via PRISMA2020...")
         wdgt <- PRISMA2020::PRISMA_flowdiagram(
@@ -223,15 +266,14 @@ M1_DataIngestion <- R6::R6Class(
           new_studies          = p$included$studies,
           interactive          = FALSE
         )
-        if (requireNamespace("htmlwidgets", quietly = TRUE)) {
+        if (m1i_try_require("htmlwidgets")) {
           if ("html" %in% self$params$prisma_format) {
             htmlwidgets::saveWidget(wdgt, file = file.path(out_dir, "PRISMA_2020.html"), selfcontained = TRUE)
           }
-          if (requireNamespace("webshot2", quietly = TRUE) && "png" %in% self$params$prisma_format) {
+          if (m1i_try_require("webshot2") && "png" %in% self$params$prisma_format) {
             tmp_html <- tempfile(fileext = ".html")
             htmlwidgets::saveWidget(wdgt, file = tmp_html, selfcontained = TRUE)
-            webshot2::webshot(tmp_html, file.path(out_dir, "PRISMA_2020.png"),
-                              vwidth = 1400, vheight = 1000)
+            webshot2::webshot(tmp_html, file.path(out_dir, "PRISMA_2020.png"), vwidth = 1400, vheight = 1000)
           }
         } else {
           warning("[M1] htmlwidgets not installed; skipping PRISMA HTML/PNG export.")
@@ -239,7 +281,7 @@ M1_DataIngestion <- R6::R6Class(
         return(invisible(TRUE))
       }
 
-      if (requireNamespace("prisma", quietly = TRUE)) {
+      if (m1i_try_require("prisma")) {
         message("[M1] 'prisma' package detected; implement fallback drawing here if desired.")
         return(invisible(FALSE))
       }
@@ -250,225 +292,39 @@ M1_DataIngestion <- R6::R6Class(
       invisible(FALSE)
     },
 
-    # ------------------------
-    # Export results
-    # ------------------------
-    export = function(out_dir = "results/", formats = c("json","csv")) {
-      if (is.null(self$df)) stop("[M1] Nothing to export — run() has not been executed.")
-      if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
+   export = function(out_dir = "results2", subdir = "M1", formats = c("json","csv")) {
+  if (is.null(self$df)) stop("[M1] Nothing to export — run() has not been executed.")
 
-      if ("csv" %in% formats) {
-        df_export <- tryCatch(flatten_list_columns_for_csv(self$df), error = function(e) self$df)
-        csv_file  <- file.path(out_dir, "M1_DataIngestion.csv")
-        utils::write.csv(df_export, csv_file, row.names = FALSE)
-        cat("[M1] Exported CSV:", csv_file, "\n")
-      }
+  # base dir (e.g., results2)
+  base_dir <- m1i_ensure_dir(out_dir)
+  # nested dir (e.g., results2/M1)
+  final_dir <- if (nzchar(subdir)) m1i_ensure_dir(file.path(base_dir, subdir)) else base_dir
 
-      if ("json" %in% formats) {
-        json_payload <- list(
-          metadata = self$results$metadata,
-          eda      = self$results$eda,
-          prisma   = self$results$prisma
-        )
-        json_file <- file.path(out_dir, "M1_DataIngestion.json")
-        if (exists("io_helpers", inherits = TRUE) && is.list(io_helpers) &&
-            is.function(io_helpers$export_json)) {
-          io_helpers$export_json(json_payload, json_file)
-        } else {
-          jsonlite::write_json(json_payload, json_file, pretty = TRUE, auto_unbox = TRUE)
-        }
-        cat("[M1] Exported JSON:", json_file, "\n")
-      }
+  if ("csv" %in% formats) {
+    df_export <- tryCatch(m1i_flatten_list_columns_for_csv(self$df), error = function(e) self$df)
+    csv_file  <- file.path(final_dir, "M1_DataIngestion.csv")
+    utils::write.csv(df_export, csv_file, row.names = FALSE)
+    cat("[M1] Exported CSV:", csv_file, "\n")
+  }
 
-      invisible(self)
+  if ("json" %in% formats) {
+    json_payload <- list(
+      metadata = self$results$metadata,
+      eda      = self$results$eda,
+      prisma   = self$results$prisma
+    )
+    json_file <- file.path(final_dir, "M1_DataIngestion.json")
+    if (exists("io_helpers", inherits = TRUE) && is.list(io_helpers) &&
+        is.function(io_helpers$export_json)) {
+      io_helpers$export_json(json_payload, json_file)
+    } else {
+      jsonlite::write_json(json_payload, json_file, pretty = TRUE, auto_unbox = TRUE)
     }
-  ),
+    cat("[M1] Exported JSON:", json_file, "\n")
+  }
 
-  private = list(
+  invisible(self)
+}
 
-    # ------------------------------------------------------------
-    # Stable mapping
-    # ------------------------------------------------------------
-    .apply_standard_mapping = function(df) {
-      map <- c(
-        AU = "Authors", AF = "Authors_Full", TI = "Title", SO = "Source_Title",
-        J9 = "Journal_Abbrev", JI = "Journal_Short", LA = "Language", DT = "Document_Type",
-        DI = "DOI", SN = "ISSN", url = "URL", VL = "Volume",
-        DE = "Author_Keywords", ID = "Indexed_Keywords",
-        C1 = "Affiliations", RP = "Corresponding_Author",
-        TC = "Times_Cited", PY = "Year",
-        CR = "Cited_References", AU_UN = "Author_Universities", AU1_UN = "Author_Universities_Alt",
-        AU_UN_NR = "AU_UN_NR", SR_FULL = "Source_Ref_Full", SR = "Source_Ref",
-        AB = "Abstract", pmid = "pmid", publication_stage = "publication_stage",
-        PU = "Publisher", DB = "Database", BE = "BE", BN = "BN", coden = "coden",
-        PN = "Pages", PP = "Pages_Extended"
-      )
-
-      present <- intersect(names(df), names(map))
-      if (length(present) > 0) {
-        new_names <- unname(map[present])
-        colnames(df)[match(present, colnames(df))] <- new_names
-      }
-
-      if (!"Year" %in% names(df))        df$Year <- NA_integer_
-      if (!"Times_Cited" %in% names(df)) df$Times_Cited <- NA_real_
-
-      df$Year        <- suppressWarnings(as.integer(df$Year))
-      df$Times_Cited <- suppressWarnings(as.numeric(df$Times_Cited))
-
-      chr_candidates <- c("Authors","Authors_Full","Title","Source_Title","Journal_Abbrev",
-                          "Journal_Short","Language","Document_Type","Affiliations",
-                          "Corresponding_Author","DOI","ISSN","URL","Publisher","Database")
-      for (nm in intersect(chr_candidates, names(df))) {
-        df[[nm]] <- as.character(df[[nm]])
-      }
-      df
-    },
-
-    # ------------------------------------------------------------
-    # Minimal EDA
-    # ------------------------------------------------------------
-    .compute_eda = function(df) {
-      n <- nrow(df)
-      cols <- names(df)
-
-      gcol <- function(name) if (name %in% cols) df[[name]] else NULL
-      topn <- function(vec, n = 10) {
-        if (is.null(vec)) return(NULL)
-        tb <- sort(table(vec), decreasing = TRUE)
-        as.list(head(tb, n))
-      }
-
-      years        <- suppressWarnings(as.integer(gcol("Year")))
-      doc_types    <- gcol("Document_Type")
-      langs        <- gcol("Language")
-      source_titles<- gcol("Source_Title")
-      times_cited  <- suppressWarnings(as.numeric(gcol("Times_Cited")))
-      main_country <- gcol("Main_Country")
-
-      miss_pct <- lapply(cols, function(cl) {
-        x <- df[[cl]]
-        is_blank <- is.na(x)
-        if (is.character(x)) is_blank <- is_blank | (trimws(x) == "")
-        round(mean(is_blank) * 100, 2)
-      })
-      names(miss_pct) <- cols
-
-      year_span <- if (!all(is.na(years))) {
-        rng <- range(years, na.rm = TRUE)
-        list(min = rng[1], max = rng[2])
-      } else NULL
-
-      tc_stats <- if (!all(is.na(times_cited))) {
-        qs <- stats::quantile(times_cited, probs = c(0, .25, .5, .75, .9, .95, 1), na.rm = TRUE, names = FALSE)
-        list(
-          n_with_tc = sum(!is.na(times_cited)),
-          mean      = round(mean(times_cited, na.rm = TRUE), 3),
-          sd        = round(stats::sd(times_cited, na.rm = TRUE), 3),
-          quantiles = setNames(round(qs, 3), c("min","p25","p50","p75","p90","p95","max"))
-        )
-      } else NULL
-
-      top_sources   <- topn(source_titles, 10)
-      top_types     <- topn(doc_types, 10)
-      top_langs     <- topn(langs, 10)
-      top_countries <- topn(main_country, 10)
-
-      country_coverage <- if ("Country_List" %in% cols) {
-        with_country <- vapply(df$Country_List, function(x) !is.null(x) && length(x) > 0, logical(1))
-        round(mean(with_country) * 100, 2)
-      } else NA_real_
-
-      list(
-        n_docs               = n,
-        year_span            = year_span,
-        doc_types_top10      = top_types,
-        languages_top10      = top_langs,
-        sources_top10        = top_sources,
-        countries_top10      = top_countries,
-        times_cited_stats    = tc_stats,
-        country_coverage_pct = country_coverage,
-        missingness_pct      = miss_pct
-      )
-    },
-
-    # ------------------------------------------------------------
-    # PRISMA counters (auto + manual)
-    # ------------------------------------------------------------
-    .compute_prisma_counts = function(df, filters, manual_overrides) {
-
-      n_identified_db    <- nrow(df)                 # identified via databases
-      n_identified_other <- as.integer(manual_overrides$identified_other %||% 0)
-
-      # --- Duplicates (heuristic: DOI lowercase; fallback to normalized title)
-      DOI <- tolower(ifelse(is.na(df$DOI), "", df$DOI))
-      TitleNorm <- stringr::str_squish(tolower(ifelse(is.na(df$Title), "", df$Title)))
-      key <- ifelse(DOI != "", paste0("doi:", DOI), paste0("ti:", TitleNorm))
-      n_unique <- length(unique(key))
-      n_duplicates <- max(n_identified_db + n_identified_other - n_unique, 0)
-
-      # --- Automatic pre-screen (language + doc types)
-      lang_keep  <- filters$language %||% "English"
-      types_keep <- filters$doc_types_keep %||% c("Article","Conference Paper")
-
-      lang_ok  <- df$Language %in% lang_keep
-      type_ok  <- df$Document_Type %in% types_keep
-
-      # Count how many fail language/type filters
-      n_auto_excluded <- sum(!(lang_ok & type_ok), na.rm = TRUE)
-
-      # Allow user to specify other removals before screening
-      n_other_removed <- as.integer(manual_overrides$removed_other %||% 0)
-
-      # --- Records screened (title/abstract)
-      n_screened <- as.integer(manual_overrides$screened %||%
-                                 (n_unique - n_duplicates - n_auto_excluded - n_other_removed))
-      if (is.na(n_screened) || n_screened < 0) n_screened <- 0
-
-      # --- Excluded at screening (title/abstract)
-      n_excluded_screen <- as.integer(manual_overrides$excluded_screen %||% NA_integer_)
-
-      # --- Eligibility (full-text)
-      n_sought         <- as.integer(manual_overrides$sought %||% NA_integer_)
-      n_notretrieved   <- as.integer(manual_overrides$not_retrieved %||% 0)
-      n_assessed       <- as.integer(manual_overrides$assessed %||%
-                                       if (!is.na(n_sought)) n_sought - n_notretrieved else NA_integer_)
-      n_excluded_ft    <- as.integer(manual_overrides$excluded_fulltext %||% NA_integer_)
-
-      # --- Included
-      n_included       <- as.integer(manual_overrides$included %||% NA_integer_)
-
-      list(
-        identified = list(
-          db    = n_identified_db,
-          other = n_identified_other
-        ),
-        removed = list(
-          duplicates = n_duplicates,
-          auto       = max(n_auto_excluded, 0),
-          other      = max(n_other_removed, 0)
-        ),
-        screening = list(
-          screened = n_screened,
-          excluded = n_excluded_screen
-        ),
-        eligibility = list(
-          sought        = n_sought,
-          not_retrieved = n_notretrieved,
-          assessed      = n_assessed,
-          excluded      = n_excluded_ft
-        ),
-        included = list(
-          studies = n_included
-        ),
-        # Echo filters so methods are transparent
-        filters = filters
-      )
-    }
   )
 )
-
-# small helper for NULL-coalescing
-if (!exists("%||%", mode = "function")) {
-  `%||%` <- function(a, b) if (is.null(a)) b else a
-}
