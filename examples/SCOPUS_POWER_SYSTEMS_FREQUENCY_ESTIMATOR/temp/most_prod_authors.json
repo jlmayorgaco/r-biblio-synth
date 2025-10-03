@@ -1,0 +1,72 @@
+[
+  {
+    "Authors": "NA NA",
+    "Articles": 42,
+    "Authors.1": "NA NA",
+    "Articles Fractionalized": "42.00",
+    "Rank": 1
+  },
+  {
+    "Authors": "PETRI D",
+    "Articles": 25,
+    "Authors.1": "PETRI D",
+    "Articles Fractionalized": "9.17",
+    "Rank": 2
+  },
+  {
+    "Authors": "WANG Y",
+    "Articles": 23,
+    "Authors.1": "BELEGA D",
+    "Articles Fractionalized": "6.25",
+    "Rank": 3
+  },
+  {
+    "Authors": "LI Y",
+    "Articles": 19,
+    "Authors.1": "WANG Y",
+    "Articles Fractionalized": "6.16",
+    "Rank": 4
+  },
+  {
+    "Authors": "LI H",
+    "Articles": 17,
+    "Authors.1": "WANG X",
+    "Articles Fractionalized": "4.90",
+    "Rank": 5
+  },
+  {
+    "Authors": "WANG X",
+    "Articles": 16,
+    "Authors.1": "LI Y",
+    "Articles Fractionalized": "4.57",
+    "Rank": 6
+  },
+  {
+    "Authors": "BELEGA D",
+    "Articles": 15,
+    "Authors.1": "MACII D",
+    "Articles Fractionalized": "4.50",
+    "Rank": 7
+  },
+  {
+    "Authors": "MACII D",
+    "Articles": 15,
+    "Authors.1": "LI H",
+    "Articles Fractionalized": "4.42",
+    "Rank": 8
+  },
+  {
+    "Authors": "MANDIC DP",
+    "Articles": 12,
+    "Authors.1": "MANDIC DP",
+    "Articles Fractionalized": "4.32",
+    "Rank": 9
+  },
+  {
+    "Authors": "ZHANG J",
+    "Articles": 12,
+    "Authors.1": "ROUTTENBERG T",
+    "Articles Fractionalized": "4.08",
+    "Rank": 10
+  }
+]
