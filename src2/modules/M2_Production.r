@@ -64,12 +64,12 @@ M2_Production <- R6::R6Class(
       }
 
       # --- Fit models ---
-      fit_tp <- fit_models(df_annual_tp)
+      fit_tp <- fit_models(df_annual_tp, metric = "AICc")
       best_model_tp <- fit_tp$best_model
 
       fit_tc <- NULL; best_model_tc <- NULL
       if (!is.null(df_annual_tc) && nrow(df_annual_tc) >= 3) {
-        fit_tc <- fit_models(df_annual_tc)
+        fit_tc <- fit_models(df_annual_tc, metric = "AICc")
         best_model_tc <- fit_tc$best_model
       }
 
