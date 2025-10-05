@@ -323,6 +323,11 @@ M1_DataIngestion <- R6::R6Class(
     cat("[M1] Exported JSON:", json_file, "\n")
   }
 
+  m1i_export_eda_tex(self$results$eda, out_dir = file.path(out_dir, "M1"))
+  m1i_plot_eda_3x3(self$df, self$results$eda, out_dir = file.path(out_dir, "M1"))
+
+
+  stop(' ======. STOIP =====')
   invisible(self)
 }
 
