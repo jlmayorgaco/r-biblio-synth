@@ -13,7 +13,8 @@ m1i_source_helpers <- function(dir = file.path("helpers__m1_data_ingestion")) {
     "04_merge.R",
     "05_mapping.R",
     "06_eda.R",
-    "07_prisma.R"
+    "07_prisma.R",
+    "08_reporting.R"
   )
   for (f in files) {
     fp <- file.path(dir, f)
