@@ -148,32 +148,77 @@ m1i_contain_plot <- function(p, x = 0.5, y = 0.5, width = 0.9, height = 0.9) {
                                          hjust = 0.5, vjust = 0.5)
 }
 
-# --- A1 Docs per year with last-5y shade ------------------------------------ #
+# --- A1 Docs per year with last-5y shade (fixed bounds; centered) ----------- #
 panel_A1_docs <- function(df, overview, theme_ieee) {
-  yrs  <- suppressWarnings(as.integer(df$Year))
-  ytab <- as.data.frame(table(yrs[!is.na(yrs)]))
-  names(ytab) <- c("Year","Count")
-  ytab$Year <- suppressWarnings(as.integer(as.character(ytab$Year)))
-  if (!nrow(ytab)) ytab <- data.frame(Year = integer(0), Count = integer(0))
+  yrs_ok <- suppressWarnings(as.integer(df$Year))
+  yrs_ok <- yrs_ok[!is.na(yrs_ok)]
 
-  maxy <- if (!is.null(overview$year_span)) overview$year_span$max else max(ytab$Year, na.rm = TRUE)
-  last5_start <- maxy - 4L
-  shade_df <- data.frame(xmin = last5_start - 0.5, xmax = maxy + 0.5, ymin = -Inf, ymax = Inf)
+  if (!length(yrs_ok)) {
+    p <- ggplot2::ggplot() +
+      ggplot2::labs(title = "Docs per Year (n/a)") +
+      theme_ieee +
+      ggplot2::theme(
+        plot.margin = ggplot2::margin(6, 6, 6, 6),
+        axis.text = ggplot2::element_blank(),
+        axis.ticks = ggplot2::element_blank(),
+        panel.grid.minor = ggplot2::element_blank()
+      )
+    return(tighten_panel(p, 1, 1, 1, 1))
+  }
+
+  # span from overview if present
+  yr_min <- if (!is.null(overview$year_span)) overview$year_span$min else min(yrs_ok, na.rm = TRUE)
+  yr_max <- if (!is.null(overview$year_span)) overview$year_span$max else max(yrs_ok, na.rm = TRUE)
+
+  seq_years <- seq.int(yr_min, yr_max)
+  tab <- as.data.frame(table(factor(yrs_ok, levels = seq_years)), stringsAsFactors = FALSE)
+  names(tab) <- c("Year", "Count")
+  tab$Year  <- as.integer(as.character(tab$Year))
+  tab$Count <- as.integer(tab$Count)
+
+  # real y-limits (no -Inf/Inf anywhere)
+  y0   <- 0
+  ymax <- max(tab$Count, na.rm = TRUE)
+  y1   <- if (is.finite(ymax) && ymax > 0) ymax * 1.04 else 1
+
+  # last-5y band, clipped to the x/y window
+  last5_start <- yr_max - 4L
+  shade_df <- data.frame(
+    xmin = max(last5_start - 0.5, yr_min - 0.5),
+    xmax = yr_max + 0.5,
+    ymin = y0,
+    ymax = y1
+  )
   last5_txt <- if (!is.null(overview$recent_5y_share_pct)) fmt_pct_plot(overview$recent_5y_share_pct, 2) else "—"
 
-  p <- ggplot2::ggplot(ytab, ggplot2::aes(Year, Count)) +
-    ggplot2::geom_rect(data = shade_df, ggplot2::aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-                       fill = "grey90", inherit.aes = FALSE) +
+  p <- ggplot2::ggplot(tab, ggplot2::aes(Year, Count)) +
+    ggplot2::geom_rect(
+      data = shade_df,
+      ggplot2::aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+      inherit.aes = FALSE, fill = "grey90"
+    ) +
     ggplot2::geom_line(na.rm = TRUE) +
-    ggplot2::geom_point(size = 0.5, na.rm = TRUE) +
-    ggplot2::scale_x_continuous(breaks = scales::breaks_pretty(n = 7),
-                                expand = ggplot2::expansion(mult = c(0, 0))) +
-    ggplot2::scale_y_continuous(expand = ggplot2::expansion(mult = c(0, 0.02))) +
+    ggplot2::geom_point(size = 0.6, na.rm = TRUE) +
+    ggplot2::scale_x_continuous(breaks = scales::breaks_pretty(n = 7)) +
     ggplot2::labs(title = sprintf("Docs per Year (last 5y %s)", last5_txt)) +
-    theme_ieee
+    theme_ieee +
+    ggplot2::theme(
+      plot.title = ggplot2::element_text(margin = ggplot2::margin(b = 2)),
+      plot.margin = ggplot2::margin(6, 6, 6, 6),
+      panel.grid.minor = ggplot2::element_blank()
+    ) +
+    # lock & clip to the true panel window (prevents spill & misalign)
+    ggplot2::coord_cartesian(
+      xlim = c(yr_min - 0.5, yr_max + 0.5),
+      ylim = c(y0, y1),
+      expand = FALSE,
+      clip = "on"
+    )
 
-  tighten_panel(p, mt = 1, mr = 1, mb = 1, ml = 1)
+  tighten_panel(p, 1, 1, 1, 1)
 }
+
+
 
 # --- A2 Lorenz curve + Gini ------------------------------------------------- #
 panel_A2_lorenz <- function(df, citations, theme_ieee) {
@@ -527,7 +572,7 @@ m1i_plot_eda_3x3 <- function(df, eda,
   theme_ieee <- m1i_theme_ieee(8)
 
   # Build panels
-  pA1 <- panel_A1_docs(df, eda$overview, theme_ieee)
+  pA1 <- panel_A1_docs(df, eda$overview, theme_ieee) + ggplot2::theme(plot.margin = ggplot2::margin(0,0,0,0))
   pA2 <- panel_A2_lorenz(df, eda$citations, theme_ieee)
   pA3 <- panel_A3_citations(df, theme_ieee)
 
@@ -545,7 +590,7 @@ m1i_plot_eda_3x3 <- function(df, eda,
   # Uniform title alignment + safe margins; optional panel borders
   dbg <- if (debug_frames) theme(panel.border = element_rect(colour = "black", fill = NA, linewidth = 0.4)) else theme()
   norm_title <- function(p) m1i_title_align(p, align = title_align, right_pad = 8, top_pad = 4)
-  norm <- function(p) norm_title(p) + theme(plot.margin = margin(6,6,6,6)) + dbg
+  norm <- function(p) norm_title(p) + theme(plot.margin = margin(0,0,0,0)) + dbg
 
   plots <- lapply(list(pA1,pA2,pA3,pB1,pB2,pB3,pC1,pC2,pC3), norm)
 
