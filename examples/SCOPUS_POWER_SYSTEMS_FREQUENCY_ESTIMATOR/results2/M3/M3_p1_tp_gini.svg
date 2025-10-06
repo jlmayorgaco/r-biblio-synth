@@ -1,0 +1,64 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<svg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' class='svglite' width='216.00pt' height='144.00pt' viewBox='0 0 216.00 144.00'>
+<defs>
+  <style type='text/css'><![CDATA[
+    .svglite line, .svglite polyline, .svglite polygon, .svglite path, .svglite rect, .svglite circle {
+      fill: none;
+      stroke: #000000;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-miterlimit: 10.00;
+    }
+    .svglite text {
+      white-space: pre;
+    }
+  ]]></style>
+</defs>
+<rect width='100%' height='100%' style='stroke: none; fill: none;'/>
+<defs>
+  <clipPath id='cpMC4wMHwyMTYuMDB8MC4wMHwxNDQuMDA='>
+    <rect x='0.00' y='0.00' width='216.00' height='144.00' />
+  </clipPath>
+</defs>
+<g clip-path='url(#cpMC4wMHwyMTYuMDB8MC4wMHwxNDQuMDA=)'>
+</g>
+<defs>
+  <clipPath id='cpMjMuNDd8MjEwLjMzfDIwLjQyfDExNS42Mw=='>
+    <rect x='23.47' y='20.42' width='186.86' height='95.21' />
+  </clipPath>
+</defs>
+<g clip-path='url(#cpMjMuNDd8MjEwLjMzfDIwLjQyfDExNS42Mw==)'>
+<polyline points='23.47,111.31 210.33,111.31 ' style='stroke-width: 0.64; stroke: #CCCCCC; stroke-linecap: butt;' />
+<polyline points='23.47,89.67 210.33,89.67 ' style='stroke-width: 0.64; stroke: #CCCCCC; stroke-linecap: butt;' />
+<polyline points='23.47,68.03 210.33,68.03 ' style='stroke-width: 0.64; stroke: #CCCCCC; stroke-linecap: butt;' />
+<polyline points='23.47,46.39 210.33,46.39 ' style='stroke-width: 0.64; stroke: #CCCCCC; stroke-linecap: butt;' />
+<polyline points='23.47,24.75 210.33,24.75 ' style='stroke-width: 0.64; stroke: #CCCCCC; stroke-linecap: butt;' />
+<polyline points='31.96,111.31 34.06,111.27 36.15,111.23 38.25,111.19 40.35,111.16 42.45,111.12 44.54,111.08 46.64,111.05 48.74,111.01 50.84,110.97 52.93,110.93 55.03,110.90 57.13,110.82 59.22,110.75 61.32,110.67 63.42,110.60 65.52,110.52 67.61,110.45 69.71,110.37 71.81,110.30 73.91,110.19 76.00,110.07 78.10,109.92 80.20,109.78 82.29,109.63 84.39,109.48 86.49,109.33 88.59,109.14 90.68,108.95 92.78,108.77 94.88,108.54 96.97,108.32 99.07,108.10 101.17,107.87 103.27,107.61 105.36,107.35 107.46,107.09 109.56,106.83 111.66,106.53 113.75,106.23 115.85,105.85 117.95,105.48 120.04,105.11 122.14,104.70 124.24,104.25 126.34,103.80 128.43,103.32 130.53,102.83 132.63,102.34 134.73,101.82 136.82,101.26 138.92,100.66 141.02,100.03 143.11,99.36 145.21,98.65 147.31,97.94 149.41,97.15 151.50,96.37 153.60,95.55 155.70,94.69 157.79,93.79 159.89,92.86 161.99,91.85 164.09,90.84 166.18,89.84 168.28,88.79 170.38,87.56 172.48,86.14 174.57,84.57 176.67,82.93 178.77,81.25 180.86,79.46 182.96,77.48 185.06,74.94 187.16,71.88 189.25,68.78 191.35,65.34 193.45,61.87 195.55,57.57 197.64,52.31 199.74,39.39 201.84,24.75 ' style='stroke-width: 1.07; stroke-linecap: butt;' />
+<line x1='-163.40' y1='210.84' x2='397.20' y2='-74.79' style='stroke-width: 0.85; stroke-dasharray: 4.55,4.55; stroke-linecap: butt;' />
+<rect x='23.47' y='20.42' width='186.86' height='95.21' style='stroke-width: 0.64;' />
+</g>
+<g clip-path='url(#cpMC4wMHwyMTYuMDB8MC4wMHwxNDQuMDA=)'>
+<text x='19.68' y='113.96' text-anchor='end' style='font-size: 8.00px; font-family: "Times New Roman";' textLength='14.01px' lengthAdjust='spacingAndGlyphs'>0.00</text>
+<text x='19.68' y='92.32' text-anchor='end' style='font-size: 8.00px; font-family: "Times New Roman";' textLength='14.01px' lengthAdjust='spacingAndGlyphs'>0.25</text>
+<text x='19.68' y='70.68' text-anchor='end' style='font-size: 8.00px; font-family: "Times New Roman";' textLength='14.01px' lengthAdjust='spacingAndGlyphs'>0.50</text>
+<text x='19.68' y='49.04' text-anchor='end' style='font-size: 8.00px; font-family: "Times New Roman";' textLength='14.01px' lengthAdjust='spacingAndGlyphs'>0.75</text>
+<text x='19.68' y='27.40' text-anchor='end' style='font-size: 8.00px; font-family: "Times New Roman";' textLength='14.01px' lengthAdjust='spacingAndGlyphs'>1.00</text>
+<polyline points='21.47,111.31 23.47,111.31 ' style='stroke-width: 0.64; stroke-linecap: butt;' />
+<polyline points='21.47,89.67 23.47,89.67 ' style='stroke-width: 0.64; stroke-linecap: butt;' />
+<polyline points='21.47,68.03 23.47,68.03 ' style='stroke-width: 0.64; stroke-linecap: butt;' />
+<polyline points='21.47,46.39 23.47,46.39 ' style='stroke-width: 0.64; stroke-linecap: butt;' />
+<polyline points='21.47,24.75 23.47,24.75 ' style='stroke-width: 0.64; stroke-linecap: butt;' />
+<polyline points='31.96,117.63 31.96,115.63 ' style='stroke-width: 0.64; stroke-linecap: butt;' />
+<polyline points='74.43,117.63 74.43,115.63 ' style='stroke-width: 0.64; stroke-linecap: butt;' />
+<polyline points='116.90,117.63 116.90,115.63 ' style='stroke-width: 0.64; stroke-linecap: butt;' />
+<polyline points='159.37,117.63 159.37,115.63 ' style='stroke-width: 0.64; stroke-linecap: butt;' />
+<polyline points='201.84,117.63 201.84,115.63 ' style='stroke-width: 0.64; stroke-linecap: butt;' />
+<text x='31.96' y='124.72' text-anchor='middle' style='font-size: 8.00px; font-family: "Times New Roman";' textLength='14.01px' lengthAdjust='spacingAndGlyphs'>0.00</text>
+<text x='74.43' y='124.72' text-anchor='middle' style='font-size: 8.00px; font-family: "Times New Roman";' textLength='14.01px' lengthAdjust='spacingAndGlyphs'>0.25</text>
+<text x='116.90' y='124.72' text-anchor='middle' style='font-size: 8.00px; font-family: "Times New Roman";' textLength='14.01px' lengthAdjust='spacingAndGlyphs'>0.50</text>
+<text x='159.37' y='124.72' text-anchor='middle' style='font-size: 8.00px; font-family: "Times New Roman";' textLength='14.01px' lengthAdjust='spacingAndGlyphs'>0.75</text>
+<text x='201.84' y='124.72' text-anchor='middle' style='font-size: 8.00px; font-family: "Times New Roman";' textLength='14.01px' lengthAdjust='spacingAndGlyphs'>1.00</text>
+<text x='116.90' y='137.36' text-anchor='middle' style='font-size: 9.00px; font-family: "Times New Roman";' textLength='108.22px' lengthAdjust='spacingAndGlyphs'>Cumulative share of countries</text>
+<text x='116.90' y='13.37' text-anchor='middle' style='font-size: 10.00px; font-weight: bold; font-family: "Times New Roman";' textLength='114.09px' lengthAdjust='spacingAndGlyphs'>Publications (Gini = 0.706)</text>
+</g>
+</svg>
