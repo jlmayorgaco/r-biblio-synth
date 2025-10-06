@@ -1,0 +1,160 @@
+{
+  "I: High TC, High TCperYear": [
+    {
+      "Paper": "YE H, 2018, IEEE WIRELESS COMMUN LETT COMPUT SCI RES DEVEL DEV",
+      "DOI": "10.1109/LWC.2017.2757490 10.1007/s00450-016-0312-9",
+      "TC": 1357,
+      "TCperYear": 169.6,
+      "NTC": 47.09,
+      "PaperID": "[691]",
+      "region": "I: High TC, High TCperYear",
+      "description": {
+        "category": "New Classics",
+        "sentence": "Recent studies have incorporated the category 'classic' to describe rapidly rising papers that generate novel and successful research.",
+        "citation": "Bornmann & Marx (2014), 'How Good is Research Really?'",
+        "explanation": "This region captures emerging classics—recent publications that are quickly gaining traction and establishing themselves as key references."
+      }
+    },
+    {
+      "Paper": "WOO A, 2003, SENSYS PROC FIRST INT CONF EMBEDDED NETWORKED SENSOR SYST",
+      "DOI": "10.1145/958491.958494",
+      "TC": 1144,
+      "TCperYear": 49.7,
+      "NTC": 17.05,
+      "PaperID": "[1657]",
+      "region": "I: High TC, High TCperYear",
+      "description": {
+        "category": "New Classics",
+        "sentence": "Recent studies have incorporated the category 'classic' to describe rapidly rising papers that generate novel and successful research.",
+        "citation": "Bornmann & Marx (2014), 'How Good is Research Really?'",
+        "explanation": "This region captures emerging classics—recent publications that are quickly gaining traction and establishing themselves as key references."
+      }
+    }
+  ],
+  "II: High TC, Low TCperYear": [
+    {
+      "Paper": "MALINOWSKI M, 2004, IEEE TRANS IND ELECTRON",
+      "DOI": "10.1109/TIE.2004.825278",
+      "TC": 687,
+      "TCperYear": 31.2,
+      "NTC": 18.57,
+      "PaperID": "[1669]",
+      "region": "II: High TC, Low TCperYear",
+      "description": {
+        "category": "Classics",
+        "sentence": "Classics are often described as seminal papers that form the foundation of a field and have sustained influence over time.",
+        "citation": "Small (1973), 'Co-Citation in the Scientific Literature'",
+        "explanation": "This region represents established classics that remain highly cited but whose citation growth has slowed as their foundational contributions become widely accepted."
+      }
+    }
+  ],
+  "III: Low TC, High TCperYear": [
+    {
+      "Paper": "LI Y, 2017, IEEE TRANS SIGNAL PROCESS",
+      "DOI": "10.1109/TSP.2017.2706179",
+      "TC": 384,
+      "TCperYear": 42.7,
+      "NTC": 19.12,
+      "PaperID": "[607]",
+      "region": "III: Low TC, High TCperYear",
+      "description": {
+        "category": "Rising Stars",
+        "sentence": "Citation patterns show a fast accumulation of citations in early years, indicative of emerging influential works.",
+        "citation": "Ke et al. (2015), 'Defining and Identifying Sleeping Beauties in Science'",
+        "explanation": "These papers recently started gaining recognition after a period of relative obscurity, aligning with the concept of 'Sleeping Beauties.'"
+      }
+    }
+  ],
+  "IV: Low TC, Low TCperYear": [
+    {
+      "Paper": "MINN H, 2003, IEEE TRANS WIRELESS COMMUN",
+      "DOI": "10.1109/TWC.2003.814346",
+      "TC": 594,
+      "TCperYear": 25.8,
+      "NTC": 8.86,
+      "PaperID": "[1661]",
+      "region": "IV: Low TC, Low TCperYear",
+      "description": {
+        "category": "Forgotten Papers",
+        "sentence": "Certain papers receive fewer citations due to their niche focus or conceptual absorption into the field's common knowledge.",
+        "citation": "Merton (1965), 'On the Shoulders of Giants'",
+        "explanation": "These papers were influential at some point but have faded from prominence over time, often due to shifts in research focus."
+      }
+    },
+    {
+      "Paper": "KEMP B, 2000, IEEE TRANS BIOMED ENG",
+      "DOI": "10.1109/10.867928",
+      "TC": 549,
+      "TCperYear": 21.1,
+      "NTC": 11.37,
+      "PaperID": "[1684]",
+      "region": "IV: Low TC, Low TCperYear",
+      "description": {
+        "category": "Forgotten Papers",
+        "sentence": "Certain papers receive fewer citations due to their niche focus or conceptual absorption into the field's common knowledge.",
+        "citation": "Merton (1965), 'On the Shoulders of Giants'",
+        "explanation": "These papers were influential at some point but have faded from prominence over time, often due to shifts in research focus."
+      }
+    },
+    {
+      "Paper": "TAROKH V, 1999, IEEE TRANS COMMUN",
+      "DOI": "10.1109/26.752125",
+      "TC": 477,
+      "TCperYear": 17.7,
+      "NTC": 9.77,
+      "PaperID": "[1722]",
+      "region": "IV: Low TC, Low TCperYear",
+      "description": {
+        "category": "Forgotten Papers",
+        "sentence": "Certain papers receive fewer citations due to their niche focus or conceptual absorption into the field's common knowledge.",
+        "citation": "Merton (1965), 'On the Shoulders of Giants'",
+        "explanation": "These papers were influential at some point but have faded from prominence over time, often due to shifts in research focus."
+      }
+    },
+    {
+      "Paper": "BAZERQUE JA, 2010, IEEE TRANS SIGNAL PROCESS",
+      "DOI": "10.1109/TSP.2009.2038417",
+      "TC": 399,
+      "TCperYear": 24.9,
+      "NTC": 23.88,
+      "PaperID": "[1250]",
+      "region": "IV: Low TC, Low TCperYear",
+      "description": {
+        "category": "Forgotten Papers",
+        "sentence": "Certain papers receive fewer citations due to their niche focus or conceptual absorption into the field's common knowledge.",
+        "citation": "Merton (1965), 'On the Shoulders of Giants'",
+        "explanation": "These papers were influential at some point but have faded from prominence over time, often due to shifts in research focus."
+      }
+    },
+    {
+      "Paper": "BÖLCSKEI H, 2001, IEEE TRANS COMMUN",
+      "DOI": "10.1109/26.930629",
+      "TC": 322,
+      "TCperYear": 12.9,
+      "NTC": 9.08,
+      "PaperID": "[1748]",
+      "region": "IV: Low TC, Low TCperYear",
+      "description": {
+        "category": "Forgotten Papers",
+        "sentence": "Certain papers receive fewer citations due to their niche focus or conceptual absorption into the field's common knowledge.",
+        "citation": "Merton (1965), 'On the Shoulders of Giants'",
+        "explanation": "These papers were influential at some point but have faded from prominence over time, often due to shifts in research focus."
+      }
+    },
+    {
+      "Paper": "PRODANOVIĆ M, 2003, IEEE TRANS POWER ELECTRON",
+      "DOI": "10.1109/TPEL.2002.807166",
+      "TC": 293,
+      "TCperYear": 12.7,
+      "NTC": 4.37,
+      "PaperID": "[1682]",
+      "region": "IV: Low TC, Low TCperYear",
+      "description": {
+        "category": "Forgotten Papers",
+        "sentence": "Certain papers receive fewer citations due to their niche focus or conceptual absorption into the field's common knowledge.",
+        "citation": "Merton (1965), 'On the Shoulders of Giants'",
+        "explanation": "These papers were influential at some point but have faded from prominence over time, often due to shifts in research focus."
+      }
+    }
+  ]
+}
