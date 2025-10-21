@@ -1,0 +1,32 @@
+{
+  "identification": {
+    "records_scopus": 1864,
+    "records_wos": 10178,
+    "records_identified": 12042
+  },
+  "removed_before_screening": {
+    "duplicates": 259,
+    "ineligible_by_automation": 0,
+    "other": 0
+  },
+  "screening": {
+    "records_screened": 17,
+    "records_excluded": 4
+  },
+  "eligibility": {
+    "reports_sought": "NA",
+    "reports_not_retrieved": "NA",
+    "reports_assessed_for_eligibility": "NA",
+    "reports_excluded": {
+      "total": "NA",
+      "reasons": []
+    }
+  },
+  "included": {
+    "studies_included_in_review": 13
+  },
+  "notes": {
+    "source": "R BiblioSynth",
+    "generated_at": "2025-10-12 22:21:05.797927"
+  }
+}
