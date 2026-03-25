@@ -27,3 +27,8 @@ test_that("get_available_modules contains m1", {
   modules <- get_available_modules()
   expect_true("m1" %in% modules)
 })
+
+test_that("new_artifact_manifest returns correct class", {
+  manifest <- new_artifact_manifest()
+  expect_true(inherits(manifest, "biblio_artifact_manifest"))
+})

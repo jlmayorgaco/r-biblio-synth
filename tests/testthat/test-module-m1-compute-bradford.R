@@ -1,19 +1,20 @@
 # ============================================================================
-# test-module-m1-compute-bradford.R - Tests for M1 compute bradford
+# test-module-m1-compute-bradford.R
 # ============================================================================
 
 context("module m1 - compute bradford")
 
-test_that("compute_m1_bradford exists", {
-  expect_true(is.function(compute_m1_bradford))
-})
-
-test_that("compute_m1_bradford returns a list", {
-  result <- compute_m1_bradford()
+test_that("compute_m1_bradford returns list with status", {
+  fixture <- make_extended_biblio_fixture()
+  result <- compute_m1_bradford(fixture)
   expect_type(result, "list")
+  expect_true("status" %in% names(result))
+  expect_equal(result$status, "success")
 })
 
-test_that("compute_m1_bradford contains status", {
-  result <- compute_m1_bradford()
-  expect_true("status" %in% names(result))
+test_that("compute_m1_bradford returns bradford_table", {
+  fixture <- make_extended_biblio_fixture()
+  result <- compute_m1_bradford(fixture)
+  expect_true("bradford_table" %in% names(result))
+  expect_true(nrow(result$bradford_table) > 0)
 })

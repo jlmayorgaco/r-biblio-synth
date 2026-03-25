@@ -1,0 +1,254 @@
+
+R version 4.5.3 (2026-03-11 ucrt) -- "Reassured Reassurer"
+Copyright (C) 2026 The R Foundation for Statistical Computing
+Platform: x86_64-w64-mingw32/x64
+
+R es un software libre y viene sin GARANTIA ALGUNA.
+Usted puede redistribuirlo bajo ciertas circunstancias.
+Escriba 'license()' o 'licence()' para detalles de distribucion.
+
+R es un proyecto colaborativo con muchos contribuyentes.
+Escriba 'contributors()' para obtener más información y
+'citation()' para saber cómo citar R o paquetes de R en publicaciones.
+
+Escriba 'demo()' para demostraciones, 'help()' para el sistema on-line de ayuda,
+o 'help.start()' para abrir el sistema de ayuda HTML con su navegador.
+Escriba 'q()' para salir de R.
+
+> # ============================================================================
+> # test_m1.R - Full M1 integration test
+> # ============================================================================
+> 
+> .libPaths('C:/Users/walla/Documents/R/win-library/4.5')
+> library(cli)
+> library(ggplot2)
+> library(jsonlite)
+> library(tibble)
+> library(dplyr)
+
+Adjuntando el paquete: 'dplyr'
+
+The following objects are masked from 'package:stats':
+
+    filter, lag
+
+The following objects are masked from 'package:base':
+
+    intersect, setdiff, setequal, union
+
+> library(tidyr)
+> library(bibliometrix)
+Please note that our software is open source and available for use, distributed under the MIT license.
+When it is used in a publication, we ask that authors properly cite the following reference:
+
+Aria, M. & Cuccurullo, C. (2017) bibliometrix: An R-tool for comprehensive science mapping analysis,
+                        Journal of Informetrics, 11(4), pp 959-975, Elsevier.
+
+Failure to properly cite the software is considered a violation of the license.
+                        
+For information and bug reports:
+                        - Take a look at https://www.bibliometrix.org
+                        - Send an email to info@bibliometrix.org
+                        - Write a post on https://github.com/massimoaria/bibliometrix/issues
+                        
+Help us to keep Bibliometrix and Biblioshiny free to download and use by contributing with a small donation to support our research team (https://bibliometrix.org/donate.html)
+
+                        
+To start with the Biblioshiny app, please digit:
+biblioshiny()
+
+> library(stopwords)
+> library(scales)
+> library(stats)
+> 
+> # Source all R files
+> for (f in list.files('R/', pattern = '\\.R$', recursive = TRUE, full.names = TRUE)) {
++   source(f)
++ }
+> 
+> # Source test fixtures
+> source('tests/testthat/helper-fixtures.R')
+> 
+> cat('\n========================================\n')
+
+========================================
+> cat('RBiblioSynth M1 Integration Test\n')
+RBiblioSynth M1 Integration Test
+> cat('========================================\n\n')
+========================================
+
+> 
+> # Create extended fixture
+> fixture <- make_extended_biblio_fixture()
+> cat('Fixture created:', nrow(fixture), 'rows\n')
+Fixture created: 5 rows
+> 
+> # Validate
+> validation <- validate_m1_input(fixture)
+> cat('Validation OK:', validation$ok, '\n\n')
+Validation OK: TRUE 
+
+> 
+> # Compute all metrics
+> cat('--- Computing metrics ---\n')
+--- Computing metrics ---
+> 
+> overview <- compute_m1_overview(fixture)
+Aviso:
+Unknown or uninitialised column: `DB`. 
+> cat('Overview:', overview$status, '\n')
+Overview: success 
+> 
+> doc_types <- compute_m1_doc_types(fixture)
+Aviso:
+Unknown or uninitialised column: `DB`. 
+> cat('Doc types:', doc_types$status, '- rows:', nrow(doc_types$doc_type_table), '\n')
+Doc types: success - rows: 2 
+> 
+> authors <- compute_m1_authors(fixture)
+Aviso:
+Unknown or uninitialised column: `DB`. 
+> cat('Authors:', authors$status, '- top:', nrow(authors$top_authors), '\n')
+Authors: success - top: 8 
+> 
+> citations <- compute_m1_citations(fixture)
+Aviso:
+Unknown or uninitialised column: `DB`. 
+> cat('Citations:', citations$status, '- top cited:', nrow(citations$top_cited_documents), '\n')
+Citations: success - top cited: 5 
+> 
+> countries <- compute_m1_countries(fixture)
+Aviso:
+Unknown or uninitialised column: `DB`. 
+> cat('Countries:', countries$status, '\n')
+Countries: success 
+> 
+> sources <- compute_m1_sources(fixture)
+Aviso:
+Unknown or uninitialised column: `DB`. 
+> cat('Sources:', sources$status, '- top:', nrow(sources$top_sources), '\n')
+Sources: success - top: 3 
+> 
+> keywords <- compute_m1_keywords(fixture)
+Aviso:
+Unknown or uninitialised column: `DB`. 
+> cat('Keywords:', keywords$status, '- top:', nrow(keywords$top_keywords), '\n')
+Keywords: success - top: 10 
+> 
+> bradford <- compute_m1_bradford(fixture)
+> cat('Bradford:', bradford$status, '- zones:', nrow(bradford$bradford_table), '\n')
+Bradford: success - zones: 3 
+> 
+> # Render plots
+> cat('\n--- Rendering plots ---\n')
+
+--- Rendering plots ---
+> 
+> plots_doc <- render_m1_doc_types(doc_types)
+> cat('Doc types plots:', plots_doc$status, '- plots:', length(plots_doc$plots), '\n')
+Doc types plots: success - plots: 2 
+> 
+> plots_auth <- render_m1_authors(authors)
+> cat('Authors plots:', plots_auth$status, '- plots:', length(plots_auth$plots), '\n')
+Authors plots: success - plots: 2 
+> 
+> plots_cit <- render_m1_citations(citations)
+> cat('Citations plots:', plots_cit$status, '- plots:', length(plots_cit$plots), '\n')
+Citations plots: success - plots: 1 
+> 
+> plots_src <- render_m1_sources(sources)
+> cat('Sources plots:', plots_src$status, '- plots:', length(plots_src$plots), '\n')
+Sources plots: success - plots: 2 
+> 
+> plots_kw <- render_m1_keywords(keywords)
+> cat('Keywords plots:', plots_kw$status, '- plots:', length(plots_kw$plots), '\n')
+Keywords plots: success - plots: 1 
+> 
+> plots_bf <- render_m1_bradford(bradford)
+> cat('Bradford plots:', plots_bf$status, '- plots:', length(plots_bf$plots), '\n')
+Bradford plots: success - plots: 1 
+> 
+> # Build tables
+> cat('\n--- Building tables ---\n')
+
+--- Building tables ---
+> 
+> tbl_overview <- build_m1_overview_table(overview)
+> cat('Overview table:', tbl_overview$status, '- rows:', nrow(tbl_overview$table), '\n')
+Overview table: success - rows: 4 
+> 
+> tbl_doc <- build_m1_doc_types_table(doc_types)
+> cat('Doc types table:', tbl_doc$status, '- rows:', nrow(tbl_doc$table), '\n')
+Doc types table: success - rows: 2 
+> 
+> # Run full M1 pipeline
+> cat('\n--- Running full M1 pipeline ---\n')
+
+--- Running full M1 pipeline ---
+> 
+> tmp <- tempdir()
+> cfg <- list(output_dir = file.path(tmp, 'm1_test_output'))
+> 
+> result <- run_m1(fixture, config = cfg, export = TRUE)
+ℹ JSON saved: C:\Users\walla\AppData\Local\Temp\RtmpgPEopT/m1_test_output/m1/json/m1_overview.json
+ℹ JSON saved: C:\Users\walla\AppData\Local\Temp\RtmpgPEopT/m1_test_output/m1/json/m1_doc_types.json
+ℹ JSON saved: C:\Users\walla\AppData\Local\Temp\RtmpgPEopT/m1_test_output/m1/json/m1_authors.json
+ℹ JSON saved: C:\Users\walla\AppData\Local\Temp\RtmpgPEopT/m1_test_output/m1/json/m1_citations.json
+ℹ JSON saved: C:\Users\walla\AppData\Local\Temp\RtmpgPEopT/m1_test_output/m1/json/m1_countries.json
+ℹ JSON saved: C:\Users\walla\AppData\Local\Temp\RtmpgPEopT/m1_test_output/m1/json/m1_sources.json
+ℹ JSON saved: C:\Users\walla\AppData\Local\Temp\RtmpgPEopT/m1_test_output/m1/json/m1_keywords.json
+ℹ JSON saved: C:\Users\walla\AppData\Local\Temp\RtmpgPEopT/m1_test_output/m1/json/m1_bradford.json
+ℹ Report saved: C:\Users\walla\AppData\Local\Temp\RtmpgPEopT/m1_test_output/m1/reports/m1_report.txt
+Avisos:
+1: Unknown or uninitialised column: `DB`. 
+2: Unknown or uninitialised column: `DB`. 
+3: Unknown or uninitialised column: `DB`. 
+4: Unknown or uninitialised column: `DB`. 
+5: Unknown or uninitialised column: `DB`. 
+6: Unknown or uninitialised column: `DB`. 
+7: Unknown or uninitialised column: `DB`. 
+> 
+> cat('\nResult class:', class(result), '\n')
+
+Result class: biblio_module_result list 
+> cat('Result status:', result$status, '\n')
+Result status: success 
+> cat('Data slots:', names(result$data), '\n')
+Data slots: overview doc_types authors citations countries sources keywords bradford 
+> cat('Artifact types:', names(result$artifacts), '\n')
+Artifact types: plots tables files reports manifest 
+> cat('Has manifest:', 'manifest' %in% names(result$artifacts), '\n')
+Has manifest: TRUE 
+> 
+> # Verify legacy compatibility
+> cat('\n--- Legacy compatibility check ---\n')
+
+--- Legacy compatibility check ---
+> cat('overview has main_indicators:', 'main_indicators' %in% names(result$data$overview), '\n')
+overview has main_indicators: TRUE 
+> cat('doc_types has doc_type_table:', 'doc_type_table' %in% names(result$data$doc_types), '\n')
+doc_types has doc_type_table: TRUE 
+> cat('authors has top_authors:', 'top_authors' %in% names(result$data$authors), '\n')
+authors has top_authors: TRUE 
+> cat('citations has top_cited_documents:', 'top_cited_documents' %in% names(result$data$citations), '\n')
+citations has top_cited_documents: TRUE 
+> cat('countries has top_countries_by_articles:', 'top_countries_by_articles' %in% names(result$data$countries), '\n')
+countries has top_countries_by_articles: TRUE 
+> cat('sources has top_sources:', 'top_sources' %in% names(result$data$sources), '\n')
+sources has top_sources: TRUE 
+> cat('keywords has top_keywords:', 'top_keywords' %in% names(result$data$keywords), '\n')
+keywords has top_keywords: TRUE 
+> cat('bradford has bradford_table:', 'bradford_table' %in% names(result$data$bradford), '\n')
+bradford has bradford_table: TRUE 
+> 
+> cat('\n========================================\n')
+
+========================================
+> cat('M1 Integration Test PASSED!\n')
+M1 Integration Test PASSED!
+> cat('========================================\n')
+========================================
+> 
+> proc.time()
+   user  system elapsed 
+  10.82    0.84   12.95 

@@ -11,6 +11,13 @@ test_that("validate_m1_input succeeds on minimal fixture", {
   expect_equal(result$n_rows, 3)
 })
 
+test_that("validate_m1_input succeeds on extended fixture", {
+  fixture <- make_extended_biblio_fixture()
+  result <- validate_m1_input(fixture)
+  expect_true(result$ok)
+  expect_equal(result$n_rows, 5)
+})
+
 test_that("validate_m1_input detects missing columns", {
   fixture <- tibble::tibble(x = 1, y = 2)
   result <- validate_m1_input(fixture)
