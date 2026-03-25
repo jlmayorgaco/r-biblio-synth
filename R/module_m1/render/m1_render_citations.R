@@ -53,6 +53,12 @@ render_m1_citations <- function(result, config = biblio_config()) {
         plot.title = ggplot2::element_text(size = 14, face = "bold", hjust = 0.5)
       )
     plots$citations_per_year <- cpy_plot
+
+    # Dual bar+line plot (legacy F4d feature)
+    dual_plot <- m1_render_citations_dual_plot(top_cited, cpy, palette)
+    if (!is.null(dual_plot)) {
+      plots$dual_bar_line <- dual_plot
+    }
   }
 
   list(
@@ -60,4 +66,41 @@ render_m1_citations <- function(result, config = biblio_config()) {
     plots  = plots,
     tables = list()
   )
+}
+
+#' Generate dual bar+line plot for citations
+#'
+#' Creates a bar plot with TC and overlays TCperYear as a line on secondary axis.
+#'
+#' @param top_cited Data frame with rank, label, value columns.
+#' @param cpy Data frame with rank, label, value columns for citations per year.
+#' @param palette Color palette.
+#' @return A ggplot object or NULL.
+m1_render_citations_dual_plot <- function(top_cited, cpy, palette) {
+  # Merge data
+  merged <- merge(top_cited, cpy, by = "label", suffixes = c("_tc", "_cpy"))
+  if (nrow(merged) == 0) return(NULL)
+
+  ggplot2::ggplot(merged, ggplot2::aes(x = reorder(label, value_tc))) +
+    ggplot2::geom_bar(ggplot2::aes(y = value_tc), stat = "identity",
+                      fill = palette[1], color = "black", linewidth = 0.3) +
+    ggplot2::geom_line(ggplot2::aes(y = value_cpy * max(value_tc) / max(value_cpy), group = 1),
+                       color = palette[2], linewidth = 1.2) +
+    ggplot2::geom_point(ggplot2::aes(y = value_cpy * max(value_tc) / max(value_cpy)),
+                        color = palette[2], size = 3) +
+    ggplot2::coord_flip() +
+    ggplot2::scale_y_continuous(
+      name = "Total Citations",
+      sec.axis = ggplot2::sec_axis(~ . * max(merged$value_cpy) / max(merged$value_tc),
+                                   name = "Citations per Year")
+    ) +
+    ggplot2::labs(
+      title = "Top Cited Papers with TC per Year",
+      x = "Paper"
+    ) +
+    ggplot2::theme_minimal() +
+    ggplot2::theme(
+      plot.title = ggplot2::element_text(size = 14, face = "bold", hjust = 0.5),
+      axis.text = ggplot2::element_text(size = 10)
+    )
 }

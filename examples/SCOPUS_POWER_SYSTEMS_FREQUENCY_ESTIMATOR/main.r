@@ -1,38 +1,104 @@
+# ============================================================================
+# examples/SCOPUS_POWER_SYSTEMS_FREQUENCY_ESTIMATOR/main.r
+# RBiblioSynth - New Architecture Example
+# ============================================================================
+
 # --------------------------------------------------- #
-# -- SystematicReview.r ----------------------------- #
+# Configuration
+# --------------------------------------------------- #
+config <- list(
+  output_dir    = "results",
+  export_plots  = TRUE,
+  export_json   = TRUE,
+  export_reports = TRUE,
+  dpi           = 600,
+  verbose       = TRUE
+)
+
+# --------------------------------------------------- #
+# Load Data
+# --------------------------------------------------- #
+cat("Loading bibliographic data...\n")
+
+# Try different methods to load scopus.bib
+bib_data <- tryCatch({
+  # Method 1: Direct convert2df
+  bibliometrix::convert2df(
+    file = "data/scopus.bib",
+    dbsource = "scopus",
+    format = "bibtex"
+  )
+}, error = function(e1) {
+  cat("Method 1 failed, trying readFiles...\n")
+  tryCatch({
+    # Method 2: readFiles + convert2df
+    raw <- bibliometrix::readFiles("data/scopus.bib")
+    bibliometrix::convert2df(raw, dbsource = "scopus", format = "bibtex")
+  }, error = function(e2) {
+    cat("Method 2 failed, trying direct read...\n")
+    # Method 3: Direct read
+    raw_lines <- readLines("data/scopus.bib", warn = FALSE)
+    bib_text <- paste(raw_lines, collapse = "\n")
+    bibliometrix::convert2df(bib_text, dbsource = "scopus", format = "bibtex")
+  })
+})
+
+cat("Loaded", nrow(bib_data), "documents with", ncol(bib_data), "columns\n")
+
+# --------------------------------------------------- #
+# Run M1: Main Information
+# --------------------------------------------------- #
+cat("\n=== Running M1: Main Information ===\n")
+
+m1_result <- run_m1(bib_data, config = config, export = TRUE)
+
+cat("\nM1 Status:", m1_result$status, "\n")
+cat("Data slots:", paste(names(m1_result$data), collapse = ", "), "\n")
+cat("Artifacts:", paste(names(m1_result$artifacts), collapse = ", "), "\n")
+
+# --------------------------------------------------- #
+# Access Results
 # --------------------------------------------------- #
 
-# Source the SystematicReview class definition
-source('../../src/SystematicReviewClass.r')
+# Overview
+cat("\n--- Overview ---\n")
+overview <- m1_result$data$overview$main_indicators
+cat("Timespan:", overview$timespan, "\n")
+cat("Documents:", overview$documents, "\n")
+cat("Sources:", overview$sources, "\n")
+cat("Authors:", overview$authors, "\n")
 
-# SystematicReview Class
-systematicReview <- SystematicReview$new()
+# Document Types
+cat("\n--- Document Types ---\n")
+print(m1_result$data$doc_types$doc_type_table)
 
-# Add Config Settings
-systematicReview$setBibPath("data/scopus.bib")
-systematicReview$setTitle("Power Systems Frequency Estimators from 1960 to 2023")
-systematicReview$setDate("Wednesday, July 10, 2024 1:50:56 AM")
-systematicReview$setQuery("TITLE-ABS-KEY ( power AND system AND frequency AND estimator ) from 1960 to 2023")
-systematicReview$setKeywords(c("power", "system", "frequency", "estimator"))
+# Top Authors
+cat("\n--- Top Authors ---\n")
+print(m1_result$data$authors$top_authors)
 
-# Load and Init Data
-systematicReview$init()
+# Top Citations
+cat("\n--- Top Cited Papers ---\n")
+print(m1_result$data$citations$top_cited_documents)
 
-# Check Status and Requirements
-systematicReview$do_m0_check_health_status()
-systematicReview$do_m0_check_required_columns()
-systematicReview$do_m0_cleaning_data()
+# Top Countries
+cat("\n--- Top Countries ---\n")
+print(m1_result$data$countries$top_countries_by_articles)
 
-# Modules
-systematicReview$do_m1_main_information()
-systematicReview$do_m2_author_prod_over_time_regression()
-# systematicReview$do_m3_authors()
-# systematicReview$do_m4_documents()
-# systematicReview$do_m5_clusterings()
-# systematicReview$do_m6_conceptual_structure()
-# systematicReview$do_m7_social_structure()
+# Top Sources
+cat("\n--- Top Sources ---\n")
+print(m1_result$data$sources$top_sources)
 
-# Create Report
-# systematicReview$do_m8_report()
+# Bradford
+cat("\n--- Bradford Zones ---\n")
+print(m1_result$data$bradford$zone_summary)
 
-# systematicReview$do_m9_save()
+# Manifest
+cat("\n--- Manifest ---\n")
+manifest <- m1_result$artifacts$manifest
+cat("Status:", manifest$status, "\n")
+cat("Plots:", length(manifest$plots), "\n")
+cat("JSONs:", length(manifest$files), "\n")
+cat("Reports:", length(manifest$reports), "\n")
+
+cat("\n=== M1 Complete ===\n")
+cat("Results saved to:", file.path(config$output_dir, "m1"), "\n")

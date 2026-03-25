@@ -1,0 +1,58 @@
+
+R version 4.5.3 (2026-03-11 ucrt) -- "Reassured Reassurer"
+Copyright (C) 2026 The R Foundation for Statistical Computing
+Platform: x86_64-w64-mingw32/x64
+
+R es un software libre y viene sin GARANTIA ALGUNA.
+Usted puede redistribuirlo bajo ciertas circunstancias.
+Escriba 'license()' o 'licence()' para detalles de distribucion.
+
+R es un proyecto colaborativo con muchos contribuyentes.
+Escriba 'contributors()' para obtener más información y
+'citation()' para saber cómo citar R o paquetes de R en publicaciones.
+
+Escriba 'demo()' para demostraciones, 'help()' para el sistema on-line de ayuda,
+o 'help.start()' para abrir el sistema de ayuda HTML con su navegador.
+Escriba 'q()' para salir de R.
+
+> # Run main.r with new architecture
+> .libPaths('C:/Users/walla/Documents/R/win-library/4.5')
+> 
+> # Source all package files
+> for (f in list.files('../../R/', pattern = '\\.R$', recursive = TRUE, full.names = TRUE)) {
++   source(f)
++ }
+> 
+> # Source main.r
+> source('main.r')
+Loading bibliographic data...
+
+Converting your scopus collection into a bibliographic dataframe
+
+Method 1 failed, trying readFiles...
+
+From version 3.0.0, the function readFiles has been dropped.
+Please use the function 'convert2df' to import and convert your export files
+Converting your scopus collection into a bibliographic dataframe
+
+Method 2 failed, trying direct read...
+
+Converting your scopus collection into a bibliographic dataframe
+
+Error en `[.data.frame`(bibtag, , "SCOPUS"): 
+  columnas no definidas seleccionadas
+Calls: source ... bib2df -> [ -> [.data.frame -> %in% -> [ -> [.data.frame
+Además: Avisos:
+1: In data("bibtag", envir = environment()) : data set 'bibtag' not found
+2: The `file` argument of `vroom()` must use `I()` for literal data as of vroom
+1.5.0.
+  
+  # Bad:
+  vroom("X,Y\n1.5,2.3\n")
+  
+  # Good:
+  vroom(I("X,Y\n1.5,2.3\n"))
+ℹ The deprecated feature was likely used in the readr package.
+  Please report the issue at <https://github.com/tidyverse/readr/issues>. 
+3: In data("bibtag", envir = environment()) : data set 'bibtag' not found
+Ejecución interrumpida

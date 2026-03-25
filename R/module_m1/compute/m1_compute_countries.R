@@ -6,7 +6,8 @@
 compute_m1_countries <- function(input, config = biblio_config()) {
   if (!is.data.frame(input) || nrow(input) == 0) {
     return(list(top_countries_by_articles = m1_empty_rank_table(), top_countries_by_citations = m1_empty_rank_table(),
-                scp_mcp_summary = tibble::tibble(), country_gini_articles = NA_real_, country_gini_citations = NA_real_, status = "error"))
+                avg_citations_by_country = m1_empty_rank_table(), scp_mcp_summary = tibble::tibble(),
+                country_gini_articles = NA_real_, country_gini_citations = NA_real_, status = "error"))
   }
 
   top_n <- config$top_n_countries
@@ -17,17 +18,7 @@ compute_m1_countries <- function(input, config = biblio_config()) {
     s <- summary(res, pause = FALSE, verbose = FALSE)
     list(most_prod = s$MostProdCountries, tc_per = s$TCperCountries)
   }, error = function(e) {
-    # Fallback: extract from C1 column
-    if ("C1" %in% names(input)) {
-      countries <- m1_extract_countries(input)
-      if (nrow(countries) > 0) {
-        list(most_prod = countries, tc_per = NULL)
-      } else {
-        list(most_prod = NULL, tc_per = NULL)
-      }
-    } else {
-      list(most_prod = NULL, tc_per = NULL)
-    }
+    list(most_prod = NULL, tc_per = NULL)
   })
 
   most_prod <- country_data$most_prod
@@ -54,7 +45,8 @@ compute_m1_countries <- function(input, config = biblio_config()) {
     country_gini_articles <- NA_real_
   }
 
-  # Top countries by citations
+  # Top countries by citations + avg citations
+  avg_citations_by_country <- m1_empty_rank_table()
   if (!is.null(tc_per) && nrow(tc_per) > 0) {
     colnames(tc_per) <- make.unique(colnames(tc_per))
     cit_col <- if ("Total Citations" %in% colnames(tc_per)) "Total Citations" else colnames(tc_per)[2]
@@ -69,6 +61,21 @@ compute_m1_countries <- function(input, config = biblio_config()) {
     )
     lorenz_cit <- m1_compute_lorenz(tc_per[[cit_col]])
     country_gini_citations <- m1_compute_gini(lorenz_cit$cumulative_x, lorenz_cit$cumulative_y)
+
+    # F5h - Average Article Citations per country
+    if ("Average Article Citations" %in% colnames(tc_per)) {
+      avg_col <- "Average Article Citations"
+      tc_per[[avg_col]] <- suppressWarnings(as.numeric(tc_per[[avg_col]]))
+      tc_per_avg <- tc_per[!is.na(tc_per[[avg_col]]), ]
+      tc_per_avg <- tc_per_avg[order(-tc_per_avg[[avg_col]]), ]
+      if (nrow(tc_per_avg) > 0) {
+        avg_citations_by_country <- tibble::tibble(
+          rank  = seq_len(min(top_n, nrow(tc_per_avg))),
+          label = tc_per_avg$Country[1:min(top_n, nrow(tc_per_avg))],
+          value = tc_per_avg[[avg_col]][1:min(top_n, nrow(tc_per_avg))]
+        )
+      }
+    }
   } else {
     top_countries_by_citations <- m1_empty_rank_table()
     country_gini_citations <- NA_real_
@@ -80,9 +87,10 @@ compute_m1_countries <- function(input, config = biblio_config()) {
     most_prod$MCP <- suppressWarnings(as.numeric(most_prod$MCP))
     most_prod <- most_prod[!is.na(most_prod$SCP) & !is.na(most_prod$MCP), ]
     n <- min(top_n, nrow(most_prod))
+    art_col2 <- if ("Articles" %in% colnames(most_prod)) "Articles" else colnames(most_prod)[2]
     scp_mcp <- tibble::tibble(
       rank = seq_len(n), country = most_prod$Country[1:n],
-      articles = most_prod[[if ("Articles" %in% colnames(most_prod)) "Articles" else colnames(most_prod)[2]]][1:n],
+      articles = most_prod[[art_col2]][1:n],
       scp = most_prod$SCP[1:n], mcp = most_prod$MCP[1:n],
       mcp_ratio = round(most_prod$MCP[1:n] / (most_prod$SCP[1:n] + most_prod$MCP[1:n]) * 100, 1)
     )
@@ -93,17 +101,9 @@ compute_m1_countries <- function(input, config = biblio_config()) {
   list(
     top_countries_by_articles = top_countries_by_articles,
     top_countries_by_citations = top_countries_by_citations,
+    avg_citations_by_country = avg_citations_by_country,
     scp_mcp_summary = scp_mcp, most_prod_countries = most_prod, tc_per_countries = tc_per,
     country_gini_articles = country_gini_articles, country_gini_citations = country_gini_citations,
     status = "success"
   )
-}
-
-#' Extract countries from C1 column
-#' @param input Data frame
-#' @return Data frame with Country and Articles columns
-m1_extract_countries <- function(input) {
-  if (!"C1" %in% names(input)) return(data.frame())
-  # This is a simplified extraction - real implementation would parse author addresses
-  data.frame()
 }
