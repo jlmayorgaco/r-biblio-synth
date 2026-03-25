@@ -1,0 +1,12 @@
+^archived$
+^_temp$
+^\.DS_Store$
+^examples/
+^data/
+^results/
+^README\.md$
+^CLAUDE\.md$
+^ROADMAP\.md$
+^PROMPT_CLEANUP\.md$
+^\.git$
+^\.gitignore$

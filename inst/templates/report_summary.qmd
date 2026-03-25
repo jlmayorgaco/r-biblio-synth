@@ -1,0 +1,34 @@
+---
+title: "Bibliometric Analysis Report"
+author: "RBiblioSynth"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+# Summary
+
+- **Total Documents**: `r params$n_documents`
+- **Year Range**: `r params$year_range[1]` - `r params$year_range[2]`
+- **Total Citations**: `r params$total_citations`
+- **Authors**: `r params$n_authors`
+- **Sources**: `r params$n_sources`
+
+# Main Findings
+
+## Most Productive Authors
+
+```{r}
+# Table of top authors
+```
+
+## Most Cited Papers
+
+```{r}
+# Table of top cited papers
+```
+
+## Publication Trends
+
+```{r}
+# Plot of publications over time
+```

@@ -1,0 +1,25 @@
+# R artifacts
+.RData
+.Rhistory
+.Rproj.user/
+*.Rproj
+
+# Generated output (not source)
+results/
+archived/
+
+# Package build artifacts
+*.tar.gz
+*.zip
+src-x64/
+src-i386/
+/doc/
+/Meta/
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+
+# Temp files
+*~
+*.swp

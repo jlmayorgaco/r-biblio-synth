@@ -1,0 +1,30 @@
+---
+title: "Report Tables"
+output: html_document
+---
+
+# Table Templates
+
+## Document Types
+
+| Document Type | Count | Percentage |
+|--------------|-------|------------|
+| Article | | |
+| Review | | |
+| Conference Paper | | |
+
+## Top Authors
+
+| Rank | Author | Articles | Citations |
+|------|--------|----------|-----------|
+| 1 | | | |
+| 2 | | | |
+| 3 | | | |
+
+## Top Sources
+
+| Rank | Source | Articles | Citations |
+|------|--------|----------|-----------|
+| 1 | | | |
+| 2 | | | |
+| 3 | | | |

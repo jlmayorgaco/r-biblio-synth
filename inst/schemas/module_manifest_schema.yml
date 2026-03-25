@@ -1,0 +1,83 @@
+# Module Manifest Schema YAML
+
+module_manifest:
+  version: "1.0.0"
+  schema_version: "1.0.0"
+
+modules:
+  m1:
+    name: "Main Information"
+    description: "Extract main information from bibliographic data"
+    required_inputs:
+      - bibliographic_df
+    outputs:
+      - summary_statistics
+      - document_types
+      - top_authors
+      - top_cited_papers
+
+  m2:
+    name: "Annual Production"
+    description: "Analyze annual publication trends"
+    required_inputs:
+      - bibliographic_df
+    outputs:
+      - annual_production
+      - regression_models
+      - forecasts
+
+  m3:
+    name: "Authors"
+    description: "Author-level analysis"
+    required_inputs:
+      - bibliographic_df
+    outputs:
+      - author_productivity
+      - h_index
+      - collaboration_networks
+
+  m4:
+    name: "Countries"
+    description: "Country-level analysis"
+    required_inputs:
+      - bibliographic_df
+    outputs:
+      - country_production
+      - collaboration_networks
+
+  m5:
+    name: "Sources"
+    description: "Source/journal analysis"
+    required_inputs:
+      - bibliographic_df
+    outputs:
+      - source_metrics
+      - impact_factors
+
+  m6:
+    name: "Clustering"
+    description: "Topic modeling and clustering"
+    required_inputs:
+      - bibliographic_df
+    outputs:
+      - topics
+      - clusters
+
+  m7:
+    name: "Networks"
+    description: "Social and conceptual structure"
+    required_inputs:
+      - bibliographic_df
+    outputs:
+      - citation_network
+      - co_citation_network
+
+  m8:
+    name: "Report"
+    description: "Automated report generation"
+    required_inputs:
+      - all_results
+    outputs:
+      - markdown_report
+      - html_report
+      - latex_report

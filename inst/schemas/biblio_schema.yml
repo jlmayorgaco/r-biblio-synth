@@ -1,0 +1,34 @@
+# Bibliographic Schema YAML
+
+required_columns:
+  - AU
+  - PY
+  - TI
+  - SO
+  - TC
+  - DI
+  - DT
+
+optional_columns:
+  - DE
+  - ID
+  - AB
+  - C1
+  - RP
+  - SN
+
+document_types:
+  - article
+  - article_article
+  - article_conference_paper
+  - article_review
+  - conference_paper
+  - review
+  - book
+  - book_chapter
+  - data_paper
+  - editorial
+  - erratum
+  - letter
+  - note
+  - short_survey
