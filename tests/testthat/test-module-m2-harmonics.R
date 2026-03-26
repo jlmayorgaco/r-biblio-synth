@@ -39,7 +39,7 @@ test_that("Harmonic regression returns R2 values", {
 })
 
 test_that("Lomb-Scargle handles errors gracefully", {
-  data <- data.frame(Year = 1990:1995, Articles = c(1,2,3,4,5,6))
+  data <- data.frame(Year = 1990:2005, Articles = sin(seq(0, 4*pi, length.out = 16)) * 10 + 50)
   result <- compute_m2_harmonics(data)
   expect_equal(result$status, "success")
   expect_true("lomb" %in% names(result))
