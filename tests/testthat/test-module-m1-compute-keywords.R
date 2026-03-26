@@ -2,7 +2,7 @@
 # test-module-m1-compute-keywords.R
 # ============================================================================
 
-context("module m1 - compute keywords")
+
 
 test_that("compute_m1_keywords returns list with status", {
   fixture <- make_extended_biblio_fixture()

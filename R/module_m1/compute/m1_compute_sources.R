@@ -40,7 +40,7 @@ compute_m1_sources <- function(input, config = biblio_config()) {
       value = source_data$articles[1:min(top_n, length(source_data$articles))]
     )
     lorenz <- m1_compute_lorenz(top_sources$value)
-    source_gini <- m1_compute_gini(lorenz$cumulative_x, lorenz$cumulative_y)
+    source_gini <- m1_compute_gini(lorenz$cumulative_entities, lorenz$cumulative_values)
   } else {
     top_sources <- m1_empty_rank_table()
     source_gini <- NA_real_

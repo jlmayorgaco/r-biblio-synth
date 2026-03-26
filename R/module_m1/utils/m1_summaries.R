@@ -1,67 +1,55 @@
 # ============================================================================
-# m1_summaries.R - Summary helpers for M1
+# m1_summaries.R - Summary helpers for M1 (FIXED)
 # ============================================================================
 
-#' Create an empty summary table
-#'
-#' @return An empty tibble.
 #' @export
 m1_empty_summary_table <- function() {
-  tibble::tibble(
-    metric = character(),
-    value  = character()
-  )
+  tibble::tibble(metric = character(), value = character())
 }
 
-#' Create an empty rank table
-#'
-#' @return An empty tibble.
 #' @export
 m1_empty_rank_table <- function() {
-  tibble::tibble(
-    rank  = integer(),
-    label = character(),
-    value = numeric()
-  )
+  tibble::tibble(rank = integer(), label = character(), value = numeric())
 }
 
-#' Compute percentage
-#'
-#' @param count Numeric count.
-#' @param total Numeric total.
-#' @return Percentage as numeric.
 #' @export
 m1_compute_percentage <- function(count, total) {
   if (total == 0) return(0)
   round((count / total) * 100, 2)
 }
 
-#' Compute Lorenz curve values
+#' Compute Lorenz curve values (FIXED)
 #'
-#' @param x Numeric vector (sorted descending).
-#' @return A data frame with cumulative_x and cumulative_y.
+#' Standard Lorenz curve: X = cumulative % of entities, Y = cumulative % of values
+#' For perfect equality: points lie on diagonal
+#'
+#' @param x Numeric vector of values (e.g., articles per country).
+#' @return A data frame with cumulative_entities and cumulative_values columns.
 #' @export
 m1_compute_lorenz <- function(x) {
-  x <- sort(x, decreasing = TRUE)
+  x <- sort(x, decreasing = FALSE)  # Ascending for standard Lorenz
   n <- length(x)
-  cumulative_x <- cumsum(x) / sum(x)
-  cumulative_y <- seq(0, 1, length.out = n)
+  cumulative_entities <- (1:n) / n  # X-axis: 1/n, 2/n, ..., 1
+  cumulative_values <- cumsum(x) / sum(x)  # Y-axis: cumulative proportion
   data.frame(
-    cumulative_x = c(0, cumulative_x),
-    cumulative_y = c(0, cumulative_y)
+    cumulative_entities = c(0, cumulative_entities),
+    cumulative_values   = c(0, cumulative_values)
   )
 }
 
-#' Compute Gini coefficient from Lorenz curve
+#' Compute Gini coefficient from Lorenz curve (FIXED)
 #'
-#' @param cumulative_x Cumulative proportion of x.
-#' @param cumulative_y Cumulative proportion of y.
-#' @return Gini coefficient.
+#' @param cumulative_entities Cumulative proportion of entities (X-axis).
+#' @param cumulative_values Cumulative proportion of values (Y-axis).
+#' @return Gini coefficient (0 = perfect equality, 1 = perfect inequality).
 #' @export
-m1_compute_gini <- function(cumulative_x, cumulative_y) {
-  n <- length(cumulative_x)
+m1_compute_gini <- function(cumulative_entities, cumulative_values) {
+  n <- length(cumulative_entities)
   if (n < 2) return(0)
-  area_trapezoids <- (cumulative_x[-1] + cumulative_x[-n]) * diff(cumulative_y) / 2
-  area_under_curve <- sum(area_trapezoids)
-  1 - 2 * area_under_curve
+  # Trapezoidal integration under Lorenz curve
+  area_under_curve <- sum(diff(cumulative_entities) *
+                          (cumulative_values[-1] + cumulative_values[-n]) / 2)
+  gini <- 1 - 2 * area_under_curve
+  # Clamp to valid range [0, 1]
+  max(0, min(1, gini))
 }

@@ -39,7 +39,7 @@ compute_m1_countries <- function(input, config = biblio_config()) {
     )
     most_prod$Country <- m1_normalize_country_names(most_prod$Country)
     lorenz <- m1_compute_lorenz(most_prod[[art_col]])
-    country_gini_articles <- m1_compute_gini(lorenz$cumulative_x, lorenz$cumulative_y)
+    country_gini_articles <- m1_compute_gini(lorenz$cumulative_entities, lorenz$cumulative_values)
   } else {
     top_countries_by_articles <- m1_empty_rank_table()
     country_gini_articles <- NA_real_
@@ -60,7 +60,7 @@ compute_m1_countries <- function(input, config = biblio_config()) {
       value = tc_per[[cit_col]][1:min(top_n, nrow(tc_per))]
     )
     lorenz_cit <- m1_compute_lorenz(tc_per[[cit_col]])
-    country_gini_citations <- m1_compute_gini(lorenz_cit$cumulative_x, lorenz_cit$cumulative_y)
+    country_gini_citations <- m1_compute_gini(lorenz_cit$cumulative_entities, lorenz_cit$cumulative_values)
 
     # F5h - Average Article Citations per country
     if ("Average Article Citations" %in% colnames(tc_per)) {
@@ -88,11 +88,13 @@ compute_m1_countries <- function(input, config = biblio_config()) {
     most_prod <- most_prod[!is.na(most_prod$SCP) & !is.na(most_prod$MCP), ]
     n <- min(top_n, nrow(most_prod))
     art_col2 <- if ("Articles" %in% colnames(most_prod)) "Articles" else colnames(most_prod)[2]
+    denom <- most_prod$SCP[1:n] + most_prod$MCP[1:n]
+    mcp_ratio <- ifelse(denom > 0, round(most_prod$MCP[1:n] / denom * 100, 1), NA_real_)
     scp_mcp <- tibble::tibble(
       rank = seq_len(n), country = most_prod$Country[1:n],
       articles = most_prod[[art_col2]][1:n],
       scp = most_prod$SCP[1:n], mcp = most_prod$MCP[1:n],
-      mcp_ratio = round(most_prod$MCP[1:n] / (most_prod$SCP[1:n] + most_prod$MCP[1:n]) * 100, 1)
+      mcp_ratio = mcp_ratio
     )
   } else {
     scp_mcp <- tibble::tibble()

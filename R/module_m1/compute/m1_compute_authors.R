@@ -35,9 +35,9 @@ compute_m1_authors <- function(input, config = biblio_config()) {
     value = author_data$Articles[1:min(top_n, nrow(author_data))]
   )
 
-  # Gini
+  # Gini (FIXED: correct column names)
   lorenz <- m1_compute_lorenz(top_authors$value)
-  author_gini <- m1_compute_gini(lorenz$cumulative_x, lorenz$cumulative_y)
+  author_gini <- m1_compute_gini(lorenz$cumulative_entities, lorenz$cumulative_values)
 
   list(top_authors = top_authors, author_productivity = author_data, author_gini = author_gini, status = "success")
 }

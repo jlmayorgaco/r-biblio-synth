@@ -2,7 +2,7 @@
 # test-module-m1-compute-bradford.R
 # ============================================================================
 
-context("module m1 - compute bradford")
+
 
 test_that("compute_m1_bradford returns list with status", {
   fixture <- make_extended_biblio_fixture()

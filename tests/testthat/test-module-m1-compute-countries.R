@@ -2,7 +2,7 @@
 # test-module-m1-compute-countries.R
 # ============================================================================
 
-context("module m1 - compute countries")
+
 
 test_that("compute_m1_countries returns list with status", {
   fixture <- make_extended_biblio_fixture()

@@ -2,7 +2,7 @@
 # test-core-contracts.R - Tests for core contracts
 # ============================================================================
 
-context("core - contracts")
+
 
 test_that("new_module_result returns expected structure", {
   result <- new_module_result()

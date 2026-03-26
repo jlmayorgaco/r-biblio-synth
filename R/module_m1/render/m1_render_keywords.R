@@ -1,12 +1,7 @@
 # ============================================================================
-# m1_render_keywords.R - Render keywords plots
+# m1_render_keywords.R - Keywords Plots (FIXED)
 # ============================================================================
 
-#' Render M1 keywords plots
-#'
-#' @param result The compute result for keywords.
-#' @param config A configuration list.
-#' @return A list with \code{status}, \code{plots}, \code{tables}.
 #' @export
 render_m1_keywords <- function(result, config = biblio_config()) {
   if (!inherits(result, "list") || !"top_keywords" %in% names(result)) {
@@ -14,29 +9,30 @@ render_m1_keywords <- function(result, config = biblio_config()) {
   }
 
   kw <- result$top_keywords
-  if (nrow(kw) == 0) {
-    return(list(status = "stub", plots = list(), tables = list()))
-  }
+  if (nrow(kw) == 0) return(list(status = "stub", plots = list(), tables = list()))
 
-  palette <- get_biblio_palette("main")
+  plots <- list()
 
-  # Bar plot (safer than wordcloud for package stability)
-  bar_plot <- ggplot2::ggplot(kw, ggplot2::aes(x = reorder(label, value), y = value)) +
-    ggplot2::geom_bar(stat = "identity", fill = palette[1], color = "black", linewidth = 0.3) +
+  # Bar chart
+  plots$bar <- ggplot2::ggplot(kw, ggplot2::aes(x = reorder(label, value), y = value)) +
+    ggplot2::geom_bar(stat = "identity", fill = ieee_colors$green, color = "black", linewidth = 0.3) +
+    ggplot2::geom_text(ggplot2::aes(label = value), hjust = -0.1, size = 2.5) +
     ggplot2::coord_flip() +
-    ggplot2::labs(
-      title = "Top Keywords by Frequency",
-      x = "Keyword",
-      y = "Frequency"
-    ) +
-    ggplot2::theme_minimal() +
-    ggplot2::theme(
-      plot.title = ggplot2::element_text(size = 14, face = "bold", hjust = 0.5)
-    )
+    ggplot2::scale_y_continuous(expand = ggplot2::expansion(mult = c(0, 0.12))) +
+    ggplot2::labs(title = "Most Frequent Keywords", x = "Keyword", y = "Frequency") +
+    ieee_theme(base_size = 8) +
+    ggplot2::theme(axis.text.y = ggplot2::element_text(size = 5.5))
 
-  list(
-    status = "success",
-    plots  = list(bar = bar_plot),
-    tables = list()
-  )
+  # Wordcloud (optional)
+  plots$wordcloud <- tryCatch({
+    if (requireNamespace("ggwordcloud", quietly = TRUE)) {
+      ggwordcloud::ggwordcloud(data = kw, word = "label", size = "value",
+                               color = ieee_colors$blue, scale = c(3, 0.5), max_words = 50) +
+        ggplot2::labs(title = "Keyword Cloud") +
+        ggplot2::theme_void(base_size = 8) +
+        ggplot2::theme(plot.title = ggplot2::element_text(size = 9, face = "bold", hjust = 0.5))
+    } else { NULL }
+  }, error = function(e) NULL)
+
+  list(status = "success", plots = plots, tables = list())
 }

@@ -27,8 +27,23 @@ Imports:
     stats,
     utils,
     bibliometrix,
-    stopwords
+    stopwords,
+    zoo,
+    lomb,
+    lmtest,
+    splines,
+    treemapify,
+    ggrepel,
+    rnaturalearth,
+    sf,
+    countrycode,
+    tseries,
+    nortest
 Suggests:
     testthat (>= 3.0.0),
-    ggwordcloud
+    ggwordcloud,
+    WaveletComp,
+    ggspatial,
+    gridExtra,
+    wordcloud2
 RoxygenNote: 7.3.3

@@ -15,44 +15,190 @@ Escriba 'demo()' para demostraciones, 'help()' para el sistema on-line de ayuda,
 o 'help.start()' para abrir el sistema de ayuda HTML con su navegador.
 Escriba 'q()' para salir de R.
 
+Aviso: namespace 'S7' is not available and has been replaced
+by .GlobalEnv when processing object 'm1_result'
+Aviso: namespace 'ggplot2' is not available and has been replaced
+by .GlobalEnv when processing object 'm1_result'
+Aviso: namespace 'scales' is not available and has been replaced
+by .GlobalEnv when processing object 'm1_result'
+[El espacio de trabajo previamente guardado ha sido restaurado]
+
 > # Run main.r with new architecture
 > .libPaths('C:/Users/walla/Documents/R/win-library/4.5')
-> 
-> # Source all package files
-> for (f in list.files('../../R/', pattern = '\\.R$', recursive = TRUE, full.names = TRUE)) {
-+   source(f)
-+ }
-> 
-> # Source main.r
+> library(bibliometrix)
+Please note that our software is open source and available for use, distributed under the MIT license.
+When it is used in a publication, we ask that authors properly cite the following reference:
+
+Aria, M. & Cuccurullo, C. (2017) bibliometrix: An R-tool for comprehensive science mapping analysis,
+                        Journal of Informetrics, 11(4), pp 959-975, Elsevier.
+
+Failure to properly cite the software is considered a violation of the license.
+                        
+For information and bug reports:
+                        - Take a look at https://www.bibliometrix.org
+                        - Send an email to info@bibliometrix.org
+                        - Write a post on https://github.com/massimoaria/bibliometrix/issues
+                        
+Help us to keep Bibliometrix and Biblioshiny free to download and use by contributing with a small donation to support our research team (https://bibliometrix.org/donate.html)
+
+                        
+To start with the Biblioshiny app, please digit:
+biblioshiny()
+
+> for (f in list.files('../../R/', pattern = '\\.R$', recursive = TRUE, full.names = TRUE)) source(f)
 > source('main.r')
-Loading bibliographic data...
+Loading bibliographic data from scopus.bib...
 
 Converting your scopus collection into a bibliographic dataframe
 
-Method 1 failed, trying readFiles...
 
-From version 3.0.0, the function readFiles has been dropped.
-Please use the function 'convert2df' to import and convert your export files
-Converting your scopus collection into a bibliographic dataframe
+Warning:
+In your file, some mandatory metadata are missing. Bibliometrix functions may not work properly!
 
-Method 2 failed, trying direct read...
+Please, take a look at the vignettes:
+- 'Data Importing and Converting' (https://www.bibliometrix.org/vignettes/Data-Importing-and-Converting.html)
+- 'A brief introduction to bibliometrix' (https://www.bibliometrix.org/vignettes/Introduction_to_bibliometrix.html)
 
-Converting your scopus collection into a bibliographic dataframe
 
-Error en `[.data.frame`(bibtag, , "SCOPUS"): 
-  columnas no definidas seleccionadas
-Calls: source ... bib2df -> [ -> [.data.frame -> %in% -> [ -> [.data.frame
-Además: Avisos:
-1: In data("bibtag", envir = environment()) : data set 'bibtag' not found
-2: The `file` argument of `vroom()` must use `I()` for literal data as of vroom
-1.5.0.
-  
-  # Bad:
-  vroom("X,Y\n1.5,2.3\n")
-  
-  # Good:
-  vroom(I("X,Y\n1.5,2.3\n"))
-ℹ The deprecated feature was likely used in the readr package.
-  Please report the issue at <https://github.com/tidyverse/readr/issues>. 
-3: In data("bibtag", envir = environment()) : data set 'bibtag' not found
-Ejecución interrumpida
+Missing fields:  CR 
+Done!
+
+
+Generating affiliation field tag AU_UN from C1:  Done!
+
+
+Removed  19 duplicated documents
+Loaded 1864 documents with 38 columns
+
+=== Running M1: Main Information ===
+ℹ JSON saved: results/m1/json/m1_overview.json
+ℹ JSON saved: results/m1/json/m1_doc_types.json
+ℹ JSON saved: results/m1/json/m1_authors.json
+ℹ JSON saved: results/m1/json/m1_citations.json
+ℹ JSON saved: results/m1/json/m1_countries.json
+ℹ JSON saved: results/m1/json/m1_sources.json
+ℹ JSON saved: results/m1/json/m1_keywords.json
+ℹ JSON saved: results/m1/json/m1_bradford.json
+ℹ Report saved: results/m1/reports/m1_report.txt
+
+M1 Status: success 
+Data slots: overview, doc_types, authors, citations, countries, sources, keywords, bradford 
+Artifacts: plots, tables, files, reports, manifest 
+
+--- Overview ---
+Timespan: 1965:2024 
+Documents: 1864 
+Sources: 933 
+Authors: 4566 
+
+--- Document Types ---
+# A tibble: 5 × 4
+   rank label                      value percentage
+  <int> <chr>                      <int>      <dbl>
+1     1 Article                      966      53.8 
+2     2 Conference Paper             811      45.1 
+3     3 Review                        10       0.56
+4     4 Article (Revised)              8       0.45
+5     5 Article & Conference Paper     2       0.11
+
+--- Top Authors ---
+# A tibble: 10 × 2
+    rank value
+   <int> <dbl>
+ 1     1    42
+ 2     2    25
+ 3     3    23
+ 4     4    19
+ 5     5    17
+ 6     6    16
+ 7     7    15
+ 8     8    15
+ 9     9    12
+10    10    12
+
+--- Top Cited Papers ---
+# A tibble: 10 × 3
+    rank label value
+   <int> <chr> <dbl>
+ 1     1 [691]  1357
+ 2     2 <NA>   1144
+ 3     3 <NA>    687
+ 4     4 <NA>    594
+ 5     5 <NA>    549
+ 6     6 <NA>    477
+ 7     7 <NA>    399
+ 8     8 <NA>    384
+ 9     9 <NA>    322
+10    10 <NA>    293
+
+--- Top Countries ---
+# A tibble: 10 × 3
+    rank label            value
+   <int> <I<chr>>         <dbl>
+ 1     1 "CHINA         "   264
+ 2     2 "USA           "   151
+ 3     3 "INDIA         "    88
+ 4     4 "KOREA         "    58
+ 5     5 "UNITED KINGDOM"    43
+ 6     6 "GERMANY       "    36
+ 7     7 "CANADA        "    35
+ 8     8 "ITALY         "    35
+ 9     9 "FRANCE        "    30
+10    10 "IRAN          "    24
+
+--- Top Sources ---
+# A tibble: 10 × 3
+    rank label                                                  value
+   <int> <I<chr>>                                               <dbl>
+ 1     1 "IEEE TRANSACTIONS ON INSTRUMENTATION AND MEASUREMENT"    37
+ 2     2 "IEEE TRANSACTIONS ON SIGNAL PROCESSING              "    32
+ 3     3 "IEEE ACCESS                                         "    31
+ 4     4 "IEEE TRANSACTIONS ON VEHICULAR TECHNOLOGY           "    31
+ 5     5 "IEEE VEHICULAR TECHNOLOGY CONFERENCE                "    30
+ 6     6 "IEEE TRANSACTIONS ON POWER SYSTEMS                  "    27
+ 7     7 "IEEE TRANSACTIONS ON WIRELESS COMMUNICATIONS        "    23
+ 8     8 "IEEE TRANSACTIONS ON COMMUNICATIONS                 "    22
+ 9     9 "IEEE TRANSACTIONS ON POWER DELIVERY                 "    22
+10    10 "IEEE TRANSACTIONS ON INDUSTRIAL ELECTRONICS         "    21
+
+--- Bradford Zones ---
+$zone1
+$zone1$n_sources
+[1] 0
+
+$zone1$n_articles
+[1] 0
+
+
+$zone2
+$zone2$n_sources
+[1] 0
+
+$zone2$n_articles
+[1] 0
+
+
+$zone3
+$zone3$n_sources
+[1] 0
+
+$zone3$n_articles
+[1] 0
+
+
+
+--- Manifest ---
+Status: success 
+Plots: 0 
+JSONs: 8 
+Reports: 2 
+
+=== M1 Complete ===
+Results saved to: results/m1 
+Avisos:
+1: No shared levels found between `names(values)` of the manual scale and the data's fill values. 
+2: No shared levels found between `names(values)` of the manual scale and the data's fill values. 
+> 
+> proc.time()
+   user  system elapsed 
+  82.39    2.82   87.75 

@@ -2,7 +2,7 @@
 # test-core-validation.R - Tests for core validation
 # ============================================================================
 
-context("core - validation")
+
 
 test_that("validate_is_data_frame passes for data.frame", {
   df <- data.frame(a = 1, b = 2)

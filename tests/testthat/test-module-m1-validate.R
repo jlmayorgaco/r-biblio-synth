@@ -2,7 +2,7 @@
 # test-module-m1-validate.R - Tests for M1 validation
 # ============================================================================
 
-context("module m1 - validate")
+
 
 test_that("validate_m1_input succeeds on minimal fixture", {
   fixture <- make_minimal_biblio_fixture()

@@ -20,11 +20,13 @@ biblio_config <- function() {
     theme_name      = "ieee",
     verbose         = TRUE,
     top_n_default   = 10,
-    top_n_countries = 15,
+    top_n_countries = 10,
     top_n_authors   = 10,
     top_n_sources   = 10,
-    top_n_keywords  = 30,
-    dpi             = 600
+    top_n_keywords  = 20,
+    dpi             = 300,
+    plot_width      = 3.5,
+    plot_height     = 2.5
   )
 }
 

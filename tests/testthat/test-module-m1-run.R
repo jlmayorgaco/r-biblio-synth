@@ -2,7 +2,7 @@
 # test-module-m1-run.R - Tests for M1 orchestrator
 # ============================================================================
 
-context("module m1 - run")
+
 
 test_that("run_m1 returns biblio_module_result on extended fixture", {
   fixture <- make_extended_biblio_fixture()

@@ -2,7 +2,7 @@
 # test-module-m1-manifest.R - Tests for M1 manifest
 # ============================================================================
 
-context("module m1 - manifest")
+
 
 test_that("build_m1_manifest returns biblio_artifact_manifest", {
   result <- new_module_result(module_id = "m1")

@@ -2,7 +2,7 @@
 # test-module-m1-compute-citations.R
 # ============================================================================
 
-context("module m1 - compute citations")
+
 
 test_that("compute_m1_citations returns list with status", {
   fixture <- make_extended_biblio_fixture()

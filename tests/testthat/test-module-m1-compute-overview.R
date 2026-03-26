@@ -2,7 +2,7 @@
 # test-module-m1-compute-overview.R - Tests for M1 compute overview
 # ============================================================================
 
-context("module m1 - compute overview")
+
 
 test_that("compute_m1_overview exists", {
   expect_true(is.function(compute_m1_overview))

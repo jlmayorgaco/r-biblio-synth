@@ -2,7 +2,7 @@
 # test-module-m1-compute-sources.R
 # ============================================================================
 
-context("module m1 - compute sources")
+
 
 test_that("compute_m1_sources returns list with status", {
   fixture <- make_extended_biblio_fixture()

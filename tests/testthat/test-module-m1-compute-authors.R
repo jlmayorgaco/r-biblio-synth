@@ -2,7 +2,7 @@
 # test-module-m1-compute-authors.R
 # ============================================================================
 
-context("module m1 - compute authors")
+
 
 test_that("compute_m1_authors returns list with status", {
   fixture <- make_extended_biblio_fixture()

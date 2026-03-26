@@ -2,7 +2,7 @@
 # test-module-m1-compute-doc-types.R
 # ============================================================================
 
-context("module m1 - compute doc_types")
+
 
 test_that("compute_m1_doc_types returns list with status", {
   fixture <- make_extended_biblio_fixture()

@@ -7,7 +7,7 @@
 #' @return Character vector of registered module ids.
 #' @export
 get_available_modules <- function() {
-  c("m1")
+  c("m1", "m2")
 }
 
 #' Get metadata for a specific module
@@ -21,6 +21,11 @@ get_module_metadata <- function(module_id) {
       id   = "m1",
       name = "Main Information",
       description = "Overview, document types, authors, citations, countries, sources, keywords, Bradford analysis."
+    ),
+    m2 = list(
+      id   = "m2",
+      name = "Annual Production",
+      description = "EDA, regression models, harmonic analysis for annual publication trends."
     )
   )
   registry[[module_id]]

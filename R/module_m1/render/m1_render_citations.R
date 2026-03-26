@@ -1,12 +1,7 @@
 # ============================================================================
-# m1_render_citations.R - Render citations plots
+# m1_render_citations.R - Citations Plots (FIXED)
 # ============================================================================
 
-#' Render M1 citations plots
-#'
-#' @param result The compute result for citations.
-#' @param config A configuration list.
-#' @return A list with \code{status}, \code{plots}, \code{tables}.
 #' @export
 render_m1_citations <- function(result, config = biblio_config()) {
   if (!inherits(result, "list") || !"top_cited_documents" %in% names(result)) {
@@ -14,93 +9,49 @@ render_m1_citations <- function(result, config = biblio_config()) {
   }
 
   top_cited <- result$top_cited_documents
-  if (nrow(top_cited) == 0) {
-    return(list(status = "stub", plots = list(), tables = list()))
-  }
+  if (nrow(top_cited) == 0) return(list(status = "stub", plots = list(), tables = list()))
 
-  palette <- get_biblio_palette("main")
+  plots <- list()
 
-  # Bar plot
-  bar_plot <- ggplot2::ggplot(top_cited, ggplot2::aes(x = reorder(label, value), y = value)) +
-    ggplot2::geom_bar(stat = "identity", fill = palette[1], color = "black", linewidth = 0.3) +
+  # Bar chart
+  plots$bar <- ggplot2::ggplot(top_cited, ggplot2::aes(x = reorder(label, value), y = value)) +
+    ggplot2::geom_bar(stat = "identity", fill = ieee_colors$orange, color = "black", linewidth = 0.3) +
+    ggplot2::geom_text(ggplot2::aes(label = format(value, big.mark = ",")), hjust = -0.1, size = 2.5) +
     ggplot2::coord_flip() +
-    ggplot2::labs(
-      title = "Top Most Cited Papers",
-      x = "Paper",
-      y = "Total Citations"
-    ) +
-    ggplot2::theme_minimal() +
-    ggplot2::theme(
-      plot.title = ggplot2::element_text(size = 14, face = "bold", hjust = 0.5),
-      axis.text = ggplot2::element_text(size = 10)
-    )
+    ggplot2::scale_y_continuous(expand = ggplot2::expansion(mult = c(0, 0.12))) +
+    ggplot2::labs(title = "Most Cited Papers", x = "Paper", y = "Total Citations") +
+    ieee_theme(base_size = 8) +
+    ggplot2::theme(axis.text.y = ggplot2::element_text(size = 6))
 
-  plots <- list(bar = bar_plot)
-
-  # Citations per year plot
+  # Citations per year
   if ("citations_per_year" %in% names(result) && nrow(result$citations_per_year) > 0) {
     cpy <- result$citations_per_year
-    cpy_plot <- ggplot2::ggplot(cpy, ggplot2::aes(x = reorder(label, value), y = value)) +
-      ggplot2::geom_bar(stat = "identity", fill = palette[2], color = "black", linewidth = 0.3) +
+    plots$citations_per_year <- ggplot2::ggplot(cpy, ggplot2::aes(x = reorder(label, value), y = value)) +
+      ggplot2::geom_bar(stat = "identity", fill = ieee_colors$green, color = "black", linewidth = 0.3) +
+      ggplot2::geom_text(ggplot2::aes(label = sprintf("%.1f", value)), hjust = -0.1, size = 2.5) +
       ggplot2::coord_flip() +
-      ggplot2::labs(
-        title = "Top Papers by Citations per Year",
-        x = "Paper",
-        y = "Citations per Year"
-      ) +
-      ggplot2::theme_minimal() +
-      ggplot2::theme(
-        plot.title = ggplot2::element_text(size = 14, face = "bold", hjust = 0.5)
-      )
-    plots$citations_per_year <- cpy_plot
+      ggplot2::scale_y_continuous(expand = ggplot2::expansion(mult = c(0, 0.12))) +
+      ggplot2::labs(title = "Citations per Year", x = "Paper", y = "Citations/Year") +
+      ieee_theme(base_size = 8)
 
-    # Dual bar+line plot (legacy F4d feature)
-    dual_plot <- m1_render_citations_dual_plot(top_cited, cpy, palette)
-    if (!is.null(dual_plot)) {
-      plots$dual_bar_line <- dual_plot
+    # Dual bar+line
+    merged <- merge(top_cited, cpy, by = "label", suffixes = c("_tc", "_cpy"))
+    if (nrow(merged) > 0) {
+      max_tc <- max(merged$value_tc, na.rm = TRUE)
+      max_cpy <- max(merged$value_cpy, na.rm = TRUE)
+      scale_factor <- if (max_cpy > 0) max_tc / max_cpy else 1
+      merged$label_short <- substr(merged$label, 1, 15)
+
+      plots$dual_bar_line <- ggplot2::ggplot(merged, ggplot2::aes(x = reorder(label_short, value_tc))) +
+        ggplot2::geom_bar(ggplot2::aes(y = value_tc), stat = "identity", fill = ieee_colors$blue, color = "black", linewidth = 0.3) +
+        ggplot2::geom_line(ggplot2::aes(y = value_cpy * scale_factor, group = 1), color = ieee_colors$orange, linewidth = 0.8) +
+        ggplot2::geom_point(ggplot2::aes(y = value_cpy * scale_factor), color = ieee_colors$orange, size = 2) +
+        ggplot2::coord_flip() +
+        ggplot2::scale_y_continuous(name = "Total Citations", sec.axis = ggplot2::sec_axis(~ . / scale_factor, name = "Citations/Year")) +
+        ggplot2::labs(title = "Citations: Total vs Per Year", x = "Paper") +
+        ieee_theme(base_size = 8)
     }
   }
 
-  list(
-    status = "success",
-    plots  = plots,
-    tables = list()
-  )
-}
-
-#' Generate dual bar+line plot for citations
-#'
-#' Creates a bar plot with TC and overlays TCperYear as a line on secondary axis.
-#'
-#' @param top_cited Data frame with rank, label, value columns.
-#' @param cpy Data frame with rank, label, value columns for citations per year.
-#' @param palette Color palette.
-#' @return A ggplot object or NULL.
-m1_render_citations_dual_plot <- function(top_cited, cpy, palette) {
-  # Merge data
-  merged <- merge(top_cited, cpy, by = "label", suffixes = c("_tc", "_cpy"))
-  if (nrow(merged) == 0) return(NULL)
-
-  ggplot2::ggplot(merged, ggplot2::aes(x = reorder(label, value_tc))) +
-    ggplot2::geom_bar(ggplot2::aes(y = value_tc), stat = "identity",
-                      fill = palette[1], color = "black", linewidth = 0.3) +
-    ggplot2::geom_line(ggplot2::aes(y = value_cpy * max(value_tc) / max(value_cpy), group = 1),
-                       color = palette[2], linewidth = 1.2) +
-    ggplot2::geom_point(ggplot2::aes(y = value_cpy * max(value_tc) / max(value_cpy)),
-                        color = palette[2], size = 3) +
-    ggplot2::coord_flip() +
-    ggplot2::scale_y_continuous(
-      name = "Total Citations",
-      sec.axis = ggplot2::sec_axis(~ . * max(merged$value_cpy) / max(merged$value_tc),
-                                   name = "Citations per Year")
-    ) +
-    ggplot2::labs(
-      title = "Top Cited Papers with TC per Year",
-      x = "Paper"
-    ) +
-    ggplot2::theme_minimal() +
-    ggplot2::theme(
-      plot.title = ggplot2::element_text(size = 14, face = "bold", hjust = 0.5),
-      axis.text = ggplot2::element_text(size = 10)
-    )
+  list(status = "success", plots = plots, tables = list())
 }
