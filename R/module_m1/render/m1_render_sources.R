@@ -9,10 +9,12 @@ render_m1_sources <- function(result, config = biblio_config()) {
   }
 
   sources <- result$top_sources
-  if (nrow(sources) == 0) return(list(status = "stub", plots = list(), tables = list()))
+  if (nrow(sources) == 0 || !"label" %in% names(sources) || !"value" %in% names(sources)) {
+    return(list(status = "stub", plots = list(), tables = list()))
+  }
 
   plots <- list()
-  sources_top <- sources[1:min(10, nrow(sources)), ]
+  sources_top <- sources[seq_len(min(10, nrow(sources))), ]
 
   # Truncate long source names intelligently
   sources_top$label_clean <- sapply(sources_top$label, function(x) {

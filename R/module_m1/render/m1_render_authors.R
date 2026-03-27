@@ -9,12 +9,14 @@ render_m1_authors <- function(result, config = biblio_config()) {
   }
 
   authors <- result$top_authors
-  if (nrow(authors) == 0) return(list(status = "stub", plots = list(), tables = list()))
+  if (nrow(authors) == 0 || !"label" %in% names(authors) || !"value" %in% names(authors)) {
+    return(list(status = "stub", plots = list(), tables = list()))
+  }
 
   plots <- list()
 
   # 1. Bar chart (top 10, clean)
-  authors_top <- authors[1:min(10, nrow(authors)), ]
+  authors_top <- authors[seq_len(min(10, nrow(authors))), ]
   authors_top$label_clean <- substr(trimws(authors_top$label), 1, 25)
 
   plots$bar <- ggplot2::ggplot(authors_top, ggplot2::aes(x = reorder(label_clean, value), y = value)) +

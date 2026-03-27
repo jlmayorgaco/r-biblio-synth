@@ -40,10 +40,19 @@ render_m1_bradford <- function(result, config = biblio_config()) {
   bt$cumulative <- cumsum(bt$freq) / sum(bt$freq) * 100
   bt$rank_pct <- bt$rank / max(bt$rank) * 100
 
-  # Interpolate for smooth curve
+  # Interpolate for smooth curve — use "natural" spline (universally available)
+  # with linear fallback; clamp output to [0, 100].
   if (nrow(bt) >= 4) {
-    smooth_x <- seq(0, 100, length.out = 200)
-    smooth_y <- stats::spline(bt$rank_pct, bt$cumulative, xout = smooth_x, method = "monoH.FC")$y
+    smooth_x  <- seq(0, 100, length.out = 200)
+    bt_unique <- bt[!duplicated(bt$rank_pct), ]          # guard against dup x
+    smooth_y  <- tryCatch(
+      stats::spline(bt_unique$rank_pct, bt_unique$cumulative,
+                    xout = smooth_x, method = "natural")$y,
+      error = function(e)
+        stats::approx(bt_unique$rank_pct, bt_unique$cumulative,
+                      xout = smooth_x, rule = 2)$y
+    )
+    smooth_y  <- pmax(0, pmin(100, smooth_y))
     smooth_df <- data.frame(rank_pct = smooth_x, cumulative = smooth_y)
   } else {
     smooth_df <- bt[, c("rank_pct", "cumulative")]

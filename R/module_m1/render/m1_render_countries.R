@@ -9,10 +9,12 @@ render_m1_countries <- function(result, config = biblio_config()) {
   }
 
   articles <- result$top_countries_by_articles
-  if (nrow(articles) == 0) return(list(status = "stub", plots = list(), tables = list()))
+  if (nrow(articles) == 0 || !"label" %in% names(articles) || !"value" %in% names(articles)) {
+    return(list(status = "stub", plots = list(), tables = list()))
+  }
 
   plots <- list()
-  articles_top <- articles[1:min(10, nrow(articles)), ]
+  articles_top <- articles[seq_len(min(10, nrow(articles))), ]
 
   # 1. Articles bar
   plots$articles_bar <- ggplot2::ggplot(articles_top, ggplot2::aes(x = reorder(label, value), y = value)) +
