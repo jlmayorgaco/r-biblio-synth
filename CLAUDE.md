@@ -20,6 +20,26 @@
 | M4_Countries | Partial | Low | Just helper files |
 | Config | Working | Good | Theme system present |
 
+### Main.r Implementation Pattern
+- The example at examples/SCOPUS_POWER_SYSTEMS_FREQUENCY_ESTIMATOR/main.r demonstrates a concrete orchestration flow for M1_Main_Information.
+- Core steps:
+  - Define a config list (output_dir, export flags, plotting parameters, verbosity).
+  - Load bibliographic data from a BibTeX source and convert to a data frame using bibliometrix::convert2df.
+  - Call a main runner (e.g., run_m1) with bib_data and config, exporting artifacts if requested.
+  - Print a structured summary of results (overview, doc types, top authors, top cited papers, top countries/sources, Bradford zones, manifest).
+- Pattern sketch (high level):
+  - config <- list(...)
+  - bib_data <- bibliometrix::convert2df(file = tmp_file, dbsource = "scopus", format = "bibtex")
+  - m1_result <- run_m1(bib_data, config = config, export = TRUE)
+  - Print or inspect m1_result$data and m1_result$artifacts
+- Implications:
+  - This pattern acts as a reference for a minimal M1 orchestration that could be encapsulated into a dedicated R module.
+  - It highlights dependencies on the non-existent SystematicReviewClass.r in current examples, and on a stable package scaffold.
+- Recommendations moving forward:
+  - Implement a minimal SystematicReviewClass.r or replace the dependency with a safe stub for examples.
+  - Establish a proper R package layout (DESCRIPTION/NAMESPACE) to host run_m1 and related interfaces.
+  - Create a lightweight M1_Main_Information module with a defined contract (input bib_data, config; output artifacts and data slots).
+
 ---
 
 ## Critical Issues

@@ -102,6 +102,15 @@ ieee_colors <- list(
   ltgray  = "#cccccc"
 )
 
+#' Get IEEE palette for n items
+#' @param n Number of colors needed
+#' @export
+get_ieee_palette <- function(n) {
+  all_colors <- unlist(ieee_colors[1:8])
+  if (n <= 8) return(all_colors[1:n])
+  rep(all_colors, length.out = n)
+}
+
 #' IEEE fill scale
 #' @export
 scale_fill_ieee <- function(...) {

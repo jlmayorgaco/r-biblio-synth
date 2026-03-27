@@ -1,0 +1,112 @@
+
+R version 4.5.3 (2026-03-11 ucrt) -- "Reassured Reassurer"
+Copyright (C) 2026 The R Foundation for Statistical Computing
+Platform: x86_64-w64-mingw32/x64
+
+R es un software libre y viene sin GARANTIA ALGUNA.
+Usted puede redistribuirlo bajo ciertas circunstancias.
+Escriba 'license()' o 'licence()' para detalles de distribucion.
+
+R es un proyecto colaborativo con muchos contribuyentes.
+Escriba 'contributors()' para obtener más información y
+'citation()' para saber cómo citar R o paquetes de R en publicaciones.
+
+Escriba 'demo()' para demostraciones, 'help()' para el sistema on-line de ayuda,
+o 'help.start()' para abrir el sistema de ayuda HTML con su navegador.
+Escriba 'q()' para salir de R.
+
+Aviso: namespace 'S7' is not available and has been replaced
+by .GlobalEnv when processing object 'result'
+Aviso: namespace 'ggplot2' is not available and has been replaced
+by .GlobalEnv when processing object 'result'
+Aviso: namespace 'scales' is not available and has been replaced
+by .GlobalEnv when processing object 'result'
+[El espacio de trabajo previamente guardado ha sido restaurado]
+
+> # Regenerate figures with fixes
+> .libPaths('C:/Users/walla/Documents/R/win-library/4.5')
+> library(bibliometrix)
+Please note that our software is open source and available for use, distributed under the MIT license.
+When it is used in a publication, we ask that authors properly cite the following reference:
+
+Aria, M. & Cuccurullo, C. (2017) bibliometrix: An R-tool for comprehensive science mapping analysis,
+                        Journal of Informetrics, 11(4), pp 959-975, Elsevier.
+
+Failure to properly cite the software is considered a violation of the license.
+                        
+For information and bug reports:
+                        - Take a look at https://www.bibliometrix.org
+                        - Send an email to info@bibliometrix.org
+                        - Write a post on https://github.com/massimoaria/bibliometrix/issues
+                        
+Help us to keep Bibliometrix and Biblioshiny free to download and use by contributing with a small donation to support our research team (https://bibliometrix.org/donate.html)
+
+                        
+To start with the Biblioshiny app, please digit:
+biblioshiny()
+
+
+Adjuntando el paquete: 'bibliometrix'
+
+The following object is masked _by_ '.GlobalEnv':
+
+    countries
+
+> 
+> for (f in list.files('R/', pattern = '\\.R$', recursive = TRUE, full.names = TRUE)) source(f)
+> 
+> raw_bib <- readLines("examples/SCOPUS_POWER_SYSTEMS_FREQUENCY_ESTIMATOR/data/scopus.bib", warn = FALSE)
+> tmp <- tempfile(fileext = ".bib")
+> writeLines(raw_bib, tmp, useBytes = TRUE)
+> bib_data <- convert2df(file = tmp, dbsource = "scopus", format = "bibtex")
+
+Converting your scopus collection into a bibliographic dataframe
+
+
+Warning:
+In your file, some mandatory metadata are missing. Bibliometrix functions may not work properly!
+
+Please, take a look at the vignettes:
+- 'Data Importing and Converting' (https://www.bibliometrix.org/vignettes/Data-Importing-and-Converting.html)
+- 'A brief introduction to bibliometrix' (https://www.bibliometrix.org/vignettes/Introduction_to_bibliometrix.html)
+
+
+Missing fields:  CR 
+Done!
+
+
+Generating affiliation field tag AU_UN from C1:  Done!
+
+
+Removed  19 duplicated documents
+> unlink(tmp)
+> 
+> cat("Loaded", nrow(bib_data), "documents\n")
+Loaded 1864 documents
+> 
+> unlink("results/m1", recursive = TRUE, force = TRUE)
+> result <- run_m1(bib_data, config = list(output_dir = "results"), export = TRUE)
+Error in `$<-`:
+! Assigned data `substr(trimws(authors_top$label), 1, 25)` must be compatible with existing data.
+✖ Existing data has 10 rows.
+✖ Assigned data has 0 rows.
+ℹ Only vectors of size 1 are recycled.
+Caused by error in `vectbl_recycle_rhs_rows()`:
+! Can't recycle input of size 0 to size 10.
+Backtrace:
+     ▆
+  1. ├─global run_m1(bib_data, config = list(output_dir = "results"), export = TRUE)
+  2. │ └─global m1_render_all(result, data, config)
+  3. │   └─global render_m1_authors(data$authors, config)
+  4. │     ├─base::`$<-`(`*tmp*`, "label_clean", value = `<chr>`)
+  5. │     └─tibble:::`$<-.tbl_df`(`*tmp*`, "label_clean", value = `<chr>`)
+  6. │       └─tibble:::tbl_subassign(...)
+  7. │         └─tibble:::vectbl_recycle_rhs_rows(value, fast_nrow(xo), i_arg = NULL, value_arg, call)
+  8. │           ├─base::withCallingHandlers(...)
+  9. │           └─vctrs::vec_recycle(value[[j]], nrow)
+ 10. └─vctrs:::stop_recycle_incompatible_size(...)
+ 11.   └─vctrs:::stop_vctrs(...)
+ 12.     └─rlang::abort(message, class = c(class, "vctrs_error"), ..., call = call)
+Aviso:
+Unknown or uninitialised column: `label`. 
+Ejecución interrumpida

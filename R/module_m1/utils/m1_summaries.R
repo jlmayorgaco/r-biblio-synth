@@ -39,7 +39,11 @@ m1_compute_lorenz <- function(x, smooth = TRUE, n_interp = 200) {
   # Interpolate for smooth curve
   if (smooth && length(entities_raw) >= 4) {
     smooth_x <- seq(0, 1, length.out = n_interp)
-    smooth_y <- stats::spline(entities_raw, values_raw, xout = smooth_x, method = "monoH.FC")$y
+    tryCatch({
+      smooth_y <- stats::spline(entities_raw, values_raw, xout = smooth_x, method = "hyman")$y
+    }, error = function(e) {
+      smooth_y <<- stats::approx(entities_raw, values_raw, xout = smooth_x)$y
+    })
     # Clamp to [0, 1]
     smooth_y <- pmax(0, pmin(1, smooth_y))
     data.frame(cumulative_entities = smooth_x, cumulative_values = smooth_y)
