@@ -59,16 +59,17 @@ run_m3 <- function(input, config = biblio_config(), export = TRUE) {
 
 m3_compute_all <- function(prepared_data, config) {
   list(
-    production         = m3_compute_production(prepared_data, config),
-    citations          = m3_compute_citations(prepared_data, config),
-    scp_mcp            = m3_compute_scp_mcp(prepared_data, config),
-    inequality         = m3_compute_inequality(prepared_data, config),
-    rankings           = m3_compute_rankings(prepared_data, config),
-    distribution_tests = m3_compute_distribution_tests(prepared_data, config),
-    growth_dynamics    = m3_compute_growth_dynamics(prepared_data, config),
-    change_points      = m3_compute_change_points(prepared_data, config),
-    profiles           = m3_compute_country_profiles(prepared_data, config),
-    experiments        = m3_compute_experiments(prepared_data, config)
+    production           = m3_compute_production(prepared_data, config),
+    citations            = m3_compute_citations(prepared_data, config),
+    scp_mcp              = m3_compute_scp_mcp(prepared_data, config),
+    inequality           = m3_compute_inequality(prepared_data, config),
+    rankings             = m3_compute_rankings(prepared_data, config),
+    distribution_tests   = m3_compute_distribution_tests(prepared_data, config),
+    growth_dynamics      = m3_compute_growth_dynamics(prepared_data, config),
+    change_points        = m3_compute_change_points(prepared_data, config),
+    profiles             = m3_compute_country_profiles(prepared_data, config),
+    similarity_clustering = m3_compute_similarity_clustering(prepared_data, config),
+    experiments          = m3_compute_experiments(prepared_data, config)
   )
 }
 
