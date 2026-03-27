@@ -107,7 +107,7 @@ m3_compute_experiments <- function(prepared_data, config = biblio_config()) {
         n_years     = dplyr::n(),
         recent_mean = ifelse(
           dplyr::n() >= 3,
-          mean(dplyr::last(article_count, n = 3), na.rm = TRUE),
+          mean(utils::tail(article_count, 3L), na.rm = TRUE),
           NA_real_
         ),
         prior_mean  = ifelse(

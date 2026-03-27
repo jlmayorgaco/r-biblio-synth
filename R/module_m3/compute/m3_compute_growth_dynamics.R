@@ -67,36 +67,56 @@ m3_compute_growth_dynamics <- function(prepared_data, config = biblio_config()) 
     annual_citations_top <- tibble::tibble()
   }
   
-  # Helper to compute growth metrics for a time series of a country
+  # Helper to compute growth metrics for one country's time-ordered data frame
+  .compute_one_country_growth <- function(cdf, value_col) {
+    vals  <- cdf[[value_col]]
+    years <- cdf[["PY"]]
+    n     <- length(vals)
+
+    start_val <- vals[1]
+    end_val   <- vals[n]
+
+    cagr <- if (n > 1 && !is.na(start_val) && start_val > 0) {
+      (end_val / start_val)^(1 / (n - 1)) - 1
+    } else {
+      NA_real_
+    }
+
+    slope <- if (n >= 2) {
+      tryCatch({
+        coef(lm(vals ~ years))[2]
+      }, error = function(e) NA_real_)
+    } else {
+      NA_real_
+    }
+
+    penultimate <- if (n >= 2) vals[n - 1] else NA_real_
+    growth_rate_last_year <- if (n >= 2 && !is.na(penultimate) && penultimate != 0) {
+      (end_val - penultimate) / penultimate
+    } else {
+      NA_real_
+    }
+
+    tibble::tibble(
+      country               = cdf$country[1],
+      n_years               = n,
+      start_value           = start_val,
+      end_value             = end_val,
+      cagr                  = cagr,
+      slope                 = slope,
+      growth_rate_last_year = growth_rate_last_year
+    )
+  }
+
+  # Apply per-country and bind results
   compute_country_growth <- function(df, value_col) {
-    # df should have columns: country, PY, and the value column
-    # We'll compute for each country:
-    #   - CAGR: (end_value/start_value)^(1/(n_years-1)) - 1, if start_value > 0
-    #   - Slope of a linear regression (log(value) ~ year) if we want to model exponential growth, but we'll do simple linear slope of value over time.
-    #   - Growth rate last year: (value_t - value_{t-1}) / value_{t-1}
-    # We'll return a tibble with one row per country.
-    
-    # We'll nest by country and compute.
-    df %>%
-      dplyr::group_by(country) %>%
-      dplyr::arrange(PY) %>%
-      dplyr::summarise(
-        n_years = dplyr::n(),
-        start_value = first(!!sym(value_col)),
-        end_value = last(!!sym(value_col)),
-        # CAGR
-        cagr = ifelse(n_years > 1 && start_value > 0, (end_value/start_value)^(1/(n_years-1)) - 1, NA_real_),
-        # Slope of value over year (linear regression)
-        slope = ifelse(n_years > 1, {
-          model <- lm(!!sym(value_col) ~ PY, data = cur_data())
-          coef(model)[2]
-        }, NA_real_),
-        # Growth rate last year
-        growth_rate_last_year = ifelse(n_years > 1 && lag(!!sym(value_col))[n_years] != 0,
-                                       (last(!!sym(value_col)) - lag(!!sym(value_col))[n_years]) / lag(!!sym(value_col))[n_years],
-                                       NA_real_)
-      ) %>%
-      dplyr::ungroup()
+    countries <- unique(df$country)
+    rows <- lapply(countries, function(ct) {
+      cdf <- dplyr::filter(df, country == ct)
+      cdf <- dplyr::arrange(cdf, PY)
+      .compute_one_country_growth(cdf, value_col)
+    })
+    dplyr::bind_rows(rows)
   }
   
   # Compute for productivity

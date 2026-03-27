@@ -167,17 +167,13 @@ m3_compute_country_profiles <- function(prepared_data, config = biblio_config())
   country_features_z <- country_features %>%
     dplyr::mutate(
       dplyr::across(
-        .cols = dplyr::all_of(feature_columns),
-        .fns = list(
-          ~ {
-            if (sd(.x, na.rm = TRUE) == 0) {
-              return(0)
-            } else {
-              return((.x - mean(.x, na.rm = TRUE)) / sd(.x, na.rm = TRUE))
-            }
-          },
-          .names = "{.col}_z"
-        )
+        .cols  = dplyr::all_of(feature_columns),
+        .fns   = ~ {
+          s <- sd(.x, na.rm = TRUE)
+          if (is.na(s) || s == 0) 0
+          else (.x - mean(.x, na.rm = TRUE)) / s
+        },
+        .names = "{.col}_z"
       )
     )
   

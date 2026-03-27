@@ -226,25 +226,26 @@ m3_normalize_country_names <- function(countries) {
   # Trim whitespace
   countries <- trimws(countries)
   
-  # Replace common variants
-  # We'll use a named vector for replacement
-  replacements <- c(
-    "USA" = "UNITED STATES",
-    "U.S.A." = "UNITED STATES",
+  # Replace common variants using exact whole-string matching to avoid
+  # cascade corruption (e.g., "KOREA" matching inside "SOUTH KOREA").
+  norm_map <- c(
+    "USA"                     = "UNITED STATES",
+    "U.S.A."                  = "UNITED STATES",
     "UNITED STATES OF AMERICA" = "UNITED STATES",
-    "UK" = "UNITED KINGDOM",
-    "U.K." = "UNITED KINGDOM",
-    "ENGLAND" = "UNITED KINGDOM", # Note: This is politically sensitive; we do it for bibliometric consistency only if the data uses England to mean UK.
-    "KOREA" = "SOUTH KOREA",
-    "SOUTH KOREA" = "SOUTH KOREA",
-    "NORTH KOREA" = "NORTH KOREA",
-    "RUS" = "RUSSIA",
-    "RUSSIAN FEDERATION" = "RUSSIA"
+    "UK"                      = "UNITED KINGDOM",
+    "U.K."                    = "UNITED KINGDOM",
+    "ENGLAND"                 = "UNITED KINGDOM",
+    "KOREA"                   = "SOUTH KOREA",
+    "RUSSIAN FEDERATION"      = "RUSSIA",
+    "RUS"                     = "RUSSIA"
   )
-  
-  # Replace each pattern
-  for (i in seq_along(replacements)) {
-    countries <- gsub(names(replacements)[i], replacements[i], countries, ignore.case = TRUE)
+
+  # Apply replacements only when the trimmed, uppercased string matches exactly.
+  upper_countries <- toupper(countries)
+  for (i in seq_along(norm_map)) {
+    match_idx <- upper_countries == toupper(names(norm_map)[i])
+    countries[match_idx] <- norm_map[i]
+    upper_countries[match_idx] <- norm_map[i]
   }
   
   # Return the normalized vector
