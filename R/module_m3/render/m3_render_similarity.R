@@ -35,7 +35,7 @@ m3_render_similarity <- function(profiles_data, config = biblio_config()) {
       p_pca <- p_pca +
         ggplot2::geom_point(ggplot2::aes(color = cluster), size = 2.0) +
         ggplot2::scale_color_manual(
-          values = unlist(ieee_colors)[seq_len(
+          values = unname(unlist(ieee_colors))[seq_len(
             dplyr::n_distinct(profiles$cluster)
           )],
           name = "Cluster"
@@ -79,7 +79,7 @@ m3_render_similarity <- function(profiles_data, config = biblio_config()) {
     ) +
       ggplot2::geom_col(color = "black", linewidth = 0.2, show.legend = FALSE) +
       ggplot2::scale_fill_manual(
-        values = unlist(ieee_colors)[seq_len(nrow(cluster_sizes))]
+        values = unname(unlist(ieee_colors))[seq_len(nrow(cluster_sizes))]
       ) +
       ggplot2::labs(
         title = "Country Cluster Sizes",

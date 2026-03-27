@@ -16,7 +16,7 @@ render_m2_regression <- function(result, config = biblio_config()) {
     plots$model_comparison <- ggplot2::ggplot(comp, ggplot2::aes(x = reorder(Model, R2), y = R2)) +
       ggplot2::geom_bar(stat = "identity", fill = ieee_colors$blue, color = "black", linewidth = 0.2) +
       ggplot2::coord_flip() +
-      ggplot2::labs(title = "Regression Model Comparison (R²)", x = "Model", y = "R²") +
+      ggplot2::labs(title = expression("Regression Model Comparison (" * R^2 * ")"), x = "Model", y = expression(R^2)) +
       ieee_theme(base_size = 8)
   }
 

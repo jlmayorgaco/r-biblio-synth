@@ -5,7 +5,7 @@
 #' @export
 render_m1_treemaps <- function(countries_result, sources_result, config = biblio_config()) {
   plots <- list()
-  ec <- unlist(ieee_colors[1:8])
+  ec <- unname(unlist(ieee_colors[1:8]))
 
   # Countries treemap
   if (!is.null(countries_result) && "top_countries_by_articles" %in% names(countries_result)) {
@@ -23,7 +23,7 @@ render_m1_treemaps <- function(countries_result, sources_result, config = biblio
         ggplot2::labs(title = "Most Productive Countries") +
         ggplot2::theme_void() +
         ggplot2::theme(
-          plot.title = ggplot2::element_text(size = 9, face = "bold", hjust = 0.5),
+          plot.title = ggplot2::element_text(size = 9, face = "bold", hjust = 0.5, family = "mono"),
           legend.position = "none"
         )
     }
@@ -47,7 +47,7 @@ render_m1_treemaps <- function(countries_result, sources_result, config = biblio
         ggplot2::labs(title = "Most Productive Sources") +
         ggplot2::theme_void() +
         ggplot2::theme(
-          plot.title = ggplot2::element_text(size = 9, face = "bold", hjust = 0.5),
+          plot.title = ggplot2::element_text(size = 9, face = "bold", hjust = 0.5, family = "mono"),
           legend.position = "none"
         )
     }

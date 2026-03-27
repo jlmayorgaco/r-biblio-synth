@@ -18,28 +18,31 @@
 #' @param font_family Font family
 #' @return A ggplot2 theme object
 #' @export
-ieee_theme <- function(base_size = 8, font_family = "serif") {
+ieee_theme <- function(base_size = 8, font_family = "sans") {
   ggplot2::theme_bw(base_size = base_size, base_family = font_family) +
     ggplot2::theme(
-      # Title
+      # Title — mono for technical clarity
       plot.title = ggplot2::element_text(
         size = base_size + 1, face = "bold", hjust = 0.5,
+        family = "mono",
         margin = ggplot2::margin(b = 6)
       ),
-      # Subtitle
+      # Subtitle — sans body
       plot.subtitle = ggplot2::element_text(
         size = base_size, hjust = 0.5, face = "italic",
+        family = font_family,
         margin = ggplot2::margin(b = 4)
       ),
-      # Axis titles
+      # Axis titles — mono for technical labels
       axis.title = ggplot2::element_text(
         size = base_size, face = "bold",
+        family = "mono",
         margin = ggplot2::margin(t = 4, r = 4)
       ),
       axis.title.x = ggplot2::element_text(margin = ggplot2::margin(t = 6)),
       axis.title.y = ggplot2::element_text(margin = ggplot2::margin(r = 6)),
-      # Axis text
-      axis.text = ggplot2::element_text(size = base_size - 1, color = "black"),
+      # Axis text — mono for numeric alignment
+      axis.text = ggplot2::element_text(size = base_size - 1, color = "black", family = "mono"),
       axis.text.x = ggplot2::element_text(angle = 0, hjust = 0.5),
       # Ticks
       axis.ticks = ggplot2::element_line(linewidth = 0.3, color = "black"),
@@ -72,7 +75,7 @@ ieee_theme <- function(base_size = 8, font_family = "serif") {
 #' @param font_family Font family
 #' @return A ggplot2 theme object
 #' @export
-ieee_theme_double <- function(base_size = 8, font_family = "serif") {
+ieee_theme_double <- function(base_size = 8, font_family = "sans") {
   ieee_theme(base_size = base_size, font_family = font_family) +
     ggplot2::theme(
       plot.title = ggplot2::element_text(size = base_size + 2)
@@ -106,7 +109,7 @@ ieee_colors <- list(
 #' @param n Number of colors needed
 #' @export
 get_ieee_palette <- function(n) {
-  all_colors <- unlist(ieee_colors[1:8])
+  all_colors <- unname(unlist(ieee_colors[1:8]))
   if (n <= 8) return(all_colors[1:n])
   rep(all_colors, length.out = n)
 }
@@ -115,7 +118,7 @@ get_ieee_palette <- function(n) {
 #' @export
 scale_fill_ieee <- function(...) {
   ggplot2::scale_fill_manual(
-    values = unlist(ieee_colors[1:8]),
+    values = unname(unlist(ieee_colors[1:8])),
     ...
   )
 }
@@ -124,7 +127,7 @@ scale_fill_ieee <- function(...) {
 #' @export
 scale_color_ieee <- function(...) {
   ggplot2::scale_color_manual(
-    values = unlist(ieee_colors[1:8]),
+    values = unname(unlist(ieee_colors[1:8])),
     ...
   )
 }

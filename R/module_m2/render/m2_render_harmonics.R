@@ -26,7 +26,7 @@ render_m2_harmonics <- function(result, config = biblio_config()) {
     plots$r2_frequency <- ggplot2::ggplot(r2, ggplot2::aes(x = Frequency, y = R2)) +
       ggplot2::geom_line(color = ieee_colors$blue, linewidth = 0.6) +
       ggplot2::geom_point(color = ieee_colors$orange, size = 1.5) +
-      ggplot2::labs(title = "R² vs Frequency", x = "Frequency", y = "R²") +
+      ggplot2::labs(title = expression(R^2 ~ "vs Frequency"), x = "Frequency", y = expression(R^2)) +
       ieee_theme(base_size = 8)
   }
 

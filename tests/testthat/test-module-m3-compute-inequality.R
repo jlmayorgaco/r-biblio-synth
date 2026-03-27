@@ -1,6 +1,6 @@
 # ============================================================================
-# test-module-m3-compute-inequality.R
-# ============================================================================
+# test-module-m3-compute-inequality.R 
+# ======================================================== ====================
 test_that("m3_compute_inequality returns expected keys", {
   pd     <- make_m3_prepared_extended()
   result <- m3_compute_inequality(pd)

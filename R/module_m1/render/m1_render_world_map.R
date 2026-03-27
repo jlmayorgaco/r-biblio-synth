@@ -74,7 +74,7 @@ render_m1_world_map <- function(result, config = biblio_config()) {
         ggplot2::labs(title = "Global Distribution of Citations") +
         ggplot2::theme_void(base_size = 8) +
         ggplot2::theme(
-          plot.title = ggplot2::element_text(size = 9, face = "bold", hjust = 0.5),
+          plot.title = ggplot2::element_text(size = 9, face = "bold", hjust = 0.5, family = "mono"),
           legend.position = "right"
         )
     }

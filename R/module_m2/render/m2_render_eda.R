@@ -20,7 +20,7 @@ render_m2_eda <- function(result, config = biblio_config()) {
     combined <- combined[!is.na(combined$articles), ]
 
     if (nrow(combined) > 0) {
-      ec <- unlist(ieee_colors[1:length(unique(combined$Window))])
+      ec <- unname(unlist(ieee_colors[1:length(unique(combined$Window))]))
       plots$moving_averages <- ggplot2::ggplot(combined, ggplot2::aes(x = year, y = articles, color = Window)) +
         ggplot2::geom_line(linewidth = 0.6) +
         ggplot2::geom_point(size = 0.8) +
