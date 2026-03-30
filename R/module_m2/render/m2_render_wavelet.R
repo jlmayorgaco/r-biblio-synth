@@ -3,9 +3,9 @@
 # ============================================================================
 
 #' @export
-render_m2_wavelet <- function(result, years, config = biblio_config()) {
+render_m2_wavelet <- function(result, config = biblio_config()) {
   if (!inherits(result, "list") || !"power" %in% names(result)) {
-    return(list(status = "stub", plots = list(), tables = list()))
+    return(list(status = "stub", plots = list()))
   }
 
   plots <- list()
@@ -18,10 +18,10 @@ render_m2_wavelet <- function(result, years, config = biblio_config()) {
     )
     df_wavelet$Power <- c(result$power)
 
-    # Map time indices to actual years
-    if (length(years) >= 2) {
+    # Map time indices to actual years if available
+    if (!is.null(result$years) && length(result$years) >= 2) {
       time_range <- range(result$time)
-      year_range <- range(years)
+      year_range <- range(result$years)
       df_wavelet$Year <- year_range[1] + (df_wavelet$Time - time_range[1]) /
                          diff(time_range) * diff(year_range)
     } else {
@@ -42,5 +42,5 @@ render_m2_wavelet <- function(result, years, config = biblio_config()) {
       ggplot2::theme(legend.position = "right")
   }
 
-  list(status = "success", plots = plots, tables = list())
+  list(status = "success", plots = plots)
 }

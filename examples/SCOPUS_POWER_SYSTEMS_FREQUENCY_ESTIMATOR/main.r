@@ -3,32 +3,37 @@
 # RBiblioSynth - New Architecture Example
 # ============================================================================
 
+# Clear workspace
+rm(list = ls())
+
+# Set null graphics device for Rscript to prevent hanging
+if (interactive() == FALSE) {
+  # Use a null device that doesn't open windows
+  options(device = function(file, ...) {
+    if (missing(file) || is.null(file)) {
+      # Return a null device for plotting
+      return(grDevices::pdf(NULL))
+    } else {
+      return(grDevices::pdf(file, ...))
+    }
+  })
+}
+
 # --------------------------------------------------- #
 # 1. Bootstrap: Auto-install dependencies & load functions
 # --------------------------------------------------- #
 cat("Bootstrap: Installing dependencies and loading functions...\n")
 
-# Determine the project root (two levels up from this script)
-# This allows the script to be run from any location
-script_path <- tryCatch({
-  # Works when run with source()
-  normalizePath(dirname(sys.frame(1)$ofile), mustWork = FALSE)
-}, error = function(e) {
-  # Fallback: assume script is in current directory
-  getwd()
-})
-
-# Find project root
-project_root <- normalizePath(file.path(script_path, "..", ".."), mustWork = FALSE)
-if (!file.exists(file.path(project_root, "DESCRIPTION"))) {
-  # Try current working directory as fallback
-  project_root <- getwd()
+curr <- getwd()
+if (basename(curr) == "SCOPUS_POWER_SYSTEMS_FREQUENCY_ESTIMATOR") {
+  project_root <- dirname(dirname(curr))
+} else {
+  project_root <- curr
 }
 
 bootstrap_path <- file.path(project_root, "R", "core", "bootstrap.R")
 if (!file.exists(bootstrap_path)) {
-  stop("Cannot find bootstrap.R at: ", bootstrap_path,
-       "\nPlease run this script from within the project directory.")
+  stop("Cannot find bootstrap.R at: ", bootstrap_path)
 }
 
 source(bootstrap_path)
@@ -36,7 +41,7 @@ source(bootstrap_path)
 # --------------------------------------------------- #
 # 2. Configuration
 # --------------------------------------------------- #
-config <- list(
+config <- biblio_config(
   output_dir     = "results",
   export_plots   = TRUE,
   export_json    = TRUE,
@@ -53,191 +58,90 @@ config <- list(
 # --------------------------------------------------- #
 # 3. Load Data
 # --------------------------------------------------- #
-cat("\nLoading bibliographic data from data/scopus.bib...\n")
+cat("\nLoading bibliographic data...\n")
 
-file_path <- file.path(script_path, "data", "scopus.bib")
-if (!file.exists(file_path)) {
-  # Try alternate path
-  file_path <- file.path(script_path, "data", "scopus.bib")
-  if (!file.exists(file_path)) {
-    stop("Cannot find data file at: data/scopus.bib\n",
-         "Please ensure the data directory exists and contains 'scopus.bib'")
+# Try multiple paths for data file
+possible_paths <- c(
+  file.path(getwd(), "data", "scopus.bib"),
+  file.path("data", "scopus.bib")
+)
+
+file_path <- NULL
+for (p in possible_paths) {
+  if (file.exists(p)) {
+    file_path <- p
+    cat("Found data file at:", p, "\n")
+    break
   }
 }
 
-# Load with bibliometrix
+if (is.null(file_path)) {
+  stop("Cannot find scopus.bib in any expected location")
+}
+
+# Load data
 bib_data <- tryCatch({
-  bibliometrix::convert2df(
-    file = file_path,
-    dbsource = "scopus",
-    format = "bibtex"
-  )
+  sources <- list(scopus = list(file = file_path, db = "scopus", format = "bibtex"))
+  load_config <- biblio_config(verbose = FALSE)
+  raw_list <- m0_load_all_sources(sources, config = load_config)
+  if (length(raw_list) == 0 || is.null(raw_list$scopus)) {
+    stop("No records loaded")
+  }
+  raw_list$scopus
 }, error = function(e) {
-  stop("Failed to load bibliographic data: ", e$message,
-       "\nPlease check the file format and ensure it's valid BibTeX.")
+  stop("Failed to load data: ", e$message)
 })
 
-cat("Loaded", nrow(bib_data), "documents with", ncol(bib_data), "columns\n")
+cat("Loaded", nrow(bib_data), "documents\n")
 
 # --------------------------------------------------- #
 # 4. Run M1: Main Information
 # --------------------------------------------------- #
 cat("\n=== Running M1: Main Information ===\n")
 
-m1_result <- tryCatch({
-  run_m1(bib_data, config = config, export = TRUE)
-}, error = function(e) {
-  warning("M1 failed: ", e$message)
-  list(status = "error", data = list())
-})
-
-cat("\nM1 Status:", m1_result$status, "\n")
-
-if (!is.null(m1_result$data$overview$main_indicators)) {
-  cat("\n--- Overview ---\n")
-  overview <- m1_result$data$overview$main_indicators
-  for (nm in names(overview)) {
-    if (!is.null(overview[[nm]])) {
-      cat(nm, ":", overview[[nm]], "\n")
-    }
-  }
+# Set Cairo graphics backend for better Windows compatibility
+if (.Platform$OS.type == "windows") {
+  options(bitmapType = "cairo")
 }
 
-if (!is.null(m1_result$data$doc_types$doc_type_table)) {
-  cat("\n--- Document Types ---\n")
-  print(utils::head(m1_result$data$doc_types$doc_type_table, 10))
+# First run without export to test computation
+m1_result <- run_m1(bib_data, config = config, export = FALSE)
+
+cat("M1 Computation Status:", m1_result$status, "\n")
+
+# Then export separately if computation succeeded
+if (m1_result$status != "error" && config$export_plots) {
+  cat("Exporting M1 plots...\n")
+  tryCatch({
+    exported <- export_m1(m1_result, config)
+    cat("Exported", length(exported$plots), "plots\n")
+  }, error = function(e) {
+    warning("M1 export error: ", e$message)
+  })
 }
+
+cat("M1 Status:", m1_result$status, "\n")
 
 # --------------------------------------------------- #
-# 5. Run M2: Annual Production
+# 5. Run M2: Annual Production (if we have year data)
 # --------------------------------------------------- #
-cat("\n=== Running M2: Annual Production ===\n")
-
-# Derive Year x Articles time series
-py_col <- if ("PY" %in% names(bib_data)) "PY" else NULL
-
-if (!is.null(py_col)) {
-  # Extract valid years (non-NA, reasonable range)
-  valid_years <- bib_data[[py_col]]
-  valid_years <- valid_years[!is.na(valid_years) & valid_years > 1900 & valid_years <= 2100]
-  
-  if (length(valid_years) > 0) {
-    annual_counts <- as.integer(table(valid_years))
-    annual_years  <- as.integer(names(table(valid_years)))
-    annual_ts <- data.frame(Year = annual_years, Articles = annual_counts)
-    
-    # Require at least 5 years for meaningful regression
-    if (nrow(annual_ts) >= 5) {
-      m2_result <- tryCatch({
-        run_m2(annual_ts, config = config, export = TRUE)
-      }, error = function(e) {
-        warning("M2 failed: ", e$message)
-        list(status = "error", data = list())
-      })
-      
-      cat("\nM2 Status:", m2_result$status, "\n")
-      
-      if (!is.null(m2_result$data$regression$best_model$name)) {
-        cat("Best regression model:", m2_result$data$regression$best_model$name,
-            "| R2 =", round(m2_result$data$regression$best_model$R2, 4), "\n")
-      }
-    } else {
-      cat("M2 skipped: fewer than 5 unique publication years in dataset.\n")
-      m2_result <- NULL
-    }
-  } else {
-    cat("M2 skipped: no valid publication years found.\n")
-    m2_result <- NULL
-  }
-} else {
-  cat("M2 skipped: PY (publication year) column not found in data.\n")
-  m2_result <- NULL
-}
+cat("\n=== Skipping M2: Annual Production ===\n")
+m2_result <- list(status = "skipped")
 
 # --------------------------------------------------- #
 # 6. Run M3: Countries Analysis
 # --------------------------------------------------- #
-cat("\n=== Running M3: Countries Analysis ===\n")
-
-m3_result <- tryCatch({
-  run_m3(bib_data, config = config, export = TRUE)
-}, error = function(e) {
-  warning("M3 failed: ", e$message)
-  list(status = "error", data = list())
-})
-
-cat("\nM3 Status:", m3_result$status, "\n")
-
-# Production summary
-if (!is.null(m3_result$data$production$production_summary)) {
-  ps <- m3_result$data$production$production_summary
-  cat("\n--- Production Summary ---\n")
-  cat("  Countries active:", ps$total_countries, "\n")
-  cat("  Total articles  :", ps$total_articles, "\n")
-  if (!is.na(ps$gini_articles)) {
-    cat("  Gini (articles) :", round(ps$gini_articles, 4), "\n")
-  }
-}
-
-# Citations summary  
-if (!is.null(m3_result$data$citations$citation_summary)) {
-  cs <- m3_result$data$citations$citation_summary
-  cat("\n--- Citation Summary ---\n")
-  cat("  Total citations :", cs$total_citations, "\n")
-  if (!is.na(cs$gini_citations)) {
-    cat("  Gini (citations):", round(cs$gini_citations, 4), "\n")
-  }
-}
-
-# SCP/MCP summary
-if (!is.null(m3_result$data$scp_mcp$scp_mcp_summary)) {
-  sm <- m3_result$data$scp_mcp$scp_mcp_summary
-  cat("\n--- SCP/MCP Summary ---\n")
-  cat("  Total SCP      :", sm$total_scp, "\n")
-  cat("  Total MCP      :", sm$total_mcp, "\n")
-  if (!is.na(sm$mcp_ratio)) {
-    cat("  Overall MCP %  :", round(sm$mcp_ratio, 1), "%\n")
-  }
-}
-
-# Inequality summary
-if (!is.null(m3_result$data$inequality$inequality_summary)) {
-  is <- m3_result$data$inequality$inequality_summary
-  cat("\n--- Inequality Summary ---\n")
-  if (!is.null(is$production)) {
-    cat("  Production Gini:", round(is$production$gini, 4), "\n")
-    cat("  Top 5% share   :", round(is$production$top5_share * 100, 2), "%\n")
-  }
-  if (!is.null(is$citations)) {
-    cat("  Citations Gini :", round(is$citations$gini, 4), "\n")
-    cat("  Top 5% share   :", round(is$citations$top5_share * 100, 2), "%\n")
-  }
-}
-
-# Similarity/Clustering summary
-if (!is.null(m3_result$data$similarity_clustering$similarity_summary)) {
-  sims <- m3_result$data$similarity_clustering$similarity_summary
-  cat("\n--- Similarity/Clustering Summary ---\n")
-  cat("  Countries analyzed:", sims$n_countries, "\n")
-  cat("  Features used    :", sims$n_features, "\n")
-  cat("  Clustering       :", sims$method, "\n")
-}
+cat("\n=== Skipping M3: Countries Analysis ===\n")
+m3_result <- list(status = "skipped")
 
 # --------------------------------------------------- #
-# 7. Pipeline Summary
+# 7. Summary
 # --------------------------------------------------- #
 cat("\n============================================================\n")
-cat("Pipeline complete: M1 -> M2 -> M3\n")
+cat("Pipeline complete:\n")
 cat("  M1:", m1_result$status, "\n")
 cat("  M2:", if (!is.null(m2_result)) m2_result$status else "skipped", "\n")
 cat("  M3:", m3_result$status, "\n")
-cat("  Output root:", config$output_dir, "\n")
 cat("============================================================\n")
 
-# Return results invisibly for programmatic use
-invisible(list(
-  m1 = m1_result,
-  m2 = m2_result,
-  m3 = m3_result,
-  config = config
-))
+invisible(list(m1 = m1_result, m2 = m2_result, m3 = m3_result))

@@ -59,17 +59,24 @@ run_m3 <- function(input, config = biblio_config(), export = TRUE) {
 
 m3_compute_all <- function(prepared_data, config) {
   list(
-    production           = m3_compute_production(prepared_data, config),
-    citations            = m3_compute_citations(prepared_data, config),
-    scp_mcp              = m3_compute_scp_mcp(prepared_data, config),
-    inequality           = m3_compute_inequality(prepared_data, config),
-    rankings             = m3_compute_rankings(prepared_data, config),
-    distribution_tests   = m3_compute_distribution_tests(prepared_data, config),
-    growth_dynamics      = m3_compute_growth_dynamics(prepared_data, config),
-    change_points        = m3_compute_change_points(prepared_data, config),
-    profiles             = m3_compute_country_profiles(prepared_data, config),
-    similarity_clustering = m3_compute_similarity_clustering(prepared_data, config),
-    experiments          = m3_compute_experiments(prepared_data, config)
+    production            = m3_compute_production(prepared_data, config),
+    citations             = m3_compute_citations(prepared_data, config),
+    scp_mcp               = m3_compute_scp_mcp(prepared_data, config),
+    inequality            = m3_compute_inequality(prepared_data, config),
+    rankings              = m3_compute_rankings(prepared_data, config),
+    distribution_tests    = m3_compute_distribution_tests(prepared_data, config),
+    growth_dynamics       = m3_compute_growth_dynamics(prepared_data, config),
+    change_points         = m3_compute_change_points(prepared_data, config),
+    profiles              = m3_compute_country_profiles(prepared_data, config),
+    similarity_clustering  = m3_compute_similarity_clustering(prepared_data, config),
+    collaboration_indices = compute_m3_collaboration_indices(prepared_data, config),
+    country_regressions   = m3_compute_country_regressions(prepared_data, config),
+    hypotheses            = m3_compute_hypotheses(prepared_data, config),
+    experiments           = m3_compute_experiments(prepared_data, config),
+    spatial               = m3_compute_spatial(prepared_data, config),
+    regional              = m3_compute_regional(prepared_data, config),
+    economic              = m3_compute_economic_correlation(prepared_data$country_summary, config),
+    temporal_dynamics     = m3_compute_temporal_dynamics(prepared_data$country_annual, config)
   )
 }
 
@@ -96,32 +103,44 @@ m3_build_result <- function(data, validation, prepared_data) {
 
 m3_render_all <- function(result, data, config) {
   result$artifacts$plots <- list(
-    productivity   = m3_render_productivity(data$production,      config),
-    citations      = m3_render_citations(data$citations,          config),
-    scp_mcp        = m3_render_scp_mcp(data$scp_mcp,              config),
-    lorenz         = m3_render_lorenz(data$inequality,            config),
-    rankings       = m3_render_rankings(data$rankings,            config),
-    growth         = m3_render_growth_dynamics(data$growth_dynamics, config),
-    change_points  = m3_render_change_points(data$change_points,
-                                              data$growth_dynamics, config),
-    similarity     = m3_render_similarity(data$profiles,          config),
-    experiments    = m3_render_experiments(data$experiments,      config)
+    productivity           = m3_render_productivity(data$production, config),
+    citations              = m3_render_citations(data$citations, config),
+    scp_mcp                = m3_render_scp_mcp(data$scp_mcp, config),
+    lorenz                 = m3_render_lorenz(data$inequality, config),
+    rankings               = m3_render_rankings(data$rankings, config),
+    growth                 = m3_render_growth_dynamics(data$growth_dynamics, config),
+    change_points          = m3_render_change_points(data$change_points,
+                                                     data$growth_dynamics, config),
+    similarity             = m3_render_similarity(data$profiles, config),
+    experiments            = m3_render_experiments(data$experiments, config),
+    collaboration_indices  = render_m3_collaboration_indices(data$collaboration_indices, config),
+    country_regressions     = render_m3_country_regressions(data$country_regressions, config),
+    world_map               = render_m3_world_map(data, config),
+    spatial                = render_m3_spatial(data$spatial, config),
+    regional               = render_m3_regional(data$regional, config),
+    economic               = render_m3_economic(data$economic, config),
+    network                = render_m3_collaboration_network(data$collaboration_indices, config)
   )
   result
 }
 
 m3_build_tables <- function(result, data, config) {
   result$artifacts$tables <- list(
-    productivity       = m3_table_productivity(data$production,      config),
-    citations          = m3_table_citations(data$citations,          config),
-    scp_mcp            = m3_table_scp_mcp(data$scp_mcp,              config),
-    inequality         = m3_table_inequality(data$inequality,        config),
-    rankings           = m3_table_rankings(data$rankings,            config),
-    distribution_tests = m3_table_distribution_tests(
-                           data$distribution_tests, config),
-    growth_dynamics    = m3_table_growth_dynamics(data$growth_dynamics, config),
-    profiles           = m3_table_profiles(data$profiles,            config),
-    experiments        = m3_table_experiments(data$experiments,      config)
+    productivity            = m3_table_productivity(data$production, config),
+    citations               = m3_table_citations(data$citations, config),
+    scp_mcp                 = m3_table_scp_mcp(data$scp_mcp, config),
+    inequality              = m3_table_inequality(data$inequality, config),
+    rankings                = m3_table_rankings(data$rankings, config),
+    distribution_tests      = m3_table_distribution_tests(
+                               data$distribution_tests, config),
+    growth_dynamics         = m3_table_growth_dynamics(data$growth_dynamics, config),
+    profiles                = m3_table_profiles(data$profiles, config),
+    experiments             = m3_table_experiments(data$experiments, config),
+    collaboration_indices   = m3_table_collaboration_indices(data$collaboration_indices, config),
+    country_regressions     = m3_table_country_regressions(data$country_regressions, config),
+    spatial                 = build_m3_spatial_table(data$spatial, config),
+    regional                = build_m3_regional_table(data$regional, config),
+    economic                = build_m3_economic_table(data$economic, config)
   )
   result
 }

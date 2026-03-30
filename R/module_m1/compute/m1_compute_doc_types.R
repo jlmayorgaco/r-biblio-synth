@@ -17,7 +17,8 @@ compute_m1_doc_types <- function(input, config = biblio_config()) {
 
   # Try bibliometrix first, fallback to manual
   dt_counts <- tryCatch({
-    res <- bibliometrix::biblioAnalysis(input, sep = ";")
+    cached <- get_cached_biblio_analysis(input)
+    res <- cached$res
     s <- summary(res, pause = FALSE, verbose = FALSE)
     m1_extract_document_types(s$MainInformationDF)
   }, error = function(e) {

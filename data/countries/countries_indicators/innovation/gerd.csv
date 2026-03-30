@@ -1,0 +1,6 @@
+iso3,year,value
+# PENDING: UNESCO UIS API - Requires manual download from http://data.uis.unesco.org
+# Indicator: GERD - Gross Domestic Expenditure on R&D (current USD)
+# Coverage: 1970-2023, ~90 countries
+# Manual download: http://data.uis.unesco.org -> R&D Statistics -> GERD
+# Last checked: 2026-03-29 - API endpoint changed, manual download required

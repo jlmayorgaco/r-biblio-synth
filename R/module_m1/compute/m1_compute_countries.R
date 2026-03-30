@@ -14,7 +14,8 @@ compute_m1_countries <- function(input, config = biblio_config()) {
 
   # Try bibliometrix first
   country_data <- tryCatch({
-    res <- bibliometrix::biblioAnalysis(input, sep = ";")
+    cached <- get_cached_biblio_analysis(input)
+    res <- cached$res
     s <- summary(res, pause = FALSE, verbose = FALSE)
     list(most_prod = s$MostProdCountries, tc_per = s$TCperCountries)
   }, error = function(e) {

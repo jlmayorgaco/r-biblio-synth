@@ -4,21 +4,17 @@
 
 #' @export
 compute_m1_citations <- function(input, config = biblio_config()) {
+  cat("    [M1-citations] Starting computation...\n")
   if (!is.data.frame(input) || nrow(input) == 0) {
     return(list(top_cited_documents = m1_empty_rank_table(), citations_per_year = m1_empty_rank_table(),
                 citation_summary = list(), status = "error"))
   }
 
   top_n <- config$top_n_default
+  cat("    [M1-citations] top_n =", top_n, "\n")
 
-  # Try bibliometrix first
+  # Skip bibliometrix - use fallback (TC column) to avoid hanging
   cit_data <- tryCatch({
-    res <- bibliometrix::biblioAnalysis(input, sep = ";")
-    s <- summary(res, pause = FALSE, verbose = FALSE)
-    mc <- s$MostCitedPapers
-    colnames(mc) <- make.unique(colnames(mc))
-    mc
-  }, error = function(e) {
     # Fallback: use TC column directly
     if ("TC" %in% names(input) && "TI" %in% names(input)) {
       mc <- data.frame(

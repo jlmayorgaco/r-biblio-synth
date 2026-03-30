@@ -11,7 +11,7 @@ run_m1 <- function(input, config = biblio_config(), export = TRUE) {
     cli::cli_warn("M1 validation: {paste(validation$missing_columns, collapse=', ')} missing")
   }
 
-  data <- m1_compute_all(input, config)
+  data <- m1_compute_all_debug(input, config)
   result <- m1_build_result(data, validation)
   result <- m1_render_all(result, data, config)
   result <- m1_build_tables(result, data, config)
@@ -31,15 +31,73 @@ run_m1 <- function(input, config = biblio_config(), export = TRUE) {
 #' Compute all M1 metrics
 m1_compute_all <- function(input, config) {
   list(
-    overview  = compute_m1_overview(input, config),
-    doc_types = compute_m1_doc_types(input, config),
-    authors   = compute_m1_authors(input, config),
-    citations = compute_m1_citations(input, config),
-    countries = compute_m1_countries(input, config),
-    sources   = compute_m1_sources(input, config),
-    keywords  = compute_m1_keywords(input, config),
-    bradford  = compute_m1_bradford(input, config)
+    overview             = compute_m1_overview(input, config),
+    doc_types            = compute_m1_doc_types(input, config),
+    authors              = compute_m1_authors(input, config),
+    author_indices       = compute_m1_author_indices(input, config),
+    citations            = compute_m1_citations(input, config),
+    countries            = compute_m1_countries(input, config),
+    sources              = compute_m1_sources(input, config),
+    keywords             = compute_m1_keywords(input, config),
+    keyword_cooccurrence = compute_m1_keyword_cooccurrence(input, config),
+    keyword_burst        = compute_m1_keyword_burst(input, config),
+    bradford             = compute_m1_bradford(input, config),
+    lotka                = compute_m1_lotka(input, config),
+    collaboration        = compute_m1_collaboration(input, config),
+    price_law            = compute_m1_price_law(input, config),
+    hypotheses           = compute_m1_hypotheses(input, config),
+    topic_modeling       = compute_m1_topic_modeling(input, config),
+    citation_analysis     = compute_m1_citation_analysis(input, config),
+    author_career        = compute_m1_author_career(input, config)
   )
+}
+
+m1_compute_all_debug <- function(input, config) {
+  steps <- list(
+    list(name = "overview", fn = function() compute_m1_overview(input, config)),
+    list(name = "doc_types", fn = function() compute_m1_doc_types(input, config)),
+    list(name = "authors", fn = function() compute_m1_authors(input, config)),
+    list(name = "author_indices", fn = function() compute_m1_author_indices(input, config)),
+    list(name = "citations", fn = function() compute_m1_citations(input, config)),
+    list(name = "countries", fn = function() compute_m1_countries(input, config)),
+    list(name = "sources", fn = function() compute_m1_sources(input, config)),
+    list(name = "keywords", fn = function() compute_m1_keywords(input, config)),
+    list(name = "keyword_cooccurrence", fn = function() compute_m1_keyword_cooccurrence(input, config)),
+    list(name = "keyword_burst", fn = function() compute_m1_keyword_burst(input, config)),
+    list(name = "bradford", fn = function() compute_m1_bradford(input, config)),
+    list(name = "lotka", fn = function() compute_m1_lotka(input, config)),
+    list(name = "collaboration", fn = function() compute_m1_collaboration(input, config)),
+    list(name = "price_law", fn = function() compute_m1_price_law(input, config)),
+    list(name = "hypotheses", fn = function() compute_m1_hypotheses(input, config)),
+    list(name = "topic_modeling", fn = function() compute_m1_topic_modeling(input, config)),
+    list(name = "citation_analysis", fn = function() compute_m1_citation_analysis(input, config)),
+    list(name = "author_career", fn = function() compute_m1_author_career(input, config))
+  )
+  
+  result <- list()
+  for (step in steps) {
+    start_time <- Sys.time()
+    cat("  [M1] Computing", step$name, "...\n")
+    if (step$name == "topic_modeling") {
+      res <- step$fn()
+      elapsed <- round(as.numeric(difftime(Sys.time(), start_time, units = "secs")), 2)
+      cat("  [M1] Computing", step$name, "... DONE (", elapsed, "s)\n")
+      result[[step$name]] <- res
+    } else {
+      result[[step$name]] <- tryCatch({
+        res <- step$fn()
+        elapsed <- round(as.numeric(difftime(Sys.time(), start_time, units = "secs")), 2)
+        cat("  [M1] Computing", step$name, "... DONE (", elapsed, "s)\n")
+        res
+      }, error = function(e) {
+        elapsed <- round(as.numeric(difftime(Sys.time(), start_time, units = "secs")), 2)
+        cat("  [M1] ERROR in", step$name, "after", elapsed, "s:", conditionMessage(e), "\n")
+        list(status = "error", message = conditionMessage(e))
+      })
+    }
+    flush.console()
+  }
+  result
 }
 
 #' Build module result
@@ -57,14 +115,23 @@ m1_build_result <- function(data, validation) {
 #' Render all plots
 m1_render_all <- function(result, data, config) {
   result$artifacts$plots <- list(
-    overview  = render_m1_overview(data$overview, config),
-    doc_types = render_m1_doc_types(data$doc_types, config),
-    authors   = render_m1_authors(data$authors, config),
-    citations = render_m1_citations(data$citations, config),
-    countries = render_m1_countries(data$countries, config),
-    sources   = render_m1_sources(data$sources, config),
-    keywords  = render_m1_keywords(data$keywords, config),
-    bradford  = render_m1_bradford(data$bradford, config)
+    overview             = render_m1_overview(data$overview, config),
+    doc_types            = render_m1_doc_types(data$doc_types, config),
+    authors              = render_m1_authors(data$authors, config),
+    author_indices       = render_m1_author_indices(data$author_indices, config),
+    citations            = render_m1_citations(data$citations, config),
+    countries            = render_m1_countries(data$countries, config),
+    sources              = render_m1_sources(data$sources, config),
+    keywords             = render_m1_keywords(data$keywords, config),
+    keyword_cooccurrence = render_m1_keyword_cooccurrence(data$keyword_cooccurrence, config),
+    keyword_burst        = render_m1_keyword_burst(data$keyword_burst, config),
+    bradford             = render_m1_bradford(data$bradford, config),
+    lotka                = render_m1_lotka(data$lotka, config),
+    collaboration        = render_m1_collaboration(data$collaboration, config),
+    price_law            = render_m1_price_law(data$price_law, config),
+    topic_modeling       = render_m1_topic_modeling(data$topic_modeling, config),
+    citation_analysis     = render_m1_citation_analysis(data$citation_analysis, config),
+    author_career        = render_m1_author_career(data$author_career, config)
   )
   result
 }
@@ -72,14 +139,20 @@ m1_render_all <- function(result, data, config) {
 #' Build all tables
 m1_build_tables <- function(result, data, config) {
   result$artifacts$tables <- list(
-    overview  = build_m1_overview_table(data$overview, config),
-    doc_types = build_m1_doc_types_table(data$doc_types, config),
-    authors   = build_m1_authors_table(data$authors, config),
-    citations = build_m1_citations_table(data$citations, config),
-    countries = build_m1_countries_table(data$countries, config),
-    sources   = build_m1_sources_table(data$sources, config),
-    keywords  = build_m1_keywords_table(data$keywords, config),
-    bradford  = build_m1_bradford_table(data$bradford, config)
+    overview             = build_m1_overview_table(data$overview, config),
+    doc_types            = build_m1_doc_types_table(data$doc_types, config),
+    authors              = build_m1_authors_table(data$authors, config),
+    author_indices       = build_m1_author_indices_table(data$author_indices, config),
+    citations            = build_m1_citations_table(data$citations, config),
+    countries            = build_m1_countries_table(data$countries, config),
+    sources              = build_m1_sources_table(data$sources, config),
+    keywords             = build_m1_keywords_table(data$keywords, config),
+    keyword_cooccurrence = build_m1_keyword_cooccurrence_table(data$keyword_cooccurrence, config),
+    keyword_burst        = build_m1_keyword_burst_table(data$keyword_burst, config),
+    bradford             = build_m1_bradford_table(data$bradford, config),
+    lotka                = build_m1_lotka_table(data$lotka, config),
+    collaboration        = build_m1_collaboration_table(data$collaboration, config),
+    price_law            = build_m1_price_law_table(data$price_law, config)
   )
   result
 }

@@ -17,11 +17,15 @@ compute_m1_overview <- function(input, config = biblio_config()) {
     ))
   }
 
-  # Try bibliometrix first, fallback to manual computation
+  # Try cached bibliometrix first, fallback to manual computation
   main_indicators <- tryCatch({
-    res <- bibliometrix::biblioAnalysis(input, sep = ";")
-    s <- summary(res, pause = FALSE, verbose = FALSE)
-    m1_extract_main_information(s$MainInformationDF)
+    cached <- get_cached_biblio_analysis(input)
+    if (cached$status == "success") {
+      m1_extract_main_information(cached$summary$MainInformationDF)
+    } else {
+      # Fallback: manual computation
+      m1_compute_overview_manual(input)
+    }
   }, error = function(e) {
     # Fallback: manual computation
     m1_compute_overview_manual(input)

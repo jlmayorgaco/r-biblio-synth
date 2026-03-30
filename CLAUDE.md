@@ -13,120 +13,126 @@
 ### Module Structure
 | Module | Status | Quality | Notes |
 |--------|--------|---------|-------|
-| M1_Main_Information | Working | Medium | Large monolithic file (1000+ lines), extensive plotting |
-| M2_Annual_Production | Working | Medium | R6 class structure with submodules |
-| M3_Authors | Broken | Low | Empty/placeholder, commented-out code |
-| M3_Most_Prod_Authors | Partial | Low | Incomplete implementation |
-| M4_Countries | Partial | Low | Just helper files |
-| Config | Working | Good | Theme system present |
+| **M0** Data Orchestrator | **Working** | Good | Load, merge, organize sources; PRISMA diagram & report |
+| M1 Main Information | Working | Good | Overview, doc types, authors, citations, countries, keywords, Bradford |
+| M2 Annual Production | Working | Good | EDA, regression models, harmonic analysis |
+| M3 Countries | Working | Good | Production, citations, SCP/MCP, inequality, clustering |
+
+### M0 Data Orchestrator (NEW)
+- **Purpose**: Orchestrate data loading from multiple bibliometric sources, merge them, and prepare organized data for downstream modules.
+- **Features**:
+  - Load from Scopus, Web of Science, OpenAlex, and generic CSV/Excel
+  - Automatic column harmonization across different database exports
+  - Deduplication by DOI and normalized title+year
+  - Pre-organize data into author, country, source, keyword, citation, annual tables
+  - PRISMA 2020 flow diagram generation from JSON/YAML specification
+  - PRISMA report generation (text + LaTeX)
+- **API for downstream modules**:
+  - `m0_get(m0_result, "bib_merged")` - Get unified bibliometrix data frame
+  - `m0_get(m0_result, "countries")` - Get pre-organized country data
+  - `m0_get(m0_result, "authors")` - Get pre-organized author data
+  - `m0_get_bib_data(m0_result)` - Validated access to merged data
+  - `m0_is_valid(m0_result)` - Check M0 result validity
 
 ### Main.r Implementation Pattern
-- The example at examples/SCOPUS_POWER_SYSTEMS_FREQUENCY_ESTIMATOR/main.r demonstrates a concrete orchestration flow for M1_Main_Information.
-- Core steps:
-  - Define a config list (output_dir, export flags, plotting parameters, verbosity).
-  - Load bibliographic data from a BibTeX source and convert to a data frame using bibliometrix::convert2df.
-  - Call a main runner (e.g., run_m1) with bib_data and config, exporting artifacts if requested.
-  - Print a structured summary of results (overview, doc types, top authors, top cited papers, top countries/sources, Bradford zones, manifest).
-- Pattern sketch (high level):
-  - config <- list(...)
-  - bib_data <- bibliometrix::convert2df(file = tmp_file, dbsource = "scopus", format = "bibtex")
-  - m1_result <- run_m1(bib_data, config = config, export = TRUE)
-  - Print or inspect m1_result$data and m1_result$artifacts
-- Implications:
-  - This pattern acts as a reference for a minimal M1 orchestration that could be encapsulated into a dedicated R module.
-  - It highlights dependencies on the non-existent SystematicReviewClass.r in current examples, and on a stable package scaffold.
-- Recommendations moving forward:
-  - Implement a minimal SystematicReviewClass.r or replace the dependency with a safe stub for examples.
-  - Establish a proper R package layout (DESCRIPTION/NAMESPACE) to host run_m1 and related interfaces.
-  - Create a lightweight M1_Main_Information module with a defined contract (input bib_data, config; output artifacts and data slots).
+```r
+# Define sources
+sources <- list(
+  scopus = list(file = "data/scopus.bib", db = "scopus", format = "bibtex"),
+  wos = list(file = "data/wos.bib", db = "wos", format = "bibtex")
+)
+
+# Run M0 orchestrator
+m0_result <- run_m0(sources, config = config, prisma_spec = "prisma.json", export = TRUE)
+
+# Use M0 data in downstream modules
+bib_data <- m0_get_bib_data(m0_result)
+m1_result <- run_m1(bib_data, config = config, export = TRUE)
+m3_result <- run_m3(bib_data, config = config, export = TRUE)
+```
+
+### PRISMA JSON Specification
+```json
+{
+  "title": "Review Title",
+  "identification": { "records_database": 1250, "records_other": 45, "duplicates_removed": 180 },
+  "screening": { "records_screened": 1115, "excluded_screening": 780 },
+  "eligibility": { "fulltext_assessed": 335, "excluded_fulltext": 195, "excluded_reasons": {...} },
+  "included": { "studies_included": 140, "by_type": { "Journal article": 95 } },
+  "quality": { "tool": "MMAT", "low_risk": 110, "high_risk": 15, "unclear": 15 }
+}
+```
 
 ---
 
-## Critical Issues
+## File Structure
 
-### 1. BROKEN REFERENCES - CRITICAL
-- `examples/SCOPUS_POWER_SYSTEMS_FREQUENCY_ESTIMATOR/main.r` references `src/SystematicReviewClass.r` which **DOES NOT EXIST**
-- This makes the main example completely non-functional
-
-### 2. EMPTY STUBS
-- `src/M3_Authors/_helpers.r` - EMPTY (0 lines)
-- `src/M3_Authors/_utils.r` - EMPTY (0 lines)
-- `src/03_utils/io/io_paths.r` - EMPTY (0 lines)
-- `src/03_utils/modules/module_m5/module_m5_tables_utils.r` - Has code but orphaned
-
-### 3. CODE DUPLICATION
-- `_helpers.r` in M2_Annual_Production contains duplicate function definitions (797 lines with repeated functions like `calculate_moving_average`, `serialize_model`, etc.)
-
-### 4. COMMENTED-OUT CODE
-- `src/M3_Authors/M3_Authors.r` has 90% of methods commented out
-- Example file imports reference non-existent classes
-
-### 5. NO PACKAGE STRUCTURE
-- No `DESCRIPTION` file
-- No `NAMESPACE` file
-- No `Roxygen` documentation
-- No tests directory
-
----
-
-## Code Quality Issues
-
-### Naming Inconsistencies
-- Mixed snake_case and camelCase: `fn_m1_main_information` vs `ieee_theme`
-- Unclear file naming: `_helpers.r`, `__m1_report.r`, `_plots.r`
-- Module naming: `M3_Most_Prod_Authors` vs `M3_Authors`
-
-### Hardcoded Values
-- Paths like `"results/M1_Main_Information/figures"`
-- Magic numbers in plotting: `dpi = 600`, `window_size = c(1, 5, 10)`
-- Hardcoded model parameters in regression functions
-
-### No Error Handling Strategy
-- Basic tryCatch in some places but inconsistent
-- Silent failures possible
-- No validation framework
-
-### No Version Control
-- No `.Rbuildignore`
-- No `.Rinstignore`
-- `_temp/` directory committed to git
+```
+R/
+├── core/
+│   ├── bootstrap.R          # Auto-install & load all functions
+│   ├── config.R             # biblio_config(), merge_biblio_config()
+│   ├── contracts.R          # new_module_result(), validate_module_result()
+│   ├── module_registry.R    # get_available_modules(), get_module_metadata()
+│   ├── paths.R              # build_output_path(), build_artifact_path()
+│   ├── result_builders.R    # attach_artifacts_to_result(), attach_report_to_result()
+│   └── validation.R         # validate_required_columns()
+├── module_m0/               # Data Orchestrator (NEW)
+│   ├── m0_run.R             # run_m0() - main entry point
+│   ├── m0_load_sources.R    # m0_load_all_sources(), m0_load_single_source()
+│   ├── m0_merge_sources.R   # m0_merge_sources(), m0_deduplicate()
+│   ├── m0_organize_data.R   # m0_organize_for_modules() - pre-process for M1-M4
+│   ├── m0_prisma_report.R   # m0_read_prisma_spec(), m0_build_prisma_report()
+│   ├── m0_prisma_diagram.R  # m0_render_prisma_diagram() - base R graphics
+│   ├── m0_helpers.R         # m0_get(), m0_is_valid(), m0_prisma_template()
+│   ├── m0_validate.R        # m0_validate_sources(), m0_validate_merged()
+│   └── m0_manifest.R        # m0_build_manifest()
+├── module_m1/               # Main Information
+├── module_m2/               # Annual Production
+├── module_m3/               # Countries
+├── services/
+│   ├── json_service.R       # write_json_artifact()
+│   ├── plot_export_service.R # export_plot_artifact()
+│   └── report_service.R     # write_text_report()
+└── style/
+    └── ieee_theme.R         # ieee_theme(), get_biblio_palette()
+```
 
 ---
 
-## Missing Features (Per README)
+## Contract Pattern (All Modules)
 
-### Unimplemented Modules
-- [ ] **M4**: Institutions (collaboration networks, quadrants)
-- [ ] **M5**: Authors & Documents (h-index, g-index)
-- [ ] **M6**: Clustering & Themes
-- [ ] **M7**: Conceptual & Social Structure
-- [ ] **M8**: Automated Bibliometric Report
-
-### LLM Integration (Roadmap)
-- [ ] **M9**: LLM Report Generator
-- [ ] **M10**: Zotero Integration
-- [ ] **M11**: Multi-PDF Analysis
-- [ ] **M12**: Auto LaTeX Paper Report
+```r
+result <- run_mN(input, config = biblio_config(), export = TRUE)
+# Returns: biblio_module_result with:
+#   $module_id, $module_name, $status
+#   $inputs, $data, $diagnostics
+#   $artifacts$plots, $artifacts$tables, $artifacts$reports, $artifacts$manifest
+```
 
 ---
 
-## Recommendations
+## Quick Reference
 
-### Immediate Fixes
-1. Create `SystematicReviewClass.r` or remove broken references
-2. Either delete empty stub files or implement them
-3. Remove duplicate function definitions in _helpers.r
-4. Clean up commented-out code in M3_Authors
+### Run M0
+```r
+source("R/core/bootstrap.R")
+sources <- list(scopus = list(file = "data/scopus.bib", db = "scopus"))
+m0_result <- run_m0(sources, prisma_spec = "prisma.json")
+bib_data <- m0_get_bib_data(m0_result)
+```
 
-### Short-term
-1. Add proper R package structure (DESCRIPTION, NAMESPACE)
-2. Create README files for each module
-3. Add basic unit tests
-4. Document all public methods with roxygen
+### Generate PRISMA Template
+```r
+prisma <- m0_prisma_template("My Review")
+jsonlite::write_json(prisma, "prisma.json", auto_unbox = TRUE, pretty = TRUE)
+```
 
-### Long-term
-1. Implement missing modules (M4-M8)
-2. Add CI/CD via GitHub Actions
-3. Create proper dependency management
-4. Add logging framework instead of `message()` calls
-5. Refactor monolithic M1_Main_Information.r into smaller modules
+### Access Organized Data
+```r
+m0_get(m0_result, "authors")      # Author-level aggregation
+m0_get(m0_result, "countries")    # Country-level aggregation
+m0_get(m0_result, "sources")      # Journal/source aggregation
+m0_get(m0_result, "keywords")     # Keyword frequency
+m0_get(m0_result, "annual")       # Annual production
+```

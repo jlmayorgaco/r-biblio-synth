@@ -49,12 +49,11 @@ get_package_dependencies <- function(desc_path = "DESCRIPTION") {
     }
   }
   
-  if (!file.exists(desc_path)) {
-    stop("DESCRIPTION file not found. Tried: ", desc_path,
-         "\nPlease run this script from the project root directory.")
-  }
-  
-  lines <- readLines(desc_path, warn = FALSE)
+  lines <- tryCatch({
+    readLines(desc_path, warn = FALSE)
+  }, error = function(e) {
+    stop("DESCRIPTION file could not be read. Path tried: ", desc_path, "\nError: ", e$message)
+  })
   
   # Find Imports section
   imports_start <- grep("^Imports:", lines)

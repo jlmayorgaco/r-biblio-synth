@@ -26,3 +26,13 @@ build_m2_regression_table <- function(result, config = biblio_config()) {
 
   list(status = "success", table = tibble::as_tibble(result$comparison_table))
 }
+
+#' @export
+build_m2_forecasting_table <- function(result, config = biblio_config()) {
+  if (!inherits(result, "list") || result$status != "success") {
+    return(list(status = "stub", table = tibble::tibble()))
+  }
+  
+  source("R/module_m2/tables/m2_table_forecasting.R", local = TRUE)
+  build_m2_forecasting_table(result, config)
+}

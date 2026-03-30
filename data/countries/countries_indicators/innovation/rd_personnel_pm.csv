@@ -1,0 +1,6 @@
+iso3,year,value
+# PENDING: UNESCO UIS API - Requires manual download from http://data.uis.unesco.org
+# Indicator: RP_RSSE - R&D Personnel (headcounts) per million inhabitants
+# Coverage: 1990-2023, ~80 countries
+# Manual download: http://data.uis.unesco.org -> R&D Statistics -> R&D Personnel
+# Last checked: 2026-03-29 - API endpoint changed, manual download required

@@ -1,0 +1,7 @@
+iso3,year,value
+# PENDING: UNESCO UIS API - Requires manual download from http://data.uis.unesco.org
+# Indicator: RP_RSRS - Researchers per million inhabitants
+# Coverage: 1990-2023, ~90 countries
+# Alternative: World Bank indicator SP.SCI.RD.P6 (timed out on fetch)
+# Manual download: http://data.uis.unesco.org -> R&D Statistics -> Researchers
+# Last checked: 2026-03-29 - API endpoint changed, manual download required

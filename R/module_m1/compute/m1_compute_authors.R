@@ -13,7 +13,7 @@ compute_m1_authors <- function(input, config = biblio_config()) {
   # Try bibliometrix first, fallback to manual
   # Returns a data frame with columns: Authors (char) and Articles (numeric)
   author_data <- tryCatch({
-    res <- bibliometrix::biblioAnalysis(input, sep = ";")
+    cached <- get_cached_biblio_analysis(input); res <- cached$res
     s <- summary(res, pause = FALSE, verbose = FALSE)
     mp <- s$MostProdAuthors
     colnames(mp) <- make.unique(colnames(mp))

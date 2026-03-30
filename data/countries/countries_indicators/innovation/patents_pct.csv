@@ -1,0 +1,7 @@
+iso3,year,value
+# PENDING: WIPO Statistics - API endpoint changed
+# Indicator: PAT_PCT - International patent applications via PCT
+# Coverage: 1990-2023, ~180 countries
+# API: https://www.wipo.int/ipstats/rest/ (changed from previous endpoint)
+# Manual: https://stats.wipo.int/ -> Statistics -> PCT data
+# Last checked: 2026-03-29 - WIPO REST API format changed, needs verification

@@ -6,10 +6,10 @@ Date: 2026-03-25
 Authors@R: person("Mayorga", role = c("aut", "cre"),
     email = "maintainer@example.com")
 Description: A modular framework for automating bibliometric analysis and
-    systematic review reporting. Provides modules for main information
-    extraction (M1), annual production regression analysis (M2), author
-    analysis (M3), and country-level analysis (M4), with support for
-    Scopus and OpenAlex data sources.
+    systematic review reporting. Provides module M0 for data orchestration
+    (load, merge, organize sources from Scopus, WoS, OpenAlex), M1 for main
+    information extraction, M2 for annual production regression, M3 for
+    country-level analysis, with PRISMA 2020 flow diagram generation.
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
@@ -41,6 +41,7 @@ Imports:
     nortest
 Suggests:
     testthat (>= 3.0.0),
+    yaml,
     ggwordcloud,
     WaveletComp,
     ggspatial,

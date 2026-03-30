@@ -1,0 +1,11 @@
+iso3,year,value
+# PENDING: UN DESA Population Prospects - Download from new URL
+# Indicator: POP_FORECAST - Total population projected
+# Coverage: 2025-2050 for ~235 countries/territories
+# New Download: https://population.un.org/wpp/Download/Files/
+# Direct CSV: Check WPP2024.csv or similar in the file listing
+# Alternative R: wpp2022 package or download Excel from UN population site
+# R code to fetch:
+#   url <- "https://population.un.org/wpp/Download/Files/1_Population%20Data/CSV/WPP2024.csv"
+#   download.file(url, destfile = "pop_raw.csv", mode = "wb")
+# Last checked: 2026-03-29 - File listing accessible, CSV path needs verification

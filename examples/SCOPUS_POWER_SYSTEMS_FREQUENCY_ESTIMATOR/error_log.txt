@@ -1,0 +1,107 @@
+﻿Bootstrap: Installing dependencies and loading functions...
+Rscript.exe : Checking and installing dependencies...
+En línea: 1 Carácter: 1
++ & "C:\Program Files\R\R-4.5.3\bin\x64\Rscript.exe" .\main.r 2>&1 | Ou ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Checking and installing dependencies...:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Registered S3 method overwritten by 'quantmod':
+  method            from
+  as.zoo.data.frame zoo 
+Already installed: cli, rlang, tibble, ggplot2, jsonlite, dplyr, tidyr, scales, stats, utils, bibliometrix, stopwords, zoo, lomb, lmtest, splines, treemapify, ggrepel, rnaturalearth, sf, countrycode, tseries, nortest
+Loading packages...
+
+Attaching package: 'rlang'
+
+The following object is masked _by_ '.GlobalEnv':
+
+    %||%
+
+
+Attaching package: 'jsonlite'
+
+The following objects are masked from 'package:rlang':
+
+    flatten, unbox
+
+
+Attaching package: 'dplyr'
+
+The following objects are masked from 'package:stats':
+
+    filter, lag
+
+The following objects are masked from 'package:base':
+
+    intersect, setdiff, setequal, union
+
+Please note that our software is open source and available for use, distributed under the MIT license.
+When it is used in a publication, we ask that authors properly cite the following reference:
+
+Aria, M. & Cuccurullo, C. (2017) bibliometrix: An R-tool for comprehensive science mapping analysis,
+                        Journal of Informetrics, 11(4), pp 959-975, Elsevier.
+
+Failure to properly cite the software is considered a violation of the license.
+                        
+For information and bug reports:
+                        - Take a look at https://www.bibliometrix.org
+                        - Send an email to info@bibliometrix.org
+                        - Write a post on https://github.com/massimoaria/bibliometrix/issues
+                        
+Help us to keep Bibliometrix and Biblioshiny free to download and use by contributing with a small donation to support our research team (https://bibliometrix.org/donate.html)
+
+                        
+To start with the Biblioshiny app, please digit:
+biblioshiny()
+
+
+Attaching package: 'zoo'
+
+The following objects are masked from 'package:base':
+
+    as.Date, as.Date.numeric
+
+Linking to GEOS 3.14.1, GDAL 3.12.1, PROJ 9.7.1; sf_use_s2() is TRUE
+Warning messages:
+1: In xzfile(file, "wb", compression = 9) :
+  cannot open compressed file 'R/data/biblio_sample.rda', probable reason 'No such file or directory'
+2: In value[[3L]](cond) :
+  Failed to source C:\Users\walla\Documents\Github\r-biblio-synth/R/data/rbibliosynth_data.R: cannot open the connection
+3: In value[[3L]](cond) :
+  Failed to source C:\Users\walla\Documents\Github\r-biblio-synth/R/module_m0/m0_normalize_data.R: attempt to use zero-length variable name
+
+Loading bibliographic data...
+Found data file at: C:\Users\walla\Documents\Github\r-biblio-synth\examples\SCOPUS_POWER_SYSTEMS_FREQUENCY_ESTIMATOR/data/scopus.bib 
+
+Converting your scopus collection into a bibliographic dataframe
+
+
+Warning:
+In your file, some mandatory metadata are missing. Bibliometrix functions may not work properly!
+
+Please, take a look at the vignettes:
+- 'Data Importing and Converting' (https://www.bibliometrix.org/vignettes/Data-Importing-and-Converting.html)
+- 'A brief introduction to bibliometrix' (https://www.bibliometrix.org/vignettes/Introduction_to_bibliometrix.html)
+
+
+Missing fields:  CR 
+Done!
+
+
+Generating affiliation field tag AU_UN from C1:  Done!
+
+
+Removed  19 duplicated documents
+Loaded 1864 documents
+
+=== Running M1: Main Information ===
+Warning message:
+In value[[3L]](cond) : M1 error: replacement has length zero
+M1 Status: error 
+
+=== Running M2: Annual Production ===
+Error: unexpected 'if' in:
+"    
+    if"
+Execution halted

@@ -1,0 +1,297 @@
+iso2,iso3,country_name,continent,region,income_group,latitude,longitude,population,area_km2
+AW,ABW,Aruba,Americas,Americas,High income,12.5167,-70.0167,NA,NA
+AF,AFG,Afghanistan,Asia,Southern Asia,Low income,34.5228,69.1761,NA,NA
+A9,AFR,Africa,NA,NA,Aggregates,NA,NA,NA,NA
+AO,AGO,Angola,Africa,Africa,Lower middle income,-8.81155,13.242,NA,NA
+AL,ALB,Albania,Europe,Europe,Upper middle income,41.3317,19.8172,NA,NA
+AD,AND,Andorra,Europe,Europe,High income,42.5075,1.5218,NA,NA
+1A,ARB,Arab World,NA,NA,Aggregates,NA,NA,NA,NA
+AE,ARE,United Arab Emirates,Asia,Western Asia,High income,24.4764,54.3705,NA,NA
+AR,ARG,Argentina,Americas,South America,Upper middle income,-34.6118,-58.4173,45101774,2780400
+AM,ARM,Armenia,Asia,Eastern Europe,Upper middle income,40.1596,44.509,NA,NA
+AS,ASM,American Samoa,NA,NA,High income,-14.2846,-170.691,NA,NA
+AG,ATG,Antigua and Barbuda,Americas,Americas,High income,17.1175,-61.8456,NA,NA
+AU,AUS,Australia,Oceania,Oceania,High income,-35.282,149.129,25499884,7692024
+AT,AUT,Austria,Europe,Western Europe,High income,48.2201,16.3798,NA,NA
+AZ,AZE,Azerbaijan,Asia,Eastern Europe,Upper middle income,40.3834,49.8932,NA,NA
+BI,BDI,Burundi,Africa,Africa,Low income,-3.3784,29.3639,NA,NA
+B4,BEA,East Asia & Pacific,NA,NA,Aggregates,NA,NA,NA,NA
+B7,BEC,Europe & Central Asia,NA,NA,Aggregates,NA,NA,NA,NA
+BE,BEL,Belgium,Europe,Western Europe,High income,50.8371,4.36761,NA,NA
+BJ,BEN,Benin,Africa,Africa,Lower middle income,6.4779,2.6323,NA,NA
+BF,BFA,Burkina Faso,Africa,Africa,Low income,12.3605,-1.53395,NA,NA
+BD,BGD,Bangladesh,Asia,Southern Asia,Lower middle income,23.7055,90.4113,164689383,147570
+BG,BGR,Bulgaria,Europe,Europe,High income,42.7105,23.3238,NA,NA
+B1,BHI,IBRD countries classified as high income,NA,NA,Aggregates,NA,NA,NA,NA
+BH,BHR,Bahrain,Asia,Asia,High income,26.1921,50.5354,NA,NA
+BS,BHS,"Bahamas, The",Americas,Americas,High income,25.0661,-77.339,NA,NA
+BA,BIH,Bosnia and Herzegovina,Europe,Europe,Upper middle income,43.8607,18.4214,NA,NA
+B2,BLA,Latin America & the Caribbean,NA,NA,Aggregates,NA,NA,NA,NA
+BY,BLR,Belarus,Europe,Eastern Europe,Upper middle income,53.9678,27.5766,NA,NA
+BZ,BLZ,Belize,Americas,Central America,Upper middle income,17.2534,-88.7713,NA,NA
+B3,BMN,Middle East & North Africa,NA,NA,Aggregates,NA,NA,NA,NA
+BM,BMU,Bermuda,Americas,Americas,High income,32.3293,-64.706,NA,NA
+BO,BOL,Bolivia,Americas,South America,Lower middle income,-13.9908,-66.1936,11856690,1098581
+BR,BRA,Brazil,Americas,South America,Upper middle income,-15.7801,-47.9292,212559417,8515767
+BB,BRB,Barbados,Americas,Americas,High income,13.0935,-59.6105,NA,NA
+BN,BRN,Brunei Darussalam,Asia,South-Eastern Asia,High income,4.94199,114.946,NA,NA
+B6,BSS,Sub-Saharan Africa,NA,NA,Aggregates,NA,NA,NA,NA
+BT,BTN,Bhutan,Asia,Southern Asia,Lower middle income,27.5768,89.6177,NA,NA
+BW,BWA,Botswana,Africa,Africa,Upper middle income,-24.6544,25.9201,NA,NA
+C9,CAA,Sub-Saharan Africa,NA,NA,Aggregates,NA,NA,NA,NA
+CF,CAF,Central African Republic,Africa,Africa,Low income,5.63056,21.6407,NA,NA
+CA,CAN,Canada,Americas,Northern America,High income,45.4215,-75.6919,37742154,9984670
+C4,CEA,East Asia and the Pacific,NA,NA,Aggregates,NA,NA,NA,NA
+B8,CEB,Central Europe and the Baltics,NA,NA,Aggregates,NA,NA,NA,NA
+C5,CEU,Europe and Central Asia,NA,NA,Aggregates,NA,NA,NA,NA
+CH,CHE,Switzerland,Europe,Western Europe,High income,46.948,7.44821,NA,NA
+JG,CHI,Channel Islands,NA,NA,High income,NA,NA,NA,NA
+CL,CHL,Chile,Americas,South America,High income,-33.475,-70.6475,19116209,756102
+CN,CHN,China,Asia,Eastern Asia,Upper middle income,40.0495,116.286,1402112000,9596961
+CI,CIV,Cote d'Ivoire,Africa,Africa,Lower middle income,5.332,-4.0305,NA,NA
+C6,CLA,Latin America and the Caribbean,NA,NA,Aggregates,NA,NA,NA,NA
+C7,CME,Middle East and North Africa,NA,NA,Aggregates,NA,NA,NA,NA
+CM,CMR,Cameroon,Africa,Africa,Lower middle income,3.8721,11.5174,NA,NA
+CD,COD,"Congo, Dem. Rep.",Africa,Africa,Low income,-4.325,15.3222,NA,NA
+CG,COG,"Congo, Rep.",Africa,Africa,Lower middle income,-4.2767,15.2662,NA,NA
+CO,COL,Colombia,Americas,South America,Upper middle income,4.60987,-74.082,50882891,1141748
+KM,COM,Comoros,Africa,Africa,Lower middle income,-11.6986,43.2418,NA,NA
+CV,CPV,Cabo Verde,Africa,Africa,Upper middle income,14.9218,-23.5087,NA,NA
+CR,CRI,Costa Rica,Americas,Central America,High income,9.63701,-84.0089,NA,NA
+C8,CSA,South Asia,NA,NA,Aggregates,NA,NA,NA,NA
+S3,CSS,Caribbean small states,NA,NA,Aggregates,NA,NA,NA,NA
+CU,CUB,Cuba,Americas,Americas,Upper middle income,23.1333,-82.3667,NA,NA
+CW,CUW,Curacao,Americas,Americas,High income,NA,NA,NA,NA
+KY,CYM,Cayman Islands,Americas,Americas,High income,19.3022,-81.3857,NA,NA
+CY,CYP,Cyprus,Asia,Asia,High income,35.1676,33.3736,NA,NA
+CZ,CZE,Czech Republic,Europe,Western Europe,High income,50.0878,14.4205,NA,NA
+D4,DEA,East Asia & Pacific,NA,NA,Aggregates,NA,NA,NA,NA
+D7,DEC,Europe & Central Asia,NA,NA,Aggregates,NA,NA,NA,NA
+DE,DEU,Germany,Europe,Western Europe,High income,52.5235,13.4115,83783942,357022
+D8,DFS,IDA countries classified as Fragile Situations,NA,NA,NA,NA,NA,NA,NA
+DJ,DJI,Djibouti,Africa,Africa,Lower middle income,11.5806,43.1425,NA,NA
+D2,DLA,Latin America & the Caribbean,NA,NA,Aggregates,NA,NA,NA,NA
+DM,DMA,Dominica,Americas,Americas,Upper middle income,15.2976,-61.39,NA,NA
+D3,DMN,Middle East & North Africa,NA,NA,Aggregates,NA,NA,NA,NA
+D9,DNF,IDA countries not classified as Fragile Situations,NA,NA,NA,NA,NA,NA,NA
+DK,DNK,Denmark,Europe,Western Europe,High income,55.6763,12.5681,NA,NA
+N6,DNS,IDA countries in Sub-Saharan Africa not classified as fragile situations,NA,NA,Aggregates,NA,NA,NA,NA
+DO,DOM,Dominican Republic,Americas,Americas,Upper middle income,18.479,-69.8908,NA,NA
+D5,DSA,South Asia,NA,NA,Aggregates,NA,NA,NA,NA
+F6,DSF,IDA countries in Sub-Saharan Africa classified as fragile situations,NA,NA,Aggregates,NA,NA,NA,NA
+D6,DSS,Sub-Saharan Africa,NA,NA,Aggregates,NA,NA,NA,NA
+DZ,DZA,Algeria,Africa,Africa,Upper middle income,36.7397,3.05097,NA,NA
+4E,EAP,East Asia & Pacific,NA,NA,Aggregates,NA,NA,NA,NA
+V2,EAR,Early-demographic dividend,NA,NA,Aggregates,NA,NA,NA,NA
+Z4,EAS,East Asia & Pacific,NA,NA,Aggregates,NA,NA,NA,NA
+7E,ECA,Europe & Central Asia,NA,NA,Aggregates,NA,NA,NA,NA
+Z7,ECS,Europe & Central Asia,NA,NA,Aggregates,NA,NA,NA,NA
+EC,ECU,Ecuador,Americas,South America,Upper middle income,-0.229498,-78.5243,17643054,283561
+EG,EGY,"Egypt, Arab Rep.",Africa,Africa,Lower middle income,30.0982,31.2461,102334404,1001450
+XC,EMU,Euro area,NA,NA,Aggregates,NA,NA,NA,NA
+ER,ERI,Eritrea,Africa,Africa,Low income,15.3315,38.9183,NA,NA
+ES,ESP,Spain,Europe,Western Europe,High income,40.4167,-3.70327,46754778,505990
+EE,EST,Estonia,Europe,Europe,High income,59.4392,24.7586,NA,NA
+ET,ETH,Ethiopia,Africa,Africa,Not classified,9.02274,38.7468,NA,NA
+EU,EUU,European Union,NA,NA,Aggregates,NA,NA,NA,NA
+F1,FCS,Fragile and conflict affected situations,NA,NA,Aggregates,NA,NA,NA,NA
+FI,FIN,Finland,Europe,Western Europe,High income,60.1608,24.9525,NA,NA
+FJ,FJI,Fiji,Oceania,Oceania,Upper middle income,-18.1149,178.399,NA,NA
+FR,FRA,France,Europe,Western Europe,High income,48.8566,2.35097,67390000,643801
+FO,FRO,Faroe Islands,NA,NA,High income,61.8926,-6.91181,NA,NA
+FM,FSM,"Micronesia, Fed. Sts.",Oceania,Oceania,Lower middle income,6.91771,158.185,NA,NA
+6F,FXS,"IDA countries classified as fragile situations, excluding Sub-Saharan Africa",NA,NA,Aggregates,NA,NA,NA,NA
+GA,GAB,Gabon,Africa,Africa,Upper middle income,0.38832,9.45162,NA,NA
+GB,GBR,United Kingdom,Europe,Western Europe,High income,51.5002,-0.126236,67886011,243610
+GE,GEO,Georgia,Asia,Eastern Europe,Upper middle income,41.71,44.793,NA,NA
+GH,GHA,Ghana,Africa,Africa,Lower middle income,5.57045,-0.20795,NA,NA
+GI,GIB,Gibraltar,NA,NA,High income,NA,NA,NA,NA
+GN,GIN,Guinea,Africa,Africa,Lower middle income,9.51667,-13.7,NA,NA
+GM,GMB,"Gambia, The",Africa,Africa,Low income,13.4495,-16.5885,NA,NA
+GW,GNB,Guinea-Bissau,Africa,Africa,Low income,11.8037,-15.1804,NA,NA
+GQ,GNQ,Equatorial Guinea,Africa,Africa,Upper middle income,3.7523,8.7741,NA,NA
+GR,GRC,Greece,Europe,Europe,High income,37.9792,23.7166,NA,NA
+GD,GRD,Grenada,Americas,Americas,Upper middle income,12.0653,-61.7449,NA,NA
+GL,GRL,Greenland,NA,NA,High income,64.1836,-51.7214,NA,NA
+GT,GTM,Guatemala,Americas,Central America,Upper middle income,14.6248,-90.5328,NA,NA
+GU,GUM,Guam,Oceania,Oceania,High income,13.4443,144.794,NA,NA
+GY,GUY,Guyana,Americas,Americas,High income,6.80461,-58.1548,NA,NA
+XD,HIC,High income,NA,NA,Aggregates,NA,NA,NA,NA
+HK,HKG,"Hong Kong SAR, China",NA,Eastern Asia,High income,22.3964,114.109,NA,NA
+HN,HND,Honduras,Americas,Central America,Lower middle income,15.1333,-87.4667,NA,NA
+XE,HPC,Heavily indebted poor countries,NA,NA,Aggregates,NA,NA,NA,NA
+HR,HRV,Croatia,Europe,Europe,High income,45.8069,15.9614,NA,NA
+HT,HTI,Haiti,Americas,Americas,Lower middle income,18.5392,-72.3288,NA,NA
+HU,HUN,Hungary,Europe,Europe,High income,47.4984,19.0408,NA,NA
+ZB,IBB,"IBRD, including blend",NA,NA,Aggregates,NA,NA,NA,NA
+XF,IBD,IBRD only,NA,NA,Aggregates,NA,NA,NA,NA
+ZT,IBT,IDA & IBRD total,NA,NA,Aggregates,NA,NA,NA,NA
+XG,IDA,IDA total,NA,NA,Aggregates,NA,NA,NA,NA
+XH,IDB,IDA blend,NA,NA,Aggregates,NA,NA,NA,NA
+ID,IDN,Indonesia,Asia,South-Eastern Asia,Upper middle income,-6.19752,106.83,273523621,1904568
+XI,IDX,IDA only,NA,NA,Aggregates,NA,NA,NA,NA
+IM,IMN,Isle of Man,NA,NA,High income,54.1509,-4.47928,NA,NA
+IN,IND,India,Asia,Southern Asia,Lower middle income,28.6353,77.225,1380004385,3287263
+XY,INX,Not classified,NA,NA,Aggregates,NA,NA,NA,NA
+IE,IRL,Ireland,Europe,Western Europe,High income,53.3441,-6.26749,NA,NA
+IR,IRN,"Iran, Islamic Rep.",Asia,Western Asia,Upper middle income,35.6878,51.4447,83992949,1648195
+IQ,IRQ,Iraq,Asia,Western Asia,Upper middle income,33.3302,44.394,40262475,438317
+IS,ISL,Iceland,Europe,Europe,High income,64.1353,-21.8952,NA,NA
+IL,ISR,Israel,Asia,Western Asia,High income,31.7717,35.2035,NA,NA
+IT,ITA,Italy,Europe,Western Europe,High income,41.8955,12.4823,60461826,301339
+JM,JAM,Jamaica,Americas,Americas,Upper middle income,17.9927,-76.792,NA,NA
+JO,JOR,Jordan,Asia,Western Asia,Lower middle income,31.9497,35.9263,NA,NA
+JP,JPN,Japan,Asia,Eastern Asia,High income,35.67,139.77,125836021,377975
+KZ,KAZ,Kazakhstan,Asia,Central Asia,Upper middle income,51.1879,71.4382,NA,NA
+KE,KEN,Kenya,Africa,Africa,Lower middle income,-1.27975,36.8126,NA,NA
+KG,KGZ,Kyrgyz Republic,Asia,Central Asia,Lower middle income,42.8851,74.6057,NA,NA
+KH,KHM,Cambodia,Asia,South-Eastern Asia,Lower middle income,11.5556,104.874,NA,NA
+KI,KIR,Kiribati,Oceania,Oceania,Lower middle income,1.32905,172.979,NA,NA
+KN,KNA,St. Kitts and Nevis,Americas,Americas,High income,17.3,-62.7309,NA,NA
+KR,KOR,"Korea, Rep.",Asia,Eastern Asia,High income,37.5323,126.957,51804417,100210
+KW,KWT,Kuwait,Asia,Western Asia,High income,29.3721,47.9824,NA,NA
+XJ,LAC,Latin America & Caribbean,NA,NA,Aggregates,NA,NA,NA,NA
+LA,LAO,Lao PDR,Asia,South-Eastern Asia,Lower middle income,18.5826,102.177,NA,NA
+LB,LBN,Lebanon,Asia,Western Asia,Lower middle income,33.8872,35.5134,NA,NA
+LR,LBR,Liberia,Africa,Africa,Low income,6.30039,-10.7957,NA,NA
+LY,LBY,Libya,Africa,Africa,Upper middle income,32.8578,13.1072,NA,NA
+LC,LCA,St. Lucia,Americas,Americas,Upper middle income,14,-60.9832,NA,NA
+ZJ,LCN,Latin America & Caribbean,NA,NA,Aggregates,NA,NA,NA,NA
+XL,LDC,Least developed countries: UN classification,NA,NA,Aggregates,NA,NA,NA,NA
+XM,LIC,Low income,NA,NA,Aggregates,NA,NA,NA,NA
+LI,LIE,Liechtenstein,Europe,Europe,High income,47.1411,9.52148,NA,NA
+LK,LKA,Sri Lanka,Asia,Southern Asia,Lower middle income,6.92148,79.8528,NA,NA
+XN,LMC,Lower middle income,NA,NA,Aggregates,NA,NA,NA,NA
+XO,LMY,Low & middle income,NA,NA,Aggregates,NA,NA,NA,NA
+LS,LSO,Lesotho,Africa,Africa,Lower middle income,-29.5208,27.7167,NA,NA
+V3,LTE,Late-demographic dividend,NA,NA,Aggregates,NA,NA,NA,NA
+LT,LTU,Lithuania,Europe,Europe,High income,54.6896,25.2799,NA,NA
+LU,LUX,Luxembourg,Europe,Europe,High income,49.61,6.1296,NA,NA
+LV,LVA,Latvia,Europe,Europe,High income,56.9465,24.1048,NA,NA
+MO,MAC,"Macao SAR, China",NA,NA,High income,22.1667,113.55,NA,NA
+MF,MAF,St. Martin,Americas,Americas,High income,NA,NA,NA,NA
+MA,MAR,Morocco,Africa,Africa,Lower middle income,33.9905,-6.8704,NA,NA
+MC,MCO,Monaco,Europe,Europe,High income,43.7325,7.41891,NA,NA
+MD,MDA,Moldova,Europe,Eastern Europe,Upper middle income,47.0167,28.8497,NA,NA
+M1,MDE,Middle East,NA,NA,Aggregates,NA,NA,NA,NA
+MG,MDG,Madagascar,Africa,Africa,Low income,-20.4667,45.7167,NA,NA
+MV,MDV,Maldives,Asia,Southern Asia,Upper middle income,4.1742,73.5109,NA,NA
+ZQ,MEA,Middle East & North Africa,NA,NA,Aggregates,NA,NA,NA,NA
+MX,MEX,Mexico,Americas,Central America,Upper middle income,19.427,-99.1276,128932753,1964375
+MH,MHL,Marshall Islands,Oceania,Oceania,Upper middle income,7.11046,171.135,NA,NA
+XP,MIC,Middle income,NA,NA,Aggregates,NA,NA,NA,NA
+MK,MKD,North Macedonia,Europe,Europe,Upper middle income,42.0024,21.4361,NA,NA
+ML,MLI,Mali,Africa,Africa,Low income,13.5667,-7.50034,NA,NA
+MT,MLT,Malta,Europe,Europe,High income,35.9042,14.5189,NA,NA
+MM,MMR,Myanmar,Asia,South-Eastern Asia,Lower middle income,21.914,95.9562,NA,NA
+XQ,MNA,Middle East & North Africa,NA,NA,Aggregates,NA,NA,NA,NA
+ME,MNE,Montenegro,Europe,Europe,Upper middle income,42.4602,19.2595,NA,NA
+MN,MNG,Mongolia,Asia,Eastern Asia,Upper middle income,47.9129,106.937,NA,NA
+MP,MNP,Northern Mariana Islands,Oceania,Oceania,High income,15.1935,145.765,NA,NA
+MZ,MOZ,Mozambique,Africa,Africa,Low income,-25.9664,32.5713,NA,NA
+MR,MRT,Mauritania,Africa,Africa,Lower middle income,18.2367,-15.9824,NA,NA
+MU,MUS,Mauritius,Africa,Africa,Upper middle income,-20.1605,57.4977,NA,NA
+MW,MWI,Malawi,Africa,Africa,Low income,-13.9899,33.7703,NA,NA
+MY,MYS,Malaysia,Asia,South-Eastern Asia,Upper middle income,3.12433,101.684,32365999,329847
+XU,NAC,North America,NA,NA,Aggregates,NA,NA,NA,NA
+M2,NAF,North Africa,NA,NA,Aggregates,NA,NA,NA,NA
+NA,NAM,Namibia,Africa,Africa,Lower middle income,-22.5648,17.0931,NA,NA
+NC,NCL,New Caledonia,Oceania,Oceania,High income,-22.2677,166.464,NA,NA
+NE,NER,Niger,Africa,Africa,Low income,13.514,2.1073,NA,NA
+NG,NGA,Nigeria,Africa,Africa,Lower middle income,9.05804,7.48906,206139589,923768
+NI,NIC,Nicaragua,Americas,Central America,Lower middle income,12.1475,-86.2734,NA,NA
+NL,NLD,Netherlands,Europe,Western Europe,High income,52.3738,4.89095,17441139,41850
+NO,NOR,Norway,Europe,Western Europe,High income,59.9138,10.7387,NA,NA
+NP,NPL,Nepal,Asia,Southern Asia,Lower middle income,27.6939,85.3157,NA,NA
+6X,NRS,Non-resource rich Sub-Saharan Africa countries,NA,NA,Aggregates,NA,NA,NA,NA
+NR,NRU,Nauru,Oceania,Oceania,High income,-0.5477,166.920867,NA,NA
+6N,NXS,"IDA countries not classified as fragile situations, excluding Sub-Saharan Africa",NA,NA,Aggregates,NA,NA,NA,NA
+NZ,NZL,New Zealand,Oceania,Oceania,High income,-41.2865,174.776,NA,NA
+OE,OED,OECD members,NA,NA,Aggregates,NA,NA,NA,NA
+OM,OMN,Oman,Asia,Western Asia,High income,23.6105,58.5874,NA,NA
+S4,OSS,Other small states,NA,NA,Aggregates,NA,NA,NA,NA
+PK,PAK,Pakistan,Asia,Southern Asia,Lower middle income,30.5167,72.8,220892340,881912
+PA,PAN,Panama,Americas,Central America,High income,8.99427,-79.5188,NA,NA
+PE,PER,Peru,Americas,South America,Upper middle income,-12.0931,-77.0465,32971854,1285216
+PH,PHL,Philippines,Asia,South-Eastern Asia,Lower middle income,14.5515,121.035,115559009,300000
+PW,PLW,Palau,Oceania,Oceania,High income,7.34194,134.479,NA,NA
+PG,PNG,Papua New Guinea,Oceania,Oceania,Lower middle income,-9.47357,147.194,NA,NA
+PL,POL,Poland,Europe,Western Europe,High income,52.26,21.02,38338289,312696
+V1,PRE,Pre-demographic dividend,NA,NA,Aggregates,NA,NA,NA,NA
+PR,PRI,Puerto Rico,Americas,Americas,High income,18.23,-66,NA,NA
+KP,PRK,"Korea, Dem. People’s Rep.",Asia,Eastern Asia,Low income,39.0319,125.754,NA,NA
+PT,PRT,Portugal,Europe,Western Europe,High income,38.7072,-9.13552,NA,NA
+PY,PRY,Paraguay,Americas,South America,Upper middle income,-25.3005,-57.6362,7132538,406752
+PS,PSE,West Bank and Gaza,NA,Western Asia,Lower middle income,NA,NA,NA,NA
+S2,PSS,Pacific island small states,NA,NA,Aggregates,NA,NA,NA,NA
+V4,PST,Post-demographic dividend,NA,NA,Aggregates,NA,NA,NA,NA
+PF,PYF,French Polynesia,Oceania,Oceania,High income,-17.535,-149.57,NA,NA
+QA,QAT,Qatar,Asia,Western Asia,High income,25.2948,51.5082,NA,NA
+RO,ROU,Romania,Europe,Europe,High income,44.4479,26.0979,NA,NA
+R6,RRS,Resource rich Sub-Saharan Africa countries,NA,NA,Aggregates,NA,NA,NA,NA
+RU,RUS,Russian Federation,Europe,Eastern Europe,High income,55.7558,37.6176,144104080,17098242
+RW,RWA,Rwanda,Africa,Africa,Low income,-1.95325,30.0587,NA,NA
+8S,SAS,South Asia,NA,NA,Aggregates,NA,NA,NA,NA
+SA,SAU,Saudi Arabia,Asia,Western Asia,High income,24.6748,46.6977,34813871,2149690
+SD,SDN,Sudan,Africa,Africa,Low income,15.5932,32.5363,NA,NA
+SN,SEN,Senegal,Africa,Africa,Lower middle income,14.7247,-17.4734,NA,NA
+SG,SGP,Singapore,Asia,South-Eastern Asia,High income,1.28941,103.85,NA,NA
+SB,SLB,Solomon Islands,NA,NA,Lower middle income,-9.42676,159.949,NA,NA
+SL,SLE,Sierra Leone,Africa,Africa,Low income,8.4821,-13.2134,NA,NA
+SV,SLV,El Salvador,Americas,Central America,Upper middle income,13.7034,-89.2073,NA,NA
+SM,SMR,San Marino,Europe,Europe,High income,43.9322,12.4486,NA,NA
+SO,SOM,Somalia,Africa,Africa,Low income,2.07515,45.3254,NA,NA
+RS,SRB,Serbia,Europe,Europe,Upper middle income,44.8024,20.4656,NA,NA
+ZF,SSA,Sub-Saharan Africa,NA,NA,Aggregates,NA,NA,NA,NA
+SS,SSD,South Sudan,Africa,Africa,Low income,4.85,31.6,NA,NA
+ZG,SSF,Sub-Saharan Africa,NA,NA,Aggregates,NA,NA,NA,NA
+S1,SST,Small states,NA,NA,Aggregates,NA,NA,NA,NA
+ST,STP,Sao Tome and Principe,Africa,Africa,Lower middle income,0.20618,6.6071,NA,NA
+SR,SUR,Suriname,Americas,Americas,Upper middle income,5.8232,-55.1679,NA,NA
+SK,SVK,Slovak Republic,Europe,Europe,High income,48.1484,17.1073,NA,NA
+SI,SVN,Slovenia,Europe,Europe,High income,46.0546,14.5044,NA,NA
+SE,SWE,Sweden,Europe,Western Europe,High income,59.3327,18.0645,NA,NA
+SZ,SWZ,Eswatini,Africa,Africa,Lower middle income,-26.5225,31.4659,NA,NA
+SX,SXM,Sint Maarten,Americas,Americas,High income,NA,NA,NA,NA
+A4,SXZ,Sub-Saharan Africa excluding South Africa,NA,NA,Aggregates,NA,NA,NA,NA
+SC,SYC,Seychelles,Africa,Africa,High income,-4.6309,55.4466,NA,NA
+SY,SYR,Syrian Arab Republic,Asia,Western Asia,Low income,33.5146,36.3119,NA,NA
+TC,TCA,Turks and Caicos Islands,Americas,Americas,High income,21.4602778,-71.141389,NA,NA
+TD,TCD,Chad,Africa,Africa,Low income,12.1048,15.0445,NA,NA
+T4,TEA,East Asia & Pacific,NA,NA,Aggregates,NA,NA,NA,NA
+T7,TEC,Europe & Central Asia,NA,NA,Aggregates,NA,NA,NA,NA
+TG,TGO,Togo,Africa,Africa,Low income,6.1228,1.2255,NA,NA
+TH,THA,Thailand,Asia,South-Eastern Asia,Upper middle income,13.7308,100.521,112487396,513120
+TJ,TJK,Tajikistan,Asia,Central Asia,Lower middle income,38.5878,68.7864,NA,NA
+TM,TKM,Turkmenistan,Asia,Central Asia,Upper middle income,37.9509,58.3794,NA,NA
+T2,TLA,Latin America & the Caribbean,NA,NA,Aggregates,NA,NA,NA,NA
+TL,TLS,Timor-Leste,Asia,Asia,Lower middle income,-8.56667,125.567,NA,NA
+T3,TMN,Middle East & North Africa,NA,NA,Aggregates,NA,NA,NA,NA
+TO,TON,Tonga,Oceania,Oceania,Upper middle income,-21.136,-175.216,NA,NA
+T5,TSA,South Asia,NA,NA,Aggregates,NA,NA,NA,NA
+T6,TSS,Sub-Saharan Africa,NA,NA,Aggregates,NA,NA,NA,NA
+TT,TTO,Trinidad and Tobago,Americas,Americas,High income,10.6596,-61.4789,NA,NA
+TN,TUN,Tunisia,Africa,Africa,Lower middle income,36.7899,10.21,NA,NA
+TR,TUR,Turkey,Asia,Western Asia,Upper middle income,39.7153,32.3606,84339067,783562
+TV,TUV,Tuvalu,Oceania,Oceania,Upper middle income,-8.6314877,179.089567,NA,NA
+TW,TWN,"Taiwan, China",Asia,Eastern Asia,NA,NA,NA,NA,NA
+TZ,TZA,Tanzania,Africa,Africa,Lower middle income,-6.17486,35.7382,NA,NA
+UG,UGA,Uganda,Africa,Africa,Low income,0.314269,32.5729,NA,NA
+UA,UKR,Ukraine,Europe,Eastern Europe,Upper middle income,50.4536,30.5038,43733762,603550
+XT,UMC,Upper middle income,NA,NA,Aggregates,NA,NA,NA,NA
+UY,URY,Uruguay,Americas,South America,High income,-34.8941,-56.0675,3473730,176215
+US,USA,United States,Americas,Northern America,High income,38.8895,-77.032,331002651,9833517
+UZ,UZB,Uzbekistan,Asia,Central Asia,Lower middle income,41.3052,69.269,NA,NA
+VC,VCT,St. Vincent and the Grenadines,Americas,Americas,Upper middle income,13.2035,-61.2653,NA,NA
+VE,VEN,"Venezuela, RB",Americas,South America,Not classified,9.08165,-69.8371,28435940,916445
+VG,VGB,British Virgin Islands,Americas,Americas,High income,18.431389,-64.623056,NA,NA
+VI,VIR,Virgin Islands,Americas,Americas,High income,18.3358,-64.8963,NA,NA
+VN,VNM,Vietnam,Asia,South-Eastern Asia,Lower middle income,21.0069,105.825,97338579,331212
+VU,VUT,Vanuatu,Oceania,Oceania,Lower middle income,-17.7404,168.321,NA,NA
+WS,WSM,Samoa,Oceania,Oceania,Upper middle income,-13.8314,-171.752,NA,NA
+XK,XKX,Kosovo,Europe,Europe,Upper middle income,42.565,20.926,NA,NA
+A5,XZN,Sub-Saharan Africa excluding South Africa and Nigeria,NA,NA,Aggregates,NA,NA,NA,NA
+YE,YEM,"Yemen, Rep.",Asia,Western Asia,Low income,15.352,44.2075,NA,NA
+ZA,ZAF,South Africa,Africa,Africa,Upper middle income,-25.746,28.1871,59308690,1221037
+ZM,ZMB,Zambia,Africa,Africa,Lower middle income,-15.3982,28.2937,NA,NA
+ZW,ZWE,Zimbabwe,Africa,Africa,Lower middle income,-17.8312,31.0672,NA,NA

@@ -1,0 +1,23 @@
+indicator,variable,description,unit,source,start_year,tier
+GDP per capita PPP,gdp_pc_ppp,GDP per capita purchasing power parity,USD,World Bank WDI,1960,1
+GDP growth,gdp_growth,Annual GDP growth rate,%,World Bank WDI,1960,3
+R&D intensity,rd_gdp,Research & development expenditure,% GDP,UNESCO UIS,1996,1
+GERD,gerd,Gross domestic R&D expenditure,USD const 2015,UNESCO UIS,1970,2
+GERD business sector,rd_business,Business sector R&D,% total R&D,UNESCO UIS,1990,3
+Researchers,researchers_pm,Researchers per million inhabitants,per million,UNESCO UIS,1990,1
+R&D personnel,rd_personnel_pm,Total R&D personnel,per million,UNESCO UIS,1990,2
+Scientific articles,articles,Scientific & technical articles published,count,UNESCO UIS,1975,1
+SJR citable docs,citable_docs,SCImago citable documents (Scopus),count,SCImago,1999,1
+SJR rank,sjr_rank,SCImago country rank by documents,rank,SCImago,1999,2
+Patents resident,patents_res,Patent applications resident,count,WIPO/UNESCO,1980,2
+Patents PCT,patents_pct,PCT international applications,count,WIPO,1990,3
+High-tech exports,high_tech_exports,High-technology exports,% manuf exports,World Bank,1996,2
+HDI,hdi,Human Development Index,0-1,UNDP,1990,1
+Tertiary enrollment,tertiary_enroll,Tertiary education enrollment,% gross,UNESCO UIS,1970,2
+Education expenditure,education_gdp,Public education spending,% GDP,UNESCO UIS,1970,3
+Doctoral graduates,doctoral_grads,PhD graduates,per million,UNESCO UIS,1970,3
+Internet users,internet_users,Individuals using the internet,% population,World Bank,1990,1
+Gini coefficient,gini,Income inequality (0=perfect eq),0-100,World Bank/UN,1985,3
+IP royalties,ip_receipts,IP royalty and license receipts,USD,World Bank,1970,3
+Urban population,urban_pop,Urban population,% total,World Bank,1960,3
+Manufacturing exports,mfg_exports,Manufactured goods exports,USD,UN Comtrade,1970,3

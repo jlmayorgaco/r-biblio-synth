@@ -1,0 +1,7 @@
+iso3,year,value
+# PENDING: SCImago Journal & Country Rank - Requires manual download
+# Indicator: SJR_RANK - SCImago Country Rank by documents
+# Coverage: 1999-2023, ~230 countries
+# URL: https://www.scimagojr.com/countryrank.php
+# Note: No public API available, manual download via web browser required
+# Last checked: 2026-03-29 - Download CSV from website (requires login for full data)

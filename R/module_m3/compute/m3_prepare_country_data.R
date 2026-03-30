@@ -44,8 +44,8 @@ prepare_m3_country_data <- function(input, config = biblio_config()) {
       if (length(x) > 0) {
         # Trim whitespace
         country <- trimws(x[length(x)])
-        # If the country is empty, return NA
-        if (country == "") {
+        # If the country is empty or NA, return NA
+        if (is.na(country) || country == "") {
           return(NA_character_)
         }
         return(country)
@@ -77,15 +77,18 @@ prepare_m3_country_data <- function(input, config = biblio_config()) {
   # We'll iterate over rows (for simplicity; in practice, we can vectorize)
   for (i in seq_len(nrow(input))) {
     # Get the raw country string for this document
-    raw_country <- if ("AU_CO" %in% names(input) && !is.na(input$AU_CO[i])) {
-      as.character(input$AU_CO[i])
-    } else if ("C1" %in% names(input) && !is.na(input$C1[i])) {
-      as.character(input$C1[i])
+    au_co_val <- if ("AU_CO" %in% names(input)) input$AU_CO[i] else NA
+    c1_val <- if ("C1" %in% names(input)) input$C1[i] else NA
+    
+    raw_country <- if (!is.na(au_co_val) && nzchar(as.character(au_co_val))) {
+      as.character(au_co_val)
+    } else if (!is.na(c1_val) && nzchar(as.character(c1_val))) {
+      as.character(c1_val)
     } else {
       NA_character_
     }
     
-    if (is.na(raw_country) || raw_country == "") {
+    if (is.na(raw_country) || !nzchar(raw_country)) {
       # No country information for this document
       doc_country_pairs[[i]] <- data.frame(doc_id = i, country = NA_character_, stringsAsFactors = FALSE)
     } else {
