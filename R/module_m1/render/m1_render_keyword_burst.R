@@ -272,7 +272,10 @@ create_burst_frequency_plot <- function(data, config) {
     
     for (b in x$bursts) {
       for (y in b$start_year:b$end_year) {
-        burst_counts[as.character(y)] <- burst_counts[as.character(y)] + 1
+        y_str <- as.character(y)
+        if (y_str %in% names(burst_counts)) {
+          burst_counts[y_str] <- burst_counts[y_str] + 1
+        }
       }
     }
   }

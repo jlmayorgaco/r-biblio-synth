@@ -78,23 +78,24 @@ m1_compute_all_debug <- function(input, config) {
   for (step in steps) {
     start_time <- Sys.time()
     cat("  [M1] Computing", step$name, "...\n")
-    if (step$name == "topic_modeling") {
+    result[[step$name]] <- tryCatch({
       res <- step$fn()
       elapsed <- round(as.numeric(difftime(Sys.time(), start_time, units = "secs")), 2)
-      cat("  [M1] Computing", step$name, "... DONE (", elapsed, "s)\n")
-      result[[step$name]] <- res
-    } else {
-      result[[step$name]] <- tryCatch({
-        res <- step$fn()
-        elapsed <- round(as.numeric(difftime(Sys.time(), start_time, units = "secs")), 2)
-        cat("  [M1] Computing", step$name, "... DONE (", elapsed, "s)\n")
-        res
-      }, error = function(e) {
-        elapsed <- round(as.numeric(difftime(Sys.time(), start_time, units = "secs")), 2)
-        cat("  [M1] ERROR in", step$name, "after", elapsed, "s:", conditionMessage(e), "\n")
-        list(status = "error", message = conditionMessage(e))
-      })
-    }
+      
+      if (is.null(res) || (is.list(res) && !is.null(res$status) && res$status != "success")) {
+        cat(sprintf(" WARNING \n      [%s] internal status: %s\n", 
+                    step$name, if(is.list(res)) res$status else "NULL"))
+        error_count <- error_count + 1
+      } else {
+        cat(sprintf(" DONE ( %.2f s)\n", elapsed))
+      }
+      res
+    }, error = function(e) {
+      elapsed <- round(as.numeric(difftime(Sys.time(), start_time, units = "secs")), 2)
+      cat(sprintf("\n  [M1] ERROR in %s after %.2f s: %s \n", step$name, elapsed, e$message))
+      error_count <<- error_count + 1
+      list(status = "error", message = e$message)
+    })
     flush.console()
   }
   result
