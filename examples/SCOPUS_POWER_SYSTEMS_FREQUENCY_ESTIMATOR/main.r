@@ -105,12 +105,7 @@ if (.Platform$OS.type == "windows") {
 }
 
 # First run without export to test computation
-m1_result <- tryCatch({
-  run_m1(bib_data, config = config, export = FALSE)
-}, error = function(e) {
-  warning("M1 computation error: ", e$message)
-  list(status = "error", data = list())
-})
+m1_result <- run_m1(bib_data, config = config, export = FALSE)
 
 cat("M1 Computation Status:", m1_result$status, "\n")
 
