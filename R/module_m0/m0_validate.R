@@ -2,9 +2,6 @@
 # m0_validate.R - Validation for M0 Data Orchestrator
 # ============================================================================
 
-# Null-coalescing operator
-`%||%` <- function(a, b) if (!is.null(a)) a else b
-
 #' Validate source specifications for M0
 #'
 #' @param sources A named list of source specifications.
@@ -64,4 +61,87 @@ m0_validate_merged <- function(df) {
 
   list(ok = length(missing) == 0, missing = missing,
        n_rows = nrow(df), n_cols = ncol(df))
+}
+
+#' Validate loaded sources have content
+#'
+#' @param raw_list Named list of loaded data frames from sources.
+#' @return A list with \code{ok}, \code{empty_sources}, \code{total_records}.
+#' @export
+m0_validate_loaded <- function(raw_list) {
+  if (!is.list(raw_list) || length(raw_list) == 0) {
+    return(list(ok = FALSE, empty_sources = names(raw_list), total_records = 0L,
+                error = "No loaded sources"))
+  }
+  
+  empty_sources <- character()
+  total_records <- 0L
+  
+  for (nm in names(raw_list)) {
+    df <- raw_list[[nm]]
+    n <- if (is.data.frame(df)) nrow(df) else 0L
+    total_records <- total_records + n
+    if (n == 0) {
+      empty_sources <- c(empty_sources, nm)
+    }
+  }
+  
+  if (length(empty_sources) == length(raw_list)) {
+    return(list(ok = FALSE, empty_sources = empty_sources, total_records = 0L,
+                error = "All sources produced empty results"))
+  }
+  
+  if (length(empty_sources) > 0) {
+    # Warning but not error - partial data is acceptable
+    return(list(ok = TRUE, empty_sources = empty_sources, total_records = total_records,
+                warning = paste0("Sources produced empty results: ", 
+                                 paste(empty_sources, collapse = ", "))))
+  }
+  
+  list(ok = TRUE, empty_sources = character(), total_records = total_records)
+}
+
+#' Validate column data types
+#'
+#' @param df A data frame.
+#' @return A list with \code{ok}, \code{issues}.
+#' @export
+m0_validate_column_types <- function(df) {
+  if (!is.data.frame(df) || nrow(df) == 0) {
+    return(list(ok = FALSE, issues = list(error = "Empty data frame")))
+  }
+  
+  issues <- list()
+  
+  # PY should be numeric/integer
+  if ("PY" %in% names(df)) {
+    py <- df$PY
+    if (!is.numeric(py) && !is.integer(py)) {
+      py_num <- suppressWarnings(as.numeric(py))
+      if (any(is.na(py_num) & !is.na(py))) {
+        issues$PY <- "Publication year (PY) contains non-numeric values"
+      }
+    }
+    # Check for unreasonable years
+    valid_years <- py[!is.na(py) & py > 0]
+    if (length(valid_years) > 0) {
+      current_year <- as.numeric(format(Sys.Date(), "%Y"))
+      if (any(valid_years < 1500) || any(valid_years > current_year + 2)) {
+        issues$PY_range <- paste0("Publication year outside reasonable range (1500-", current_year + 2, ")")
+      }
+    }
+  }
+  
+  # TC should be numeric
+  if ("TC" %in% names(df)) {
+    tc <- df$TC
+    if (!is.numeric(tc) && !is.integer(tc)) {
+      issues$TC <- "Citation count (TC) is not numeric"
+    }
+    if (any(tc < 0, na.rm = TRUE)) {
+      issues$TC_negative <- "Citation count (TC) contains negative values"
+    }
+  }
+  
+  list(ok = length(issues) == 0, issues = issues)
 }

@@ -2,9 +2,6 @@
 # m0_prisma_report.R - PRISMA 2020 report generation from JSON/YAML spec
 # ============================================================================
 
-# Null-coalescing operator
-`%||%` <- function(a, b) if (!is.null(a)) a else b
-
 #' Read PRISMA specification from JSON or YAML file
 #'
 #' @param spec Either a file path (JSON or YAML) or a list with PRISMA data.
@@ -14,18 +11,28 @@ m0_read_prisma_spec <- function(spec) {
   if (is.character(spec) && file.exists(spec)) {
     ext <- tolower(tools::file_ext(spec))
     if (ext == "json") {
-      return(jsonlite::fromJSON(spec, simplifyVector = FALSE))
+      tryCatch({
+        jsonlite::fromJSON(spec, simplifyVector = FALSE)
+      }, error = function(e) {
+        cli::cli_abort("Failed to parse JSON file '{spec}': {e$message}")
+      })
     } else if (ext %in% c("yml", "yaml")) {
       if (!requireNamespace("yaml", quietly = TRUE)) {
-        cli::cli_abort("Package 'yaml' required to read YAML PRISMA specs")
+        cli::cli_abort("Package 'yaml' required to read YAML PRISMA specs. Install with: install.packages('yaml')")
       }
-      return(yaml::read_yaml(spec))
+      tryCatch({
+        yaml::read_yaml(spec)
+      }, error = function(e) {
+        cli::cli_abort("Failed to parse YAML file '{spec}': {e$message}")
+      })
     } else {
       cli::cli_abort("Unsupported PRISMA spec format: {ext}. Use .json or .yml/.yaml")
     }
+  } else if (is.list(spec)) {
+    spec
+  } else {
+    cli::cli_abort("prisma_spec must be a file path (JSON or YAML) or a list with PRISMA data")
   }
-  if (is.list(spec)) return(spec)
-  cli::cli_abort("prisma_spec must be a file path or a list")
 }
 
 #' Build PRISMA report text from specification
@@ -121,6 +128,25 @@ m0_build_prisma_report <- function(prisma_data, config = biblio_config()) {
   list(lines = lines, tex = tex)
 }
 
+#' Escape special characters for LaTeX
+#' @param x Character string to escape
+#' @return Escaped string
+#' @keywords internal
+m0_escape_latex <- function(x) {
+  if (is.null(x) || !is.character(x)) return(as.character(x %||% ""))
+  x <- gsub("\\\\", "\\\\\\\\", x)  # Backslash (must be first)
+  x <- gsub("&", "\\\\&", x)         # Ampersand
+  x <- gsub("%", "\\\\%", x)         # Percent
+  x <- gsub("\\$", "\\\\\\$", x)     # Dollar
+  x <- gsub("#", "\\\\#", x)         # Hash
+  x <- gsub("_", "\\\\_", x)         # Underscore
+  x <- gsub("\\{", "\\\\{", x)        # Left brace
+  x <- gsub("\\}", "\\\\}", x)        # Right brace
+  x <- gsub("~", "\\\\textasciitilde{}", x)  # Tilde
+  x <- gsub("\\^", "\\\\textasciicircum{}", x)  # Caret
+  x
+}
+
 #' Generate LaTeX PRISMA table snippet
 #' @keywords internal
 m0_prisma_to_tex <- function(prisma_data, id_total) {
@@ -128,6 +154,7 @@ m0_prisma_to_tex <- function(prisma_data, id_total) {
   sc <- prisma_data$screening %||% list()
   el <- prisma_data$eligibility %||% list()
   inc <- prisma_data$included %||% list()
+  qa <- prisma_data$quality %||% NULL
 
   tex <- c(
     "\\begin{table}[htbp]",
@@ -149,6 +176,26 @@ m0_prisma_to_tex <- function(prisma_data, id_total) {
     "\\end{tabular}",
     "\\end{table}"
   )
+
+  # Add quality assessment section if provided
+  if (!is.null(qa)) {
+    qa_lines <- c(
+      "\\begin{table}[htbp]",
+      "\\centering",
+      "\\caption{Quality Assessment Summary}",
+      "\\begin{tabular}{lr}",
+      "\\hline",
+      "Category & Count \\\\",
+      "\\hline",
+      paste0("Low risk & ", qa$low_risk %||% 0, " \\\\"),
+      paste0("High risk & ", qa$high_risk %||% 0, " \\\\"),
+      paste0("Unclear & ", qa$unclear %||% 0, " \\\\"),
+      "\\hline",
+      "\\end{tabular}",
+      "\\end{table}"
+    )
+    tex <- c(tex, "", qa_lines)
+  }
 
   tex
 }

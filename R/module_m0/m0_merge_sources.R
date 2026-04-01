@@ -123,7 +123,9 @@ m0_deduplicate <- function(df, config = biblio_config()) {
   # Strategy 2: Title + Year dedup for records without DOI
   if ("TI" %in% names(df) && "PY" %in% names(df)) {
     title_norm <- m0_normalize_title(df$TI)
-    key <- paste(title_norm, df$PY, sep = "|||")
+    # Handle NA years by using a placeholder
+    year_key <- ifelse(is.na(df$PY), "NA_YEAR", as.character(df$PY))
+    key <- paste(title_norm, year_key, sep = "|||")
     dup <- duplicated(key) & !is.na(title_norm) & nzchar(title_norm)
     df <- df[!dup, ]
   }

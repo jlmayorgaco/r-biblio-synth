@@ -120,14 +120,19 @@ create_hypothesis_interpretation_plot <- function(hypotheses, module_id, config)
   n_not_rejected <- sum(sapply(hypotheses, function(h) h$result == "fail_to_reject"), na.rm = TRUE)
   n_inconclusive <- n_total - n_rejected - n_not_rejected
   
+  # Handle division by zero
+  pct_rejected <- if (n_total > 0) n_rejected / n_total * 100 else 0
+  pct_not_rejected <- if (n_total > 0) n_not_rejected / n_total * 100 else 0
+  pct_inconclusive <- if (n_total > 0) n_inconclusive / n_total * 100 else 0
+  
   # Create a text grob with interpretation
   text_content <- sprintf(
     "%s Hypothesis Summary\n\nTotal: %d\nRejected: %d (%.0f%%)\nNot Rejected: %d (%.0f%%)\nInconclusive: %d (%.0f%%)",
     module_id,
     n_total,
-    n_rejected, n_rejected / n_total * 100,
-    n_not_rejected, n_not_rejected / n_total * 100,
-    n_inconclusive, n_inconclusive / n_total * 100
+    n_rejected, pct_rejected,
+    n_not_rejected, pct_not_rejected,
+    n_inconclusive, pct_inconclusive
   )
   
   # Return as data for table output rather than plot
@@ -139,5 +144,3 @@ create_hypothesis_interpretation_plot <- function(hypotheses, module_id, config)
     n_inconclusive = n_inconclusive
   )
 }
-
-`%||%` <- function(a, b) if (!is.null(a)) a else b

@@ -192,12 +192,18 @@ fit_log_normal <- function(x) {
   x <- x[x > 0]
   log_x <- log(x)
   
+  n <- length(x)
+  if (n < 2) {
+    return(list(meanlog = NA, sdlog = NA, log_likelihood = NA, AIC = NA, status = "error: insufficient data"))
+  }
+  
   mean_log <- mean(log_x)
   sd_log <- sd(log_x)
   
-  # Log-likelihood
-  n <- length(x)
-  log_lik <- -n/2 * log(2 * pi) - n * sd_log - n/2 - n * mean_log - sum(log_x)/2
+  # Log-likelihood for log-normal distribution
+  # Using MLE estimates: meanlog = mean(log_x), sdlog = sd(log_x)
+  # log-likelihood = -n*log(sdlog) - n/2*log(2*pi) - sum(log(x)) - sum((log(x)-meanlog)^2)/(2*sdlog^2)
+  log_lik <- -n * log(sd_log) - n/2 * log(2 * pi) - sum(log_x) - sum((log_x - mean_log)^2) / (2 * sd_log^2)
   
   # AIC
   k <- 2  # parameters: meanlog, sdlog

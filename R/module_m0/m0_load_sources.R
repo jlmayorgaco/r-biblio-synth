@@ -2,9 +2,6 @@
 # m0_load_sources.R - Load bibliographic sources into bibliometrix data frames
 # ============================================================================
 
-# Null-coalescing operator
-`%||%` <- function(a, b) if (!is.null(a)) a else b
-
 #' Load all sources into a named list of bibliometrix data frames
 #'
 #' @param sources Named list of source specifications.

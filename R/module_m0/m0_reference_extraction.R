@@ -534,5 +534,3 @@ m0_source_coverage <- function(input, sources = NULL) {
     status = "success"
   )
 }
-
-`%||%` <- function(a, b) if (!is.null(a)) a else b

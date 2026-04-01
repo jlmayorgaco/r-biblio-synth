@@ -859,5 +859,3 @@ m0_create_quality_report <- function(df, output_file = NULL) {
     issues = quality$issues
   )
 }
-
-`%||%` <- function(a, b) if (!is.null(a)) a else b

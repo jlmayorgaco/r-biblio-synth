@@ -198,7 +198,9 @@ m0_org_collaborations <- function(df) {
 
   # Count authors per document
   n_authors <- sapply(strsplit(df$AU, ";"), function(x) {
-    sum(nzchar(trimws(x)) & !is.na(trimws(x)))
+    authors <- trimws(x)
+    authors <- authors[nzchar(authors)]
+    length(authors)
   })
 
   collab_df <- data.frame(

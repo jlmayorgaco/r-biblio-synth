@@ -2,9 +2,6 @@
 # m0_prisma_diagram.R - PRISMA 2020 Flow Diagram rendering with ggplot2
 # ============================================================================
 
-# Null-coalescing operator
-`%||%` <- function(a, b) if (!is.null(a)) a else b
-
 #' Render PRISMA 2020 flow diagram
 #'
 #' Creates a PRISMA flow diagram using ggplot2 with the standard 4-box layout.
@@ -99,12 +96,14 @@ m0_prisma_base_plot <- function(prisma_data) {
   db_rec       <- id$records_database %||% 0
   other_rec    <- id$records_other %||% 0
   duplicates    <- id$duplicates_removed %||% 0
-  # PRISMA 2020: total identified = db + other sources
-  # After dedup: (db + other) - duplicates
-  # Note: duplicates_removed should represent ALL duplicates (internal + cross-database)
-  # If internal duplicates per source are tracked separately, use:
-  # after_dedup = (db_rec - internal_db_dups) + (other_rec - internal_other_dups) - cross_db_dups
-  after_dedup <- db_rec + other_rec - duplicates
+  total_records <- db_rec + other_rec
+  
+  # Validate logical consistency (duplicates can't exceed total)
+  if (duplicates > total_records) {
+    duplicates <- total_records
+  }
+  after_dedup <- max(0, total_records - duplicates)
+  
   screened    <- sc$records_screened %||% 0
   excl_scr    <- sc$excluded_screening %||% 0
   fulltext    <- el$fulltext_assessed %||% 0
@@ -128,8 +127,21 @@ m0_prisma_base_plot <- function(prisma_data) {
   col_exclude  <- "#DC143C"
   col_remove   <- "#808080"
 
-  # Create the plot
-  grDevices::dev.new(width = 8, height = 12, noRStudioGD = TRUE)
+  # Create the plot - handle headless environments
+  # Check if we're in a headless environment
+  is_headless <- !grDevices::dev.interactive() || 
+                  identical(grDevices::dev.cur()$name, "null device") ||
+                  !interactive()
+  
+  if (is_headless) {
+    # Use pdf device for headless environments (can be exported later)
+    grDevices::pdf(NULL, width = 8, height = 12, onefile = FALSE)
+    on.exit(grDevices::dev.off(), add = TRUE)
+  } else {
+    # Open a new graphics device for interactive use
+    grDevices::dev.new(width = 8, height = 12, noRStudioGD = TRUE)
+  }
+  
   op <- par(mar = c(1, 1, 2, 1))
 
   plot(NULL, xlim = c(0, 10), ylim = c(0, 12),

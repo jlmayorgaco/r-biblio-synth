@@ -614,5 +614,3 @@ m0_full_quality_report <- function(df) {
   report$status <- "success"
   report
 }
-
-`%||%` <- function(a, b) if (!is.null(a)) a else b

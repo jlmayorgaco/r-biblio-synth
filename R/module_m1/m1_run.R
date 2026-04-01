@@ -53,6 +53,7 @@ m1_compute_all <- function(input, config) {
 }
 
 m1_compute_all_debug <- function(input, config) {
+  error_count <- 0
   steps <- list(
     list(name = "overview", fn = function() compute_m1_overview(input, config)),
     list(name = "doc_types", fn = function() compute_m1_doc_types(input, config)),

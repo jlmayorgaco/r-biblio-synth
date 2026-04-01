@@ -457,8 +457,6 @@ m0_disambiguate_journals <- function(journals) {
     journals = groups,
     n_unique = unique_groups,
     n_duplicates = n - unique_groups,
-    status = "success"
+    status = "success")
   )
 }
-
-`%||%` <- function(a, b) if (!is.null(a)) a else b

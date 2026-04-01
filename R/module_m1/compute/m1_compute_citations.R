@@ -10,7 +10,7 @@ compute_m1_citations <- function(input, config = biblio_config()) {
                 citation_summary = list(), status = "error"))
   }
 
-  top_n <- config$top_n_default
+  top_n <- config$top_n_countries
   cat("    [M1-citations] top_n =", top_n, "\n")
 
   # Skip bibliometrix - use fallback (TC column) to avoid hanging
