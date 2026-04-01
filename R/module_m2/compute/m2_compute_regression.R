@@ -78,10 +78,15 @@ m2_fit_all_models <- function(data) {
   
   # === LOGARITHMIC AND POWER MODELS ===
   
-  models$Logarithmic <- tryCatch(
-    lm(Articles ~ log(Year), data = data),
-    error = function(e) NULL
-  )
+  # Logarithmic model requires Year > 0
+  if (all(data$Year > 0)) {
+    models$Logarithmic <- tryCatch(
+      lm(Articles ~ log(Year), data = data),
+      error = function(e) NULL
+    )
+  } else {
+    models$Logarithmic <- NULL
+  }
   
   sv <- m2_get_start_values("Power", data)
   models$Power <- tryCatch(
@@ -322,8 +327,14 @@ m2_build_comparison_table <- function(models, y) {
     mae <- mean(abs(y - preds))
     
     mape <- tryCatch({
-      nonzero <- y != 0
-      if (sum(nonzero) > 0) mean(abs((y[nonzero] - preds[nonzero]) / y[nonzero])) * 100 else NA
+      nonzero <- y != 0 & abs(y) > .Machine$double.eps
+      if (sum(nonzero) > 0 && all(abs(preds[nonzero]) > .Machine$double.eps)) {
+        mean(abs((y[nonzero] - preds[nonzero]) / y[nonzero])) * 100
+      } else if (sum(nonzero) > 0) {
+        mean(abs((y[nonzero] - preds[nonzero]) / abs(y[nonzero]))) * 100
+      } else {
+        NA
+      }
     }, error = function(e) NA)
     
     aic <- tryCatch(AIC(mod), error = function(e) NA)

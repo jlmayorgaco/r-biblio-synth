@@ -31,16 +31,16 @@ build_hypotheses_table <- function(result, config = biblio_config()) {
       }))
       
       n_total <- length(hypotheses)
-      n_rejected <- sum(hypothesis_table$result == "reject")
-      n_not_rejected <- sum(hypothesis_table$result == "fail_to_reject")
+      n_rejected <- sum(hypothesis_table$result == "reject", na.rm = TRUE)
+      n_not_rejected <- sum(hypothesis_table$result == "fail_to_reject", na.rm = TRUE)
       
       summary_list <- list(
         n_total = n_total,
         n_rejected = n_rejected,
         n_not_rejected = n_not_rejected,
         n_inconclusive = n_total - n_rejected - n_not_rejected,
-        rejection_rate = n_rejected / n_total,
-        pass_rate = n_not_rejected / n_total
+        rejection_rate = if (n_total > 0) n_rejected / n_total else NA_real_,
+        pass_rate = if (n_total > 0) n_not_rejected / n_total else NA_real_
       )
     }
   }
@@ -51,5 +51,3 @@ build_hypotheses_table <- function(result, config = biblio_config()) {
     summary = summary_list
   )
 }
-
-`%||%` <- function(a, b) if (!is.null(a)) a else b

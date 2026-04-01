@@ -42,25 +42,26 @@
 #'   output_dir = "my_results"
 #' )
 biblio_config <- function(output_dir = "results",
-                          export_plots = TRUE,
-                          export_json = TRUE,
-                          export_reports = TRUE,
-                          theme_name = "ieee",
-                          verbose = TRUE,
-                          top_n_countries = 10,
-                          top_n_authors = 10,
-                          top_n_sources = 10,
-                          top_n_keywords = 20,
-                          dpi = 300,
-                          plot_width = 3.5,
-                          plot_height = 2.5,
-                          parallel = FALSE,
-                          n_cores = NULL,
-                          cache_dir = "cache",
-                          cache_enabled = TRUE,
-                          log_level = "INFO",
-                          log_file = NULL,
-                          ...) {
+                           export_plots = TRUE,
+                           export_json = TRUE,
+                           export_reports = TRUE,
+                           theme_name = "ieee",
+                           verbose = TRUE,
+                           top_n_countries = 10,
+                           top_n_authors = 10,
+                           top_n_sources = 10,
+                           top_n_keywords = 20,
+                           top_n_citations = 10,
+                           dpi = 300,
+                           plot_width = 3.5,
+                           plot_height = 2.5,
+                           parallel = FALSE,
+                           n_cores = NULL,
+                           cache_dir = "cache",
+                           cache_enabled = TRUE,
+                           log_level = "INFO",
+                           log_file = NULL,
+                           ...) {
   
   # Build configuration list
   config <- list(
@@ -74,6 +75,7 @@ biblio_config <- function(output_dir = "results",
     top_n_authors   = top_n_authors,
     top_n_sources   = top_n_sources,
     top_n_keywords  = top_n_keywords,
+    top_n_citations = top_n_citations,
     dpi             = dpi,
     plot_width      = plot_width,
     plot_height     = plot_height,
@@ -107,8 +109,8 @@ biblio_config <- function(output_dir = "results",
 validate_config <- function(config) {
   # Validate numeric parameters
   numeric_params <- c("dpi", "plot_width", "plot_height", 
-                     "top_n_countries", "top_n_authors", 
-                     "top_n_sources", "top_n_keywords")
+                      "top_n_countries", "top_n_authors", 
+                      "top_n_sources", "top_n_keywords", "top_n_citations")
   
   for (param in numeric_params) {
     if (param %in% names(config)) {

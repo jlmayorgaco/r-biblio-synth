@@ -60,7 +60,11 @@ m1_compute_lorenz <- function(x, smooth = TRUE, n_interp = 200) {
 m1_compute_gini <- function(cumulative_entities, cumulative_values) {
   n <- length(cumulative_entities)
   if (n < 2) return(0)
-  area_under_curve <- sum(diff(cumulative_entities) *
-                          (cumulative_values[-1] + cumulative_values[-n]) / 2)
+  
+  # Trapezoidal rule for area under Lorenz curve
+  # Area = sum of trapezoids: (x[i+1] - x[i]) * (y[i+1] + y[i]) / 2
+  area_under_curve <- sum(diff(cumulative_entities) * 
+                          (head(cumulative_values, -1) + cumulative_values[-1]) / 2)
+  
   max(0, min(1, 1 - 2 * area_under_curve))
 }

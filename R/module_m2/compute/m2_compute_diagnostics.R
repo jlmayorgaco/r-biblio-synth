@@ -297,14 +297,28 @@ compute_forecast_accuracy <- function(years, articles, models) {
     naive_mae <- mean(abs(diff(articles[1:train_n])), na.rm = TRUE)
     mase <- if (naive_mae > 0) mae / naive_mae else NA
     
-    # Theil's U
-    y <- actual[2:length(actual)]
-    y_prev <- actual[1:(length(actual) - 1)]
-    f <- predicted[2:length(predicted)]
-    
-    numerator <- sqrt(sum(((y - f) / y_prev)^2, na.rm = TRUE))
-    denominator <- sqrt(sum(((y - y_prev) / y_prev)^2, na.rm = TRUE))
-    theil_u <- if (denominator > 0) numerator / denominator else NA
+    # Theil's U (with division-by-zero protection)
+    if (length(actual) < 2 || length(predicted) < 2) {
+      theil_u <- NA
+    } else {
+      y <- actual[2:length(actual)]
+      y_prev <- actual[1:(length(actual) - 1)]
+      f <- predicted[2:length(predicted)]
+      
+      # Filter out zero/near-zero y_prev values
+      valid_idx <- which(abs(y_prev) > .Machine$double.eps)
+      if (length(valid_idx) < 2) {
+        theil_u <- NA
+      } else {
+        y <- y[valid_idx]
+        y_prev <- y_prev[valid_idx]
+        f <- f[valid_idx]
+        
+        numerator <- sqrt(sum(((y - f) / y_prev)^2, na.rm = TRUE))
+        denominator <- sqrt(sum(((y - y_prev) / y_prev)^2, na.rm = TRUE))
+        theil_u <- if (is.finite(denominator) && denominator > 0) numerator / denominator else NA
+      }
+    }
     
     accuracy <- rbind(accuracy, data.frame(
       model = name,
@@ -345,8 +359,15 @@ compute_residual_diagnostics <- function(models) {
     
     diag$jarque_bera <- tryCatch({
       n <- length(res)
-      skewness <- sum((res - mean(res))^3) / (n * sd(res)^3)
-      kurtosis <- sum((res - mean(res))^4) / (n * sd(res)^4)
+      m <- mean(res)
+      # Population variance (n denominator, not n-1)
+      s_pop <- sqrt(mean((res - m)^2))
+      if (s_pop == 0 || !is.finite(s_pop) || n < 3) {
+        return(list(statistic = NA, p_value = NA, skewness = NA, kurtosis = NA))
+      }
+      # Population skewness and excess kurtosis
+      skewness <- mean((res - m)^3) / (s_pop^3)
+      kurtosis <- mean((res - m)^4) / (s_pop^4)
       jb <- n * (skewness^2 / 6 + (kurtosis - 3)^2 / 24)
       p_value <- 1 - pchisq(jb, 2)
       list(statistic = jb, p_value = p_value, skewness = skewness, kurtosis = kurtosis)
@@ -517,5 +538,3 @@ select_best_model <- function(diagnostics) {
     recommendation = if (!is.na(best_aic)) best_aic else best_bic
   )
 }
-
-`%||%` <- function(a, b) if (!is.null(a)) a else b

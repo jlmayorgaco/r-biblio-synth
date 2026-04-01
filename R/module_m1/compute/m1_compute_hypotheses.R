@@ -307,7 +307,28 @@ test_collaboration_trend_hypothesis <- function(input, config) {
     }
   }
   
+  # Check minimum sample size for regression
+  if (nrow(collaboration_by_year) < 3) {
+    return(list(
+      hyphypothesis = "Collaboration rate has increased over time",
+      null = "Collaboration rate is stable or decreasing",
+      result = "inconclusive",
+      interpretation = "Insufficient data points for trend analysis (need at least 3 years)"
+    ))
+  }
+  
   fit <- lm(collaboration_rate ~ year, data = collaboration_by_year)
+  
+  # Check model convergence and coefficient availability
+  if (is.null(fit) || length(coef(fit)) < 2 || is.na(coef(fit)[2])) {
+    return(list(
+      hyphypothesis = "Collaboration rate has increased over time",
+      null = "Collaboration rate is stable or decreasing",
+      result = "inconclusive",
+      interpretation = "Could not fit regression model"
+    ))
+  }
+  
   slope <- coef(fit)[2]
   p_value <- summary(fit)$coefficients[2, 4]
   
@@ -790,8 +811,6 @@ summarize_hypothesis_results <- function(hypotheses) {
     n_rejected = n_rejected,
     n_failed_to_reject = n_failed_to_reject,
     n_inconclusive = n_inconclusive,
-    rejection_rate = n_rejected / n_total
+    rejection_rate = if (n_total > 0) n_rejected / n_total else NA_real_
   )
 }
-
-`%||%` <- function(a, b) if (!is.null(a)) a else b

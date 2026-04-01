@@ -14,7 +14,8 @@ m3_compute_temporal_dynamics <- function(country_year_data, config = biblio_conf
   if (!all(c("country", "year", "production") %in% names(country_year_data))) {
     # Try alternative column names
     if ("PY" %in% names(country_year_data) && !("year" %in% names(country_year_data))) {
-      country_year_data$year <- country_year_data$PY}
+      country_year_data$year <- country_year_data$PY
+    }
     if ("article_count" %in% names(country_year_data) && !("production" %in% names(country_year_data))) {
       country_year_data$production <- country_year_data$article_count
     }

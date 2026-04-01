@@ -15,8 +15,10 @@ run_m5 <- function(input, config = biblio_config(), export = TRUE) {
   log_message("INFO", "Starting M5: Citation Network Analysis")
   
   # Validate input
-  if (!"CR" %in% names(input)) {
-    return(create_error_result("m5", "Citation Network", "Missing CR (cited references) field"))
+  validation <- validate_m5_input(input, config)
+  if (!validation$ok) {
+    log_message("ERROR", "M5 validation failed: {msg}", msg = validation$error)
+    return(create_error_result("m5", "Citation Network", validation$error))
   }
   
   # Build citation network

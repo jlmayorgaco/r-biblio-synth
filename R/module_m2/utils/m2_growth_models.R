@@ -70,7 +70,7 @@ m2_gompertz_offset <- function(t, a, K, r, t0) {
 
 #' Richards (generalized logistic): y = K / (1 + v * exp(-r * (t - t0)))^(1/v)
 m2_richards <- function(t, K, r, t0, v) { 
-  if (v == 0) return(K / (1 + exp(-r * (t - t0))))
+  if (abs(v) < .Machine$double.eps) return(K / (1 + exp(-r * (t - t0))))
   K / (1 + v * exp(-r * (t - t0)))^(1/v)
 }
 
@@ -195,36 +195,42 @@ m2_get_start_values <- function(model_name, data) {
     r_est <- 0.01
   }
   
+  # Ensure positive values for models that require them
+  y_positive <- max(y_max, 0.001)
+  y_mean_pos <- max(y_mean, 0.001)
+  y_first_pos <- max(y_first, 0.001)
+  y_last_pos <- max(y_last, 0.001)
+  
   switch(model_name,
     "Linear" = list(a = (y_last - y_first) / t_range, b = y_first),
     "Quadratic" = list(a = 0.001, b = (y_last - y_first) / t_range, c = y_first),
     "Cubic" = list(a = 0.00001, b = 0.001, c = (y_last - y_first) / t_range, d = y_first),
     "Logarithmic" = list(a = (y_last - y_first) / log(t_range + 1), b = y_first),
-    "Power" = list(a = y_mean, b = 1),
-    "Exponential" = list(r = max(0.001, r_est), N0 = y_min + 1, t0 = t_min),
-    "ExponentialOffset" = list(a = y_min, b = y_mean, r = r_est),
-    "Logistic" = list(K = y_max * 1.1, r = max(0.01, r_est), t0 = (t_min + t_max) / 2),
-    "Logistic4P" = list(a = 0, K = y_max * 1.1, r = max(0.01, r_est), t0 = (t_min + t_max) / 2),
-    "Gompertz" = list(K = y_max * 1.1, r = max(0.01, r_est * 2), t0 = t_min),
-    "GompertzOffset" = list(a = 0, K = y_max * 1.1, r = max(0.01, r_est * 2), t0 = t_min),
-    "Richards" = list(K = y_max * 1.1, r = max(0.01, r_est), t0 = mean(t), v = 1),
-    "Weibull" = list(K = y_max * 1.1, r = 1, t0 = t_min, alpha = t_range / 3),
-    "VonBertalanffy" = list(Linf = y_max * 1.1, k = max(0.01, r_est), t0 = t_min),
-    "Beta" = list(K = y_max, alpha = t_range / 3, beta = 2, t0 = t_min),
-    "Gamma" = list(K = y_max, alpha = t_range / 3, beta = 2, t0 = t_min),
-    "ChapmanRichards" = list(K = y_max * 1.1, r = max(0.01, r_est), t0 = t_min, m = 2),
-    "Korf" = list(K = y_max * 1.1, r = 1, beta = 0.5),
-    "MMF" = list(K = y_max * 1.1, a = y_min, b = t_range / 2, d = 2),
-    "Stannard" = list(K = y_max * 1.1, a = 1, b = 0.5),
-    "Hill" = list(K = y_max * 1.1, K50 = mean(t), n = 2),
-    "Monod" = list(K = y_max * 1.1, Ks = mean(t) / 2),
-    "Baranyi" = list(y0 = y_min, y_max = y_max * 1.1, h0 = 0, lambda = r_est),
-    "Ratkowsky" = list(a = y_max * 1.1, b = r_est, t0 = t_min, c = 1),
-    "Hossfeld" = list(K = y_max * 1.1, a = 0.001, b = 0.0001),
-    "Asymptotic" = list(a = y_max * 1.1, b = y_max, c = r_est),
-    "Fourier" = list(a0 = y_mean, a1 = (y_max - y_min) / 4, b1 = 0, w = 2 * pi / 10),
-    "Fourier2" = list(a0 = y_mean, a1 = (y_max - y_min) / 4, b1 = 0, a2 = (y_max - y_min) / 8, b2 = 0, w = 2 * pi / 10),
-    "Gaussian" = list(A = y_max, mu = mean(t), sigma = t_range / 4),
+    "Power" = list(a = y_mean_pos, b = 1),
+    "Exponential" = list(r = max(0.001, r_est), N0 = y_first_pos, t0 = t_min),
+    "ExponentialOffset" = list(a = 0, b = y_mean_pos, r = r_est),
+    "Logistic" = list(K = y_positive * 1.1, r = max(0.01, r_est), t0 = (t_min + t_max) / 2),
+    "Logistic4P" = list(a = 0, K = y_positive * 1.1, r = max(0.01, r_est), t0 = (t_min + t_max) / 2),
+    "Gompertz" = list(K = y_positive * 1.1, r = max(0.01, r_est * 2), t0 = t_min),
+    "GompertzOffset" = list(a = 0, K = y_positive * 1.1, r = max(0.01, r_est * 2), t0 = t_min),
+    "Richards" = list(K = y_positive * 1.1, r = max(0.01, r_est), t0 = mean(t), v = 1),
+    "Weibull" = list(K = y_positive * 1.1, r = 1, t0 = t_min, alpha = t_range / 3),
+    "VonBertalanffy" = list(Linf = y_positive * 1.1, k = max(0.01, r_est), t0 = t_min),
+    "Beta" = list(K = y_positive, alpha = t_range / 3, beta = 2, t0 = t_min),
+    "Gamma" = list(K = y_positive, alpha = t_range / 3, beta = 2, t0 = t_min),
+    "ChapmanRichards" = list(K = y_positive * 1.1, r = max(0.01, r_est), t0 = t_min, m = 2),
+    "Korf" = list(K = y_positive * 1.1, r = 1, beta = 0.5),
+    "MMF" = list(K = y_positive * 1.1, a = 0.001, b = t_range / 2, d = 2),
+    "Stannard" = list(K = y_positive * 1.1, a = 1, b = 0.5),
+    "Hill" = list(K = y_positive * 1.1, K50 = mean(t), n = 2),
+    "Monod" = list(K = y_positive * 1.1, Ks = mean(t) / 2),
+    "Baranyi" = list(y0 = y_first_pos, y_max = y_positive * 1.1, h0 = 0, lambda = r_est),
+    "Ratkowsky" = list(a = y_positive * 1.1, b = r_est, t0 = t_min, c = 1),
+    "Hossfeld" = list(K = y_positive * 1.1, a = 0.001, b = 0.0001),
+    "Asymptotic" = list(a = y_positive * 1.1, b = y_positive, c = r_est),
+    "Fourier" = list(a0 = y_mean_pos, a1 = (y_positive - max(y_min, 0.001)) / 4, b1 = 0, w = 2 * pi / 10),
+    "Fourier2" = list(a0 = y_mean_pos, a1 = (y_positive - max(y_min, 0.001)) / 4, b1 = 0, a2 = (y_positive - max(y_min, 0.001)) / 8, b2 = 0, w = 2 * pi / 10),
+    "Gaussian" = list(A = y_positive, mu = mean(t), sigma = t_range / 4),
     "Spline" = list(df = min(5, length(t) - 1)),
     list()
   )

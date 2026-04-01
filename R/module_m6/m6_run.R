@@ -15,10 +15,14 @@ run_m6 <- function(input, config = biblio_config(), export = TRUE) {
   log_message("INFO", "Starting M6: Topic Evolution Analysis")
   
   # Validate input
-  kw_col <- if ("DE" %in% names(input)) "DE" else if ("ID" %in% names(input)) "ID" else NULL
-  if (is.null(kw_col)) {
-    return(create_error_result("m6", "Topic Evolution", "Missing keyword columns (DE or ID)"))
+  validation <- validate_m6_input(input, config)
+  if (!validation$ok) {
+    log_message("ERROR", "M6 validation failed: {msg}", msg = validation$error)
+    return(create_error_result("m6", "Topic Evolution", validation$error))
   }
+  
+  # Get the keyword column to use
+  kw_col <- validation$keyword_column
   
   # Dynamic topic modeling
   log_message("INFO", "Computing dynamic topic model...")

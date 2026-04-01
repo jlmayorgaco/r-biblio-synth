@@ -358,13 +358,15 @@ compute_gini <- function(x) {
   if (n == 0 || sum(x) == 0) return(NA_real_)
   
   x <- sort(x)
-  
   n <- length(x)
-  cum_x <- cumsum(x)
-  area_under_curve <- sum(cum_x) / (n * sum(x))
-  gini <- 1 - 2 * area_under_curve
   
-  gini
+  # Brown's formula for Gini coefficient
+  # G = (2 * Σ(i * x_i)) / (n * Σx) - (n + 1) / n
+  # This is algebraically equivalent to the Lorenz curve approach
+  gini <- (2 * sum((1:n) * x)) / (n * sum(x)) - (n + 1) / n
+  
+  # Gini should be between 0 and 1
+  max(0, min(1, gini))
 }
 
 #' Interpret Price's Law results

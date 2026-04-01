@@ -18,7 +18,6 @@ run_m2 <- function(input, config = biblio_config(), export = TRUE) {
   data <- list(
     eda         = compute_m2_eda(input, config),
     regression  = compute_m2_regression(input, config),
-    harmonics   = compute_m2_harmonics(input, config),
     ridge       = compute_m2_ridge(input, config),
     changepoint = compute_m2_changepoint(input, config),
     stl         = compute_m2_stl(input, config),
@@ -28,10 +27,11 @@ run_m2 <- function(input, config = biblio_config(), export = TRUE) {
     growth_models = compute_m2_growth_models_wrapper(input, config)
   )
   
-  # 2b. Compute residual analysis (requires regression)
-  data$residual_analysis <- compute_m2_residual_analysis(input, data$regression, config)
+  # 2b. Compute harmonics AFTER regression (to enable residual analysis)
+  data$harmonics <- compute_m2_harmonics(input, data$regression, config)
   
-  # 2c. Harmonics already computed in step 2, includes wavelet analysis if available
+  # 2c. Compute residual analysis (requires regression)
+  data$residual_analysis <- compute_m2_residual_analysis(input, data$regression, config)
 
   # 2d. Compute diagnostics (requires fitted models)
   models_for_diagnostics <- collect_models_for_diagnostics(data)

@@ -211,20 +211,31 @@ test_constant_growth_rate_hypothesis <- function(years, articles) {
   
   if (length(growth_rates) < 5) return(list(hyphypothesis = "Constant growth rate", result = "inconclusive"))
   
-  cv <- sd(growth_rates, na.rm = TRUE) / abs(mean(growth_rates, na.rm = TRUE))
+  mean_growth <- mean(growth_rates, na.rm = TRUE)
+  sd_growth <- sd(growth_rates, na.rm = TRUE)
   
-  result <- if (cv < 0.5) "fail_to_reject" else "reject"
+  # Handle division by zero when mean growth rate is zero or near-zero
+  if (abs(mean_growth) < .Machine$double.eps) {
+    # If growth rate is zero, check if variance is also zero
+    cv <- if (sd_growth < .Machine$double.eps) 0 else Inf
+  } else {
+    cv <- sd_growth / abs(mean_growth)
+  }
+  
+  result <- if (is.finite(cv) && cv < 0.5) "fail_to_reject" else "reject"
   
   list(
     hyphypothesis = "Year-over-year growth rate is constant",
     null = "Growth rate varies over time",
     result = result,
-    mean_growth = mean(growth_rates, na.rm = TRUE),
-    sd_growth = sd(growth_rates, na.rm = TRUE),
+    mean_growth = mean_growth,
+    sd_growth = sd_growth,
     CV = cv,
     interpretation = sprintf("Mean growth = %.1f%%, CV = %.2f. %s",
-                            mean(growth_rates, na.rm = TRUE) * 100, cv,
-                            if (cv < 0.5) "Growth rate is relatively stable." else "Growth rate varies.")
+                            mean_growth * 100, cv,
+                            if (!is.finite(cv)) "Growth rate undefined." 
+                            else if (cv < 0.5) "Growth rate is relatively stable." 
+                            else "Growth rate varies.")
   )
 }
 

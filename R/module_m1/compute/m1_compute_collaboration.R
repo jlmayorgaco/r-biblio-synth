@@ -115,19 +115,22 @@ compute_collaboration_indices <- function(authors_per_paper) {
   k_values <- as.integer(names(freq_table))
   f_k <- as.integer(freq_table)
   
+  # Collaboration Index (CI): mean number of authors per paper
   CI <- mean(authors_per_paper, na.rm = TRUE)
   
-  CC <- sum((k_values / f_k) * (f_k / n) * (1 - 1/k_values))
-  
+  # Degree of Collaboration (DC): proportion of multi-authored papers
   DC <- mean(authors_per_paper > 1, na.rm = TRUE)
   
-  CC_modified <- sum(f_k * (1 - 1/k_values)) / n
+  # Collaboration Coefficient (CC): Ajiferuke's formula
+  # CC = sum(f_k * (1 - 1/k)) / n
+  # where f_k = number of papers with k authors
+  # Handle k = 0 case (should not occur) and ensure valid calculation
+  CC <- sum(f_k * (1 - 1/k_values), na.rm = TRUE) / n
   
   list(
     CI = CI,
     CC = CC,
     DC = DC,
-    CC_modified = CC_modified,
     mean_authors = mean(authors_per_paper, na.rm = TRUE),
     median_authors = median(authors_per_paper, na.rm = TRUE),
     max_authors = max(authors_per_paper, na.rm = TRUE),

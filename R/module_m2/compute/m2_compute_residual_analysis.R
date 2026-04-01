@@ -119,13 +119,18 @@ test_residual_normality <- function(residuals) {
     list(statistic = NA, p_value = NA, normal = NA)
   })
   
-  # Jarque-Bera test
+  # Jarque-Bera test (using population moments for correct formula)
   jb_test <- tryCatch({
     n <- length(residuals)
     m <- mean(residuals)
-    s <- sd(residuals)
-    skewness <- sum((residuals - m)^3) / (n * s^3)
-    kurtosis <- sum((residuals - m)^4) / (n * s^4) - 3
+    # Population variance (n denominator, not n-1)
+    s_pop <- sqrt(mean((residuals - m)^2))
+    if (s_pop == 0 || !is.finite(s_pop)) {
+      return(list(statistic = NA, p_value = NA, normal = NA))
+    }
+    # Population skewness and excess kurtosis
+    skewness <- mean((residuals - m)^3) / (s_pop^3)
+    kurtosis <- mean((residuals - m)^4) / (s_pop^4) - 3
     jb_stat <- n * (skewness^2 / 6 + kurtosis^2 / 24)
     p_value <- 1 - pchisq(jb_stat, 2)
     list(
@@ -506,5 +511,3 @@ assess_model_adequacy <- function(residuals, predicted, observed) {
     }
   )
 }
-
-`%||%` <- function(a, b) if (!is.null(a)) a else b

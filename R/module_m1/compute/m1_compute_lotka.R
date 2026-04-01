@@ -91,8 +91,10 @@ compute_m1_lotka <- function(input, config = biblio_config()) {
   
   gof_result <- test_lotka_goodness_of_fit(freq_table, lotka_params$alpha)
   
+  # Classical Lotka's Law: C = 1/zeta(2) ≈ 6/π² ≈ 0.6079
+  # For alpha=2, C = 1 / sum_{n=1}^{inf} (1/n²)
   classical_alpha <- 2
-  classical_C <- 1 / (sum(1 / (1:classical_alpha)^2))
+  classical_C <- 6 / pi^2  # Exact value: ≈ 0.6079
   alpha_diff <- abs(lotka_params$alpha - classical_alpha)
   is_lotka <- alpha_diff < 0.5
   
