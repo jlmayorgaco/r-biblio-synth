@@ -15,7 +15,8 @@ test_that("run_m3 data slot contains all expected components", {
   result <- run_m3(make_m3_minimal_fixture(), export = FALSE)
   expect_true(all(c("production", "citations", "scp_mcp", "inequality",
                     "rankings", "distribution_tests", "growth_dynamics",
-                    "profiles", "experiments") %in% names(result$data)))
+                    "profiles", "experiments", "spatial", "regional",
+                    "economic", "temporal_dynamics") %in% names(result$data)))
 })
 
 test_that("run_m3 artifacts contain plots and tables", {
@@ -33,6 +34,13 @@ test_that("run_m3 works on extended fixture without error", {
   result <- run_m3(make_m3_extended_fixture(), export = FALSE)
   expect_s3_class(result, "biblio_module_result")
   expect_true(result$status %in% c("success", "warning"))
+})
+
+test_that("run_m3 regional and economic tables use canonical fields", {
+  result <- run_m3(make_m3_extended_fixture(), export = FALSE)
+
+  expect_true(all(c("region", "total_production", "share") %in% names(result$artifacts$tables$regional)))
+  expect_true(all(c("country", "production", "gdp_usd", "hdi") %in% names(result$artifacts$tables$economic)))
 })
 
 test_that("run_m3 with export = TRUE writes to tempdir", {
