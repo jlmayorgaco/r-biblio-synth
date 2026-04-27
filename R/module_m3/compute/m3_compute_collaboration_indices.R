@@ -346,6 +346,16 @@ compile_country_indices <- function(salton, jaccard, affinity, country_totals) {
   })
   
   result <- do.call(rbind, indices_list)
-  
-  result[order(-result$n_documents), ]
+
+  result <- result[order(-result$n_documents), ]
+  result$article_count <- result$n_documents
+  total_documents <- sum(result$article_count, na.rm = TRUE)
+  result$share <- if (is.finite(total_documents) && total_documents > 0) {
+    result$article_count / total_documents
+  } else {
+    0
+  }
+  result$rank <- seq_len(nrow(result))
+
+  result
 }
