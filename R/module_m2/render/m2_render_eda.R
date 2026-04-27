@@ -72,7 +72,7 @@ render_m2_eda <- function(result, config = biblio_config()) {
   }
   
   # Descriptive statistics plot
-  if ("summary_stats" %in% names(result)) {
+  if ("summary" %in% names(result) || "summary_stats" %in% names(result)) {
     plots$descriptive_stats <- create_descriptive_stats_plot(result, config)
   }
   
@@ -101,19 +101,25 @@ create_single_ma_plot <- function(ma_data, raw_data, window_size, color, title, 
   if (!is.null(ma_data) && nrow(ma_data) > 0) {
     year_col <- if ("year" %in% names(ma_data)) "year" else "Year"
     articles_col <- if ("articles" %in% names(ma_data)) "articles" else "Articles"
+    plot_data <- data.frame(
+      year = suppressWarnings(as.numeric(ma_data[[year_col]])),
+      articles = suppressWarnings(as.numeric(ma_data[[articles_col]]))
+    )
     
     p <- p + ggplot2::geom_line(
-      data = ma_data,
-      ggplot2::aes_string(x = year_col, y = articles_col),
+      data = plot_data,
+      ggplot2::aes(x = year, y = articles),
       color = color,
       linewidth = 1
     )
     
     # Add confidence band if available
     if ("lower" %in% names(ma_data) && "upper" %in% names(ma_data)) {
+      plot_data$lower <- suppressWarnings(as.numeric(ma_data$lower))
+      plot_data$upper <- suppressWarnings(as.numeric(ma_data$upper))
       p <- p + ggplot2::geom_ribbon(
-        data = ma_data,
-        ggplot2::aes_string(x = year_col, ymin = "lower", ymax = "upper"),
+        data = plot_data,
+        ggplot2::aes(x = year, ymin = lower, ymax = upper),
         fill = color,
         alpha = 0.2
       )
@@ -233,8 +239,12 @@ create_m2_p1_plot <- function(result, config) {
   
   year_col <- if ("year" %in% names(annual)) "year" else "Year"
   articles_col <- if ("articles" %in% names(annual)) "articles" else "Articles"
+  annual_plot <- data.frame(
+    year = suppressWarnings(as.numeric(annual[[year_col]])),
+    articles = suppressWarnings(as.numeric(annual[[articles_col]]))
+  )
   
-  p <- ggplot2::ggplot(annual, ggplot2::aes_string(x = year_col, y = articles_col)) +
+  p <- ggplot2::ggplot(annual_plot, ggplot2::aes(x = year, y = articles)) +
     ggplot2::geom_col(fill = "#0072BD", color = "black", linewidth = 0.2, alpha = 0.8) +
     ggplot2::geom_smooth(
       method = "loess",
@@ -269,8 +279,12 @@ create_annual_production_plot <- function(raw_data, config) {
   
   year_col <- if ("Year" %in% names(raw_data)) "Year" else "year"
   articles_col <- if ("Articles" %in% names(raw_data)) "Articles" else "articles"
+  raw_plot <- data.frame(
+    year = suppressWarnings(as.numeric(raw_data[[year_col]])),
+    articles = suppressWarnings(as.numeric(raw_data[[articles_col]]))
+  )
   
-  p <- ggplot2::ggplot(raw_data, ggplot2::aes_string(x = year_col, y = articles_col)) +
+  p <- ggplot2::ggplot(raw_plot, ggplot2::aes(x = year, y = articles)) +
     ggplot2::geom_line(color = "#0072BD", linewidth = 0.8) +
     ggplot2::geom_point(color = "#0072BD", size = 2, alpha = 0.8) +
     ggplot2::scale_x_continuous(name = "Year", breaks = scales::breaks_pretty(n = 8)) +
@@ -287,17 +301,23 @@ create_annual_production_plot <- function(raw_data, config) {
 #' Create descriptive stats plot
 #' @keywords internal
 create_descriptive_stats_plot <- function(result, config) {
-  stats <- result$summary_stats
+  stats <- result$summary_stats %||% result$summary
   if (is.null(stats)) return(NULL)
+
+  total_papers <- stats$total_papers %||% stats$total_articles %||% result$metrics$total %||% NA_real_
+  mean_articles <- stats$mean %||% stats$mean_articles %||% result$metrics$mean %||% NA_real_
+  median_articles <- stats$median %||% stats$median_articles %||% result$metrics$median %||% NA_real_
+  sd_articles <- stats$sd %||% stats$sd_articles %||% result$metrics$sd %||% NA_real_
+  growth_rate <- stats$growth_rate %||% NA_real_
   
   # Create a summary text plot
   stats_text <- sprintf(
     "Descriptive Statistics\n\nTotal Papers: %d\nMean: %.1f\nMedian: %.1f\nSD: %.1f\nGrowth Rate: %.2f%%",
-    stats$total_papers %||% NA,
-    stats$mean %||% NA,
-    stats$median %||% NA,
-    stats$sd %||% NA,
-    stats$growth_rate %||% NA
+    as.integer(round(total_papers)),
+    mean_articles,
+    median_articles,
+    sd_articles,
+    growth_rate
   )
   
   p <- ggplot2::ggplot() +
