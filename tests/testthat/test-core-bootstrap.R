@@ -4,9 +4,6 @@
 
 context("Bootstrap Confidence Intervals")
 
-# Source bootstrap functions
-source("../../R/core/bootstrap.R")
-
 test_that("bootstrap_ci returns correct structure for percentile method", {
   set.seed(42)
   data <- rnorm(100, mean = 5, sd = 2)
@@ -169,16 +166,12 @@ test_that("bootstrap_gini returns valid Gini coefficient", {
 })
 
 test_that("safe_divide prevents division by zero", {
-  source("../../R/core/safe_division.R")
-  
   expect_equal(safe_divide(10, 0), 0)
   expect_equal(safe_divide(10, 0, default = NA), NA)
   expect_equal(safe_divide(10, 5), 2)
 })
 
 test_that("safe_proportion handles edge cases", {
-  source("../../R/core/safe_division.R")
-  
   expect_equal(safe_proportion(5, 10), 0.5)
   expect_equal(safe_proportion(5, 0), 0)
   expect_equal(safe_proportion(10, 5), 1)  # Capped at 100%
