@@ -13,10 +13,13 @@
 m3_compute_hypotheses <- function(prepared_data, config = biblio_config()) {
   if (is.null(prepared_data) || prepared_data$status != "success") {
     return(list(
+      hypotheses = list(),
       hyphypotheses = list(),
       status = "error: invalid prepared_data"
     ))
   }
+
+  prepared_data <- m3_prepare_hypothesis_inputs(prepared_data, config)
   
   hypotheses <- list()
   
@@ -59,6 +62,7 @@ m3_compute_hypotheses <- function(prepared_data, config = biblio_config()) {
   summary_stats <- summarize_h3_hypothesis_results(hypotheses)
   
   list(
+    hypotheses = hypotheses,
     hyphypotheses = hypotheses,
     n_hypotheses = length(hypotheses),
     n_rejected = summary_stats$n_rejected,
@@ -269,7 +273,8 @@ test_size_output_correlation_hypothesis <- function(prepared_data, config) {
   # Correlation between log(articles) and citations
   cor_test <- tryCatch(cor.test(log(total_articles[valid_idx]), 
                                 mean_citations[valid_idx],
-                                method = "spearman"),
+                                method = "spearman",
+                                exact = FALSE),
                       error = function(e) NULL)
   
   if (is.null(cor_test)) return(list(hyphypothesis = "Size-output correlation", result = "inconclusive"))
@@ -311,7 +316,8 @@ test_production_citation_hypothesis <- function(prepared_data, config) {
   
   cor_test <- tryCatch(cor.test(log(total_articles[valid_idx]),
                                 log(total_citations[valid_idx]),
-                                method = "spearman"),
+                                method = "spearman",
+                                exact = FALSE),
                       error = function(e) NULL)
   
   if (is.null(cor_test)) return(list(hyphypothesis = "Production-citation correlation", result = "inconclusive"))
@@ -579,6 +585,14 @@ calculate_gini <- function(x) {
 
 summarize_h3_hypothesis_results <- function(hypotheses) {
   n_total <- length(hypotheses)
+  if (n_total == 0) {
+    return(list(
+      n_total = 0L,
+      n_rejected = 0L,
+      n_failed_to_reject = 0L,
+      rejection_rate = NA_real_
+    ))
+  }
   n_rejected <- sum(sapply(hypotheses, function(h) h$result == "reject"), na.rm = TRUE)
   n_failed <- sum(sapply(hypotheses, function(h) h$result == "fail_to_reject"), na.rm = TRUE)
   
@@ -588,6 +602,192 @@ summarize_h3_hypothesis_results <- function(hypotheses) {
     n_failed_to_reject = n_failed,
     rejection_rate = n_rejected / n_total
   )
+}
+
+m3_prepare_hypothesis_inputs <- function(prepared_data, config = biblio_config()) {
+  output <- prepared_data
+  country_annual <- output$country_annual
+
+  if (is.null(country_annual)) {
+    country_annual <- tibble::tibble()
+  } else {
+    country_annual <- tibble::as_tibble(country_annual)
+  }
+
+  if (nrow(country_annual) > 0) {
+    if (!"year" %in% names(country_annual) && "PY" %in% names(country_annual)) {
+      country_annual$year <- as.integer(country_annual$PY)
+    }
+    if (!"article_count" %in% names(country_annual) && "n_articles" %in% names(country_annual)) {
+      country_annual$article_count <- suppressWarnings(as.numeric(country_annual$n_articles))
+    }
+    if (!"n_articles" %in% names(country_annual) && "article_count" %in% names(country_annual)) {
+      country_annual$n_articles <- suppressWarnings(as.numeric(country_annual$article_count))
+    }
+  }
+
+  output$country_annual <- country_annual
+  output$country_year_production <- country_annual
+
+  output$country_summary <- m3_prepare_country_summary_for_hypotheses(
+    output$country_summary,
+    country_annual
+  )
+
+  if (is.null(output$gini_over_time) && nrow(country_annual) > 0) {
+    output$gini_over_time <- m3_build_country_gini_over_time(country_annual)
+  }
+
+  if (is.null(output$scp_mcp_by_country) && !is.null(output$country_doc_level) && nrow(output$country_doc_level) > 0) {
+    output$scp_mcp_by_country <- m3_build_scp_mcp_by_country(output$country_doc_level)
+  }
+
+  if (is.null(output$collaboration_matrix) && !is.null(output$country_doc_level) && nrow(output$country_doc_level) > 0) {
+    output$collaboration_matrix <- build_collaboration_matrix(output$country_doc_level)
+  }
+
+  if (is.null(output$collaboration_indices) && !is.null(output$country_doc_level) && nrow(output$country_doc_level) > 0) {
+    collab <- compute_m3_collaboration_indices(output, config)
+    output$collaboration_indices <- collab$indices %||% tibble::tibble()
+  }
+
+  output
+}
+
+m3_prepare_country_summary_for_hypotheses <- function(country_summary, country_annual) {
+  if (is.null(country_summary)) {
+    country_summary <- tibble::tibble()
+  } else {
+    country_summary <- tibble::as_tibble(country_summary)
+  }
+
+  if (nrow(country_summary) == 0) {
+    return(country_summary)
+  }
+
+  if (!"article_count" %in% names(country_summary) && "total_articles" %in% names(country_summary)) {
+    country_summary$article_count <- suppressWarnings(as.numeric(country_summary$total_articles))
+  }
+  if (!"total_articles" %in% names(country_summary) && "article_count" %in% names(country_summary)) {
+    country_summary$total_articles <- suppressWarnings(as.numeric(country_summary$article_count))
+  }
+  if (!"total_citations" %in% names(country_summary)) {
+    country_summary$total_citations <- 0
+  }
+  if (!"mean_citations" %in% names(country_summary)) {
+    denom <- suppressWarnings(as.numeric(country_summary$total_articles))
+    numer <- suppressWarnings(as.numeric(country_summary$total_citations))
+    country_summary$mean_citations <- ifelse(!is.na(denom) & denom > 0, numer / denom, NA_real_)
+  }
+
+  if (nrow(country_annual) > 0 && all(c("country", "year", "article_count") %in% names(country_annual))) {
+    trend_features <- m3_derive_country_trend_features(country_annual)
+    country_summary <- dplyr::left_join(country_summary, trend_features, by = "country")
+  } else {
+    if (!"n_years" %in% names(country_summary)) {
+      country_summary$n_years <- 1L
+    }
+    if (!"annual_growth_rate" %in% names(country_summary)) {
+      country_summary$annual_growth_rate <- NA_real_
+    }
+    if (!"trend_direction" %in% names(country_summary)) {
+      country_summary$trend_direction <- "stable"
+    }
+  }
+
+  country_summary
+}
+
+m3_derive_country_trend_features <- function(country_annual) {
+  split_rows <- split(country_annual, country_annual$country)
+
+  rows <- lapply(names(split_rows), function(country_name) {
+    dat <- split_rows[[country_name]]
+    dat <- dat[order(dat$year), , drop = FALSE]
+    values <- suppressWarnings(as.numeric(dat$article_count))
+    years <- suppressWarnings(as.numeric(dat$year))
+    n_years <- sum(!is.na(years) & !is.na(values))
+
+    slope <- NA_real_
+    growth_rate <- NA_real_
+    trend_direction <- "stable"
+
+    if (n_years >= 2) {
+      fit <- tryCatch(lm(values ~ years), error = function(e) NULL)
+      if (!is.null(fit)) {
+        slope <- suppressWarnings(as.numeric(coef(fit)[2]))
+        mean_val <- mean(values, na.rm = TRUE)
+        growth_rate <- if (is.finite(mean_val) && mean_val > 0 && is.finite(slope)) {
+          slope / mean_val * 100
+        } else {
+          NA_real_
+        }
+        trend_direction <- if (!is.finite(slope) || abs(slope) < 1e-8) {
+          "stable"
+        } else if (slope > 0) {
+          "increasing"
+        } else {
+          "decreasing"
+        }
+      }
+    }
+
+    tibble::tibble(
+      country = country_name,
+      n_years = n_years,
+      annual_growth_rate = growth_rate,
+      trend_direction = trend_direction
+    )
+  })
+
+  dplyr::bind_rows(rows)
+}
+
+m3_build_country_gini_over_time <- function(country_annual) {
+  yearly <- split(country_annual, country_annual$year)
+  gini_values <- vapply(yearly, function(dat) {
+    x <- suppressWarnings(as.numeric(dat$article_count))
+    x <- x[is.finite(x) & x >= 0]
+    if (length(x) < 2 || sum(x) <= 0) {
+      return(0)
+    }
+    calculate_gini(x)
+  }, numeric(1))
+  gini_values[order(as.numeric(names(gini_values)))]
+}
+
+m3_build_scp_mcp_by_country <- function(country_doc_level) {
+  valid <- country_doc_level[!is.na(country_doc_level$doc_id) & !is.na(country_doc_level$country), , drop = FALSE]
+  if (nrow(valid) == 0) {
+    return(tibble::tibble())
+  }
+
+  doc_groups <- split(valid$country, valid$doc_id)
+  rows <- lapply(names(doc_groups), function(doc_id) {
+    countries <- unique(doc_groups[[doc_id]])
+    if (length(countries) == 0) {
+      return(NULL)
+    }
+    tibble::tibble(
+      country = countries,
+      scp = as.integer(length(countries) == 1),
+      mcp = as.integer(length(countries) > 1)
+    )
+  })
+
+  summary <- dplyr::bind_rows(rows) %>%
+    dplyr::group_by(country) %>%
+    dplyr::summarize(
+      scp = sum(scp, na.rm = TRUE),
+      mcp = sum(mcp, na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    dplyr::mutate(
+      total = scp + mcp,
+      mcp_ratio = ifelse(total > 0, mcp / total, NA_real_)
+    )
+
+  summary
 }
 
 `%||%` <- function(a, b) if (!is.null(a)) a else b
