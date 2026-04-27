@@ -5,6 +5,8 @@
 # Usage: source("R/validate_integration.R")
 # ============================================================================
 
+if (isTRUE(getOption("rbibliosynth.run_dev_scripts", FALSE))) {
+
 cat("\n")
 cat("===========================================================\n")
 cat("  RBiblioSynth Integration Validation\n")
@@ -276,3 +278,5 @@ invisible(list(
   errors = errors,
   warnings = warnings
 ))
+
+}
