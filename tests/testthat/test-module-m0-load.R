@@ -4,27 +4,20 @@
 
 context("M0 Data Loading")
 
-# Source M0 functions
-source("../../R/core/bootstrap.R")
-
-test_that("m0_load_single_source handles missing file gracefully", {
+test_that("m0_load_single_source fails clearly on missing file", {
   source_spec <- list(
     file = "nonexistent.bib",
     db = "scopus",
     format = "bibtex"
   )
   
-  result <- m0_load_single_source(source_spec)
-  
-  expect_true(is.list(result))
-  expect_true("status" %in% names(result))
-  expect_true(result$status == "error" || grepl("error", result$status))
+  expect_error(m0_load_single_source(source_spec), "Source file not found")
 })
 
-test_that("m0_normalize_country_names corrects variants", {
+test_that("m0_normalize_countries corrects variants", {
   countries <- c("USA", "U.S.A.", "United States", "UK", "England", "Korea", "Iran")
   
-  result <- m0_normalize_country_names(countries)
+  result <- m0_normalize_countries(countries)
   
   expect_equal(length(result), length(countries))
   expect_true("UNITED STATES" %in% result)
@@ -48,7 +41,9 @@ test_that("m0_validate_sources fails with missing required fields", {
     scopus = list(db = "scopus")  # Missing file
   )
   
-  expect_warning(m0_validate_sources(invalid_sources))
+  result <- m0_validate_sources(invalid_sources)
+  expect_false(result$ok)
+  expect_match(result$error, "file not found")
 })
 
 test_that("m0_harmonize_columns standardizes column names", {
@@ -59,7 +54,7 @@ test_that("m0_harmonize_columns standardizes column names", {
     stringsAsFactors = FALSE
   )
   
-  result <- m0_harmonize_columns(df, "scopus")
+  result <- m0_harmonize_columns(df)
   
   expect_true(is.data.frame(result))
 })
@@ -77,6 +72,24 @@ test_that("m0_deduplicate removes DOI duplicates", {
   expect_true(nrow(result) <= nrow(df))
   # Should remove duplicate DOI
   expect_true(length(unique(result$DI)) == 2 || nrow(result) == 2)
+})
+
+test_that("m0_deduplicate tracks provenance across duplicate groups", {
+  df <- data.frame(
+    DI = c("10.1234/1", "10.1234/1"),
+    TI = c("Article 1", "Article 1"),
+    PY = c(2020, 2020),
+    SOURCE_DB = c("SCOPUS", "WOS"),
+    SOURCE_TAG = c("scopus", "wos"),
+    stringsAsFactors = FALSE
+  )
+
+  result <- m0_deduplicate(df, config = biblio_config(verbose = FALSE))
+
+  expect_equal(nrow(result), 1)
+  expect_equal(result$M0_PROVENANCE_COUNT, 2)
+  expect_match(result$M0_SOURCE_DBS, "SCOPUS")
+  expect_match(result$M0_SOURCE_DBS, "WOS")
 })
 
 test_that("m0_string_similarity computes similarity correctly", {
@@ -126,12 +139,17 @@ test_that("m0_check_data_quality returns quality report", {
 test_that("m0_create_quality_report generates report", {
   quality_data <- list(
     n_records = 100,
+    metrics = list(
+      n_missing_years = 2,
+      pct_with_doi = 60,
+      n_potential_duplicates = 1
+    ),
     missing_fields = list(AU = 5, PY = 2),
     issues = list("future_year" = 3, "negative_citations" = 1)
   )
   
   result <- m0_create_quality_report(quality_data)
   
-  expect_true(is.character(result))
-  expect_true(length(result) > 0)
+  expect_true(is.list(result))
+  expect_true(length(result$report_lines) > 0)
 })
