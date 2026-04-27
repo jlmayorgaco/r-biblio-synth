@@ -11,6 +11,7 @@
 #' @return A list containing prepared country data at different levels of aggregation.
 #' @export
 prepare_m3_country_data <- function(input, config = biblio_config()) {
+  config <- merge_biblio_config(config)
   # Validate input (we do a light check; the main validation is in m3_validate)
   if (!is.data.frame(input) || nrow(input) == 0) {
     return(list(
@@ -97,14 +98,16 @@ prepare_m3_country_data <- function(input, config = biblio_config()) {
       # Trim whitespace and normalize
       countries <- trimws(countries)
       countries <- m3_normalize_country_names(countries)
+      countries <- unique(countries[!is.na(countries) & nzchar(countries)])
       # Remove empty strings
-      countries <- countries[countries != ""]
       if (length(countries) == 0) {
         doc_country_pairs[[i]] <- data.frame(doc_id = i, country = NA_character_, stringsAsFactors = FALSE)
       } else {
+        weight <- if (identical(config$counting_mode, "fractional")) 1 / length(countries) else 1
         doc_country_pairs[[i]] <- data.frame(
           doc_id = i,
           country = countries,
+          weight = rep(weight, length(countries)),
           stringsAsFactors = FALSE
         )
       }
@@ -113,6 +116,16 @@ prepare_m3_country_data <- function(input, config = biblio_config()) {
   
   # Combine all pairs
   country_doc_level <- dplyr::bind_rows(doc_country_pairs)
+  country_doc_level <- dplyr::left_join(
+    country_doc_level,
+    tibble::tibble(
+      doc_id = seq_len(nrow(input)),
+      PY = if ("PY" %in% names(input)) as.integer(input$PY) else NA_integer_,
+      year = if ("PY" %in% names(input)) as.integer(input$PY) else NA_integer_,
+      TC = if ("TC" %in% names(input)) suppressWarnings(as.numeric(input$TC)) else NA_real_
+    ),
+    by = "doc_id"
+  )
   
   # Remove rows where country is NA (if we want to keep them, we can, but for analysis we might drop)
   # We'll keep them for now, but note that they will be dropped in aggregations.
@@ -121,41 +134,29 @@ prepare_m3_country_data <- function(input, config = biblio_config()) {
   country_annual <- tibble::tibble()
   country_annual_citations <- tibble::tibble()
   if ("PY" %in% names(input)) {
-    # We need to expand the annual data to match the country-doc level
-    # We'll create an annual data frame by repeating the PY for each country in the document
-    annual_data <- data.frame(
-      doc_id = rep(seq_len(nrow(input)), times = sapply(doc_country_pairs, nrow)),
-      PY = rep(input$PY, times = sapply(doc_country_pairs, nrow))
-    )
-    # Join with country_doc_level to get country for each row
-    annual_data <- dplyr::left_join(annual_data, country_doc_level, by = "doc_id")
+    annual_data <- country_doc_level[, intersect(c("doc_id", "country", "weight", "PY"), names(country_doc_level)), drop = FALSE]
     # Now aggregate by country and year for article count
     country_annual <- annual_data %>%
       dplyr::filter(!is.na(country)) %>%
       dplyr::group_by(country, PY) %>%
       dplyr::summarize(
-        article_count = dplyr::n(),
+        article_count = sum(weight, na.rm = TRUE),
         .groups = "drop"
-      )
+      ) %>%
+      dplyr::mutate(year = PY)
     
     # Also aggregate by country and year for citations if TC is present
     if ("TC" %in% names(input)) {
-      # We need to repeat TC for each country in the document
-      annual_data_tc <- data.frame(
-        doc_id = rep(seq_len(nrow(input)), times = sapply(doc_country_pairs, nrow)),
-        PY = rep(input$PY, times = sapply(doc_country_pairs, nrow)),
-        TC = rep(input$TC, times = sapply(doc_country_pairs, nrow))
-      )
-      # Join with country_doc_level to get country for each row
-      annual_data_tc <- dplyr::left_join(annual_data_tc, country_doc_level, by = "doc_id")
+      annual_data_tc <- country_doc_level[, intersect(c("doc_id", "country", "weight", "PY", "TC"), names(country_doc_level)), drop = FALSE]
       # Now aggregate by country and year for total citations
       country_annual_citations <- annual_data_tc %>%
         dplyr::filter(!is.na(country)) %>%
         dplyr::group_by(country, PY) %>%
         dplyr::summarize(
-          total_citations = sum(TC, na.rm = TRUE),
+          total_citations = sum(TC * weight, na.rm = TRUE),
           .groups = "drop"
-        )
+        ) %>%
+        dplyr::mutate(year = PY)
     }
   }
   
@@ -164,31 +165,19 @@ prepare_m3_country_data <- function(input, config = biblio_config()) {
     dplyr::filter(!is.na(country)) %>%
     dplyr::group_by(country) %>%
     dplyr::summarize(
-      article_count = dplyr::n(),
+      article_count = sum(weight, na.rm = TRUE),
       .groups = "drop"
     ) %>%
     dplyr::arrange(desc(article_count))
   
   # Add citation information to country summary if TC is present
   if ("TC" %in% names(input)) {
-    # We need to get the total citations per country.
-    # Join country_doc_level (which uses row-index doc_id) with indexed TC values.
-    input_indexed <- tibble::tibble(
-      doc_id = seq_len(nrow(input)),
-      TC     = as.numeric(input$TC)
-    )
-    doc_country_with_tc <- dplyr::left_join(
-      country_doc_level,
-      input_indexed,
-      by = "doc_id"
-    )
-    
     # Now aggregate by country to get total citations
-    country_citations <- doc_country_with_tc %>%
+    country_citations <- country_doc_level %>%
       dplyr::filter(!is.na(country)) %>%
       dplyr::group_by(country) %>%
       dplyr::summarize(
-        total_citations = sum(TC, na.rm = TRUE),
+        total_citations = sum(TC * weight, na.rm = TRUE),
         .groups = "drop"
       )
     
@@ -203,6 +192,12 @@ prepare_m3_country_data <- function(input, config = biblio_config()) {
     country_summary <- country_summary %>%
       dplyr::mutate(total_citations = 0)
   }
+
+  country_summary <- country_summary %>%
+    dplyr::mutate(
+      share = ifelse(sum(article_count, na.rm = TRUE) > 0, article_count / sum(article_count, na.rm = TRUE), 0),
+      rank = dplyr::row_number()
+    )
   
   # Return the prepared data
   return(list(
@@ -210,6 +205,8 @@ prepare_m3_country_data <- function(input, config = biblio_config()) {
     country_annual = country_annual,
     country_annual_citations = country_annual_citations,
     country_summary = country_summary,
+    input_data = input,
+    year_column = if ("PY" %in% names(input)) "PY" else if ("year" %in% names(input)) "year" else NULL,
     status = "success"
   ))
 }
