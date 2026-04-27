@@ -53,6 +53,14 @@ m3_compute_morans_i <- function(country_data, distance_matrix = NULL) {
   
   numerator <- sum(W * outer(dev, dev), na.rm = TRUE)
   denominator <- sum(dev^2, na.rm = TRUE)
+  if (!is.finite(denominator) || denominator <= 0) {
+    return(list(
+      statistic = NA_real_,
+      p_value = NA_real_,
+      interpretation = "Spatial variance is zero; Moran's I is undefined",
+      status = "inconclusive"
+    ))
+  }
   
   moran_i <- (n / sum(W, na.rm = TRUE)) * (numerator / denominator)
   
@@ -67,12 +75,38 @@ m3_compute_morans_i <- function(country_data, distance_matrix = NULL) {
   
   # Simplified variance
   var_i <- (n^2 - 1) / (n^2 * (n - 1)^2) - expected_i^2
+  if (!is.finite(var_i) || var_i <= 0) {
+    return(list(
+      statistic = moran_i,
+      expected = expected_i,
+      variance = var_i,
+      z_score = NA_real_,
+      p_value = NA_real_,
+      significant = FALSE,
+      interpretation = "Moran's I variance is undefined for the available spatial distribution",
+      n_countries = n,
+      status = "inconclusive"
+    ))
+  }
   
   # Z-score
   z_score <- (moran_i - expected_i) / sqrt(var_i)
   
   # P-value (two-tailed)
   p_value <- 2 * (1 - pnorm(abs(z_score)))
+  if (!is.finite(moran_i) || !is.finite(p_value)) {
+    return(list(
+      statistic = moran_i,
+      expected = expected_i,
+      variance = var_i,
+      z_score = z_score,
+      p_value = p_value,
+      significant = FALSE,
+      interpretation = "Moran's I is undefined for the available spatial distribution",
+      n_countries = n,
+      status = "inconclusive"
+    ))
+  }
   
   # Interpretation
   if (moran_i > 0.3 && p_value < 0.05) {
@@ -141,6 +175,14 @@ m3_compute_gearys_c <- function(country_data, distance_matrix = NULL) {
   # Geary's C calculation
   numerator <- sum(W * outer(values, values, function(x, y) (x - y)^2), na.rm = TRUE)
   denominator <- sum((values - mean_val)^2, na.rm = TRUE)
+  if (!is.finite(denominator) || denominator <= 0) {
+    return(list(
+      statistic = NA_real_,
+      p_value = NA_real_,
+      interpretation = "Spatial variance is zero; Geary's C is undefined",
+      status = "inconclusive"
+    ))
+  }
   
   geary_c <- (n - 1) / (2 * sum(W, na.rm = TRUE)) * numerator / denominator
   
@@ -153,6 +195,19 @@ m3_compute_gearys_c <- function(country_data, distance_matrix = NULL) {
   # Z-score
   z_score <- (geary_c - expected_c) / sqrt(var_c)
   p_value <- 2 * (1 - pnorm(abs(z_score)))
+  if (!is.finite(geary_c) || !is.finite(p_value)) {
+    return(list(
+      statistic = geary_c,
+      expected = expected_c,
+      variance = var_c,
+      z_score = z_score,
+      p_value = p_value,
+      significant = FALSE,
+      interpretation = "Geary's C is undefined for the available spatial distribution",
+      n_countries = n,
+      status = "inconclusive"
+    ))
+  }
   
   # Interpretation
   if (geary_c < 0.5 && p_value < 0.05) {
@@ -224,6 +279,15 @@ m3_compute_getis_ord <- function(country_data, distance_matrix = NULL) {
   
   mean_val <- mean(values, na.rm = TRUE)
   sd_val <- sd(values, na.rm = TRUE)
+  if (!is.finite(sd_val) || sd_val <= 0) {
+    return(list(
+      gi_values = data.frame(),
+      hot_spots = character(0),
+      cold_spots = character(0),
+      interpretation = "Insufficient spatial variation for Getis-Ord analysis",
+      status = "inconclusive"
+    ))
+  }
   
   # Gi* for each location
   gi_values <- numeric(n)
@@ -323,6 +387,14 @@ m3_compute_lisa <- function(country_data, distance_matrix = NULL) {
   
   mean_val <- mean(values, na.rm = TRUE)
   sd_val <- sd(values, na.rm = TRUE)
+  if (!is.finite(sd_val) || sd_val <= 0) {
+    return(list(
+      lisa_values = data.frame(),
+      clusters = data.frame(),
+      interpretation = "Insufficient spatial variation for LISA analysis",
+      status = "inconclusive"
+    ))
+  }
   
   # Standardized values
   z <- (values - mean_val) / sd_val
