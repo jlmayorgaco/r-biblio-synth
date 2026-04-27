@@ -22,7 +22,9 @@ render_m2_diagnostics <- function(diagnostics, config = biblio_config()) {
   }
   
   # CV results plot
-  if (!is.null(diagnostics$cv_results) && nrow(diagnostics$cv_results$cv_results) > 0) {
+  if (!is.null(diagnostics$cv_results) &&
+      is.data.frame(diagnostics$cv_results$cv_results) &&
+      nrow(diagnostics$cv_results$cv_results) > 0) {
     plots$cv_accuracy <- create_cv_accuracy_plot(diagnostics$cv_results)
   }
   
