@@ -10,7 +10,7 @@
 #' @return List with plots
 #' @export
 render_m3_world_map <- function(data, config = biblio_config()) {
-  if (is.null(data) || data$status != "success") {
+  if (!is.list(data)) {
     return(list(plots = list(), status = "error: invalid data"))
   }
   
@@ -23,23 +23,39 @@ render_m3_world_map <- function(data, config = biblio_config()) {
   }
   
   # Get production data
-  if (!is.null(data$production) && !is.null(data$production$production_summary)) {
-    plots$production_map <- create_world_map_production(data, config)
+  prod_data <- m3_world_map_extract_table(
+    data$production,
+    "country_production",
+    c("article_count", "n_articles", "value")
+  )
+  if (!is.null(prod_data)) {
+    plots$production_map <- create_world_map_production(prod_data, config)
   }
   
   # Get citation data
-  if (!is.null(data$citations) && !is.null(data$citations$citation_summary)) {
-    plots$citation_map <- create_world_map_citations(data, config)
+  cit_data <- m3_world_map_extract_table(
+    data$citations,
+    "country_citations",
+    c("total_citations", "citations", "value")
+  )
+  if (!is.null(cit_data)) {
+    plots$citation_map <- create_world_map_citations(cit_data, config)
   }
   
   # Get collaboration data
-  if (!is.null(data$collaboration_indices) && !is.null(data$collaboration_indices$indices)) {
-    plots$collaboration_map <- create_world_map_collaboration(data, config)
+  collab_data <- m3_world_map_extract_table(
+    data$collaboration_indices,
+    "indices",
+    c("collaboration_centrality", "avg_salton_index", "article_count", "n_documents")
+  )
+  if (!is.null(collab_data)) {
+    plots$collaboration_map <- create_world_map_collaboration(collab_data, config)
   }
   
   # Growth rate map
-  if (!is.null(data$country_regressions)) {
-    plots$growth_map <- create_world_map_growth(data, config)
+  reg_data <- m3_world_map_extract_regressions(data$country_regressions)
+  if (!is.null(reg_data) && length(reg_data) > 0) {
+    plots$growth_map <- create_world_map_growth(reg_data, config)
   }
   
   list(
@@ -50,7 +66,7 @@ render_m3_world_map <- function(data, config = biblio_config()) {
 
 #' Create world map for production
 #' @keywords internal
-create_world_map_production <- function(data, config) {
+create_world_map_production <- function(prod_data, config) {
   # Get world map data
   world <- tryCatch({
     rnaturalearth::ne_countries(scale = "medium", returnclass = "sf")
@@ -60,35 +76,30 @@ create_world_map_production <- function(data, config) {
   
   if (is.null(world)) return(NULL)
   
-  # Get production data
-  prod_data <- data$production$production_summary
-  
-  if (is.null(prod_data) || !("country" %in% names(prod_data))) {
-    return(NULL)
-  }
-  
   # Normalize country names
   prod_data$country_norm <- normalize_for_map(prod_data$country)
   world$name_norm <- normalize_for_map(world$name)
   
   # Merge data
-  world_data <- merge(world, prod_data, by.x = "name_norm", by.y = "country_norm", all.x = TRUE)
+  world_data <- dplyr::left_join(world, prod_data, by = c("name_norm" = "country_norm"))
+  world_data$fill_value <- suppressWarnings(as.numeric(world_data$article_count))
+  world_data$fill_value[!is.finite(world_data$fill_value) | world_data$fill_value <= 0] <- NA_real_
   
   # Create plot
   p <- ggplot2::ggplot(world_data) +
-    ggplot2::geom_sf(ggplot2::aes(fill = n_articles), color = "white", linewidth = 0.1) +
+    ggplot2::geom_sf(ggplot2::aes(fill = fill_value), color = "white", linewidth = 0.1) +
     ggplot2::scale_fill_gradient(
       low = "#F7FBFF",
       high = "#084594",
       na.value = "grey90",
       name = "Articles",
-      trans = "log10"
+      trans = scales::pseudo_log_trans(base = 10)
     ) +
     ggplot2::theme_void() +
     ggplot2::coord_sf(crs = "+proj=robin") +
     ggplot2::labs(
       title = "World Map: Publication Output by Country",
-      subtitle = sprintf("Total countries: %d", sum(!is.na(world_data$n_articles)))
+      subtitle = sprintf("Total countries: %d", sum(!is.na(world_data$fill_value)))
     ) +
     ggplot2::theme(
       legend.position = "right",
@@ -102,7 +113,7 @@ create_world_map_production <- function(data, config) {
 
 #' Create world map for citations
 #' @keywords internal
-create_world_map_citations <- function(data, config) {
+create_world_map_citations <- function(cit_data, config) {
   world <- tryCatch({
     rnaturalearth::ne_countries(scale = "medium", returnclass = "sf")
   }, error = function(e) {
@@ -111,25 +122,21 @@ create_world_map_citations <- function(data, config) {
   
   if (is.null(world)) return(NULL)
   
-  cit_data <- data$citations$citation_summary
-  
-  if (is.null(cit_data) || !("country" %in% names(cit_data))) {
-    return(NULL)
-  }
-  
   cit_data$country_norm <- normalize_for_map(cit_data$country)
   world$name_norm <- normalize_for_map(world$name)
   
-  world_data <- merge(world, cit_data, by.x = "name_norm", by.y = "country_norm", all.x = TRUE)
+  world_data <- dplyr::left_join(world, cit_data, by = c("name_norm" = "country_norm"))
+  world_data$fill_value <- suppressWarnings(as.numeric(world_data$total_citations))
+  world_data$fill_value[!is.finite(world_data$fill_value) | world_data$fill_value <= 0] <- NA_real_
   
   p <- ggplot2::ggplot(world_data) +
-    ggplot2::geom_sf(ggplot2::aes(fill = total_citations), color = "white", linewidth = 0.1) +
+    ggplot2::geom_sf(ggplot2::aes(fill = fill_value), color = "white", linewidth = 0.1) +
     ggplot2::scale_fill_gradient(
       low = "#FFF5F0",
       high = "#A50F15",
       na.value = "grey90",
       name = "Citations",
-      trans = "log10"
+      trans = scales::pseudo_log_trans(base = 10)
     ) +
     ggplot2::theme_void() +
     ggplot2::coord_sf(crs = "+proj=robin") +
@@ -149,7 +156,7 @@ create_world_map_citations <- function(data, config) {
 
 #' Create world map for collaboration
 #' @keywords internal
-create_world_map_collaboration <- function(data, config) {
+create_world_map_collaboration <- function(collab_data, config) {
   world <- tryCatch({
     rnaturalearth::ne_countries(scale = "medium", returnclass = "sf")
   }, error = function(e) {
@@ -157,12 +164,6 @@ create_world_map_collaboration <- function(data, config) {
   })
   
   if (is.null(world)) return(NULL)
-  
-  collab_data <- data$collaboration_indices$indices
-  
-  if (is.null(collab_data) || !("country" %in% names(collab_data))) {
-    return(NULL)
-  }
   
   collab_data$country_norm <- normalize_for_map(collab_data$country)
   world$name_norm <- normalize_for_map(world$name)
@@ -173,13 +174,15 @@ create_world_map_collaboration <- function(data, config) {
   } else if ("avg_salton_index" %in% names(collab_data)) {
     "avg_salton_index"
   } else {
-    "n_documents"
+    "article_count"
   }
   
-  world_data <- merge(world, collab_data, by.x = "name_norm", by.y = "country_norm", all.x = TRUE)
+  world_data <- dplyr::left_join(world, collab_data, by = c("name_norm" = "country_norm"))
+  world_data$fill_value <- suppressWarnings(as.numeric(world_data[[fill_var]]))
+  world_data$fill_value[!is.finite(world_data$fill_value) | world_data$fill_value < 0] <- NA_real_
   
   p <- ggplot2::ggplot(world_data) +
-    ggplot2::geom_sf(ggplot2::aes(fill = !!ggplot2::sym(fill_var)), color = "white", linewidth = 0.1) +
+    ggplot2::geom_sf(ggplot2::aes(fill = fill_value), color = "white", linewidth = 0.1) +
     ggplot2::scale_fill_gradient(
       low = "#F7FCF5",
       high = "#006D2C",
@@ -204,7 +207,7 @@ create_world_map_collaboration <- function(data, config) {
 
 #' Create world map for growth rates
 #' @keywords internal
-create_world_map_growth <- function(data, config) {
+create_world_map_growth <- function(reg_data, config) {
   world <- tryCatch({
     rnaturalearth::ne_countries(scale = "medium", returnclass = "sf")
   }, error = function(e) {
@@ -212,29 +215,27 @@ create_world_map_growth <- function(data, config) {
   })
   
   if (is.null(world)) return(NULL)
-  
-  reg_data <- data$country_regressions
-  
-  if (is.null(reg_data) || !is.list(reg_data)) {
+
+  if (!is.list(reg_data) || length(reg_data) == 0) {
     return(NULL)
   }
   
   # Extract growth rates
-  growth_rates <- sapply(names(reg_data), function(cntry) {
+  growth_rates <- vapply(names(reg_data), function(cntry) {
     x <- reg_data[[cntry]]
     if (is.list(x) && !is.null(x$growth_rate)) {
       return(x$growth_rate)
     }
-    NA
-  })
+    NA_real_
+  }, numeric(1))
   
-  trend_directions <- sapply(names(reg_data), function(cntry) {
+  trend_directions <- vapply(names(reg_data), function(cntry) {
     x <- reg_data[[cntry]]
     if (is.list(x) && !is.null(x$trend_direction)) {
       return(x$trend_direction)
     }
     "unknown"
-  })
+  }, character(1))
   
   growth_df <- data.frame(
     country = names(reg_data),
@@ -253,7 +254,7 @@ create_world_map_growth <- function(data, config) {
   
   world$name_norm <- normalize_for_map(world$name)
   
-  world_data <- merge(world, growth_df, by.x = "name_norm", by.y = "country_norm", all.x = TRUE)
+  world_data <- dplyr::left_join(world, growth_df, by = c("name_norm" = "country_norm"))
   
   # Diverging color scale
   p <- ggplot2::ggplot(world_data) +
@@ -316,8 +317,59 @@ normalize_for_map <- function(names) {
   for (variant in names(name_map)) {
     names[names == variant] <- name_map[variant]
   }
-  
+
   tools::toTitleCase(tolower(names))
+}
+
+#' Extract map-ready table from an M3 section
+#' @keywords internal
+m3_world_map_extract_table <- function(section, table_name, metric_candidates) {
+  if (!is.list(section) || !identical(section$status %||% NA_character_, "success")) {
+    return(NULL)
+  }
+
+  df <- section[[table_name]]
+  if (!is.data.frame(df) || nrow(df) == 0 || !("country" %in% names(df))) {
+    return(NULL)
+  }
+
+  metric_name <- metric_candidates[metric_candidates %in% names(df)][1]
+  if (is.na(metric_name) || is.null(metric_name)) {
+    return(NULL)
+  }
+
+  df$article_count <- if ("article_count" %in% names(df)) {
+    suppressWarnings(as.numeric(df$article_count))
+  } else if ("n_articles" %in% names(df)) {
+    suppressWarnings(as.numeric(df$n_articles))
+  } else if ("n_documents" %in% names(df)) {
+    suppressWarnings(as.numeric(df$n_documents))
+  } else {
+    suppressWarnings(as.numeric(df[[metric_name]]))
+  }
+
+  df$total_citations <- if ("total_citations" %in% names(df)) {
+    suppressWarnings(as.numeric(df$total_citations))
+  } else {
+    suppressWarnings(as.numeric(df[[metric_name]]))
+  }
+
+  df
+}
+
+#' Extract country regression fits for world maps
+#' @keywords internal
+m3_world_map_extract_regressions <- function(section) {
+  if (!is.list(section) || !identical(section$status %||% NA_character_, "success")) {
+    return(NULL)
+  }
+
+  fits <- section$country_regressions
+  if (!is.list(fits) || length(fits) == 0) {
+    return(NULL)
+  }
+
+  fits
 }
 
 `%||%` <- function(a, b) if (!is.null(a)) a else b
