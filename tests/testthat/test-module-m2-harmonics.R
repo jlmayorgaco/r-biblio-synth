@@ -38,6 +38,17 @@ test_that("Harmonic regression returns R2 values", {
   }
 })
 
+test_that("render_m2_harmonics exposes legacy-inspired fitness plots", {
+  data <- data.frame(Year = 1990:2020, Articles = sin(seq(0, 4*pi, length.out = 31)) * 10 + 50)
+  result <- compute_m2_harmonics(data)
+  rendered <- render_m2_harmonics(result)
+
+  expect_equal(rendered$status, "success")
+  expect_true("r2_vs_frequency" %in% names(rendered$plots))
+  expect_true("data_top_periods" %in% names(rendered$plots))
+  expect_s3_class(rendered$plots$r2_vs_frequency, "ggplot")
+})
+
 test_that("Lomb-Scargle handles errors gracefully", {
   data <- data.frame(Year = 1990:2005, Articles = sin(seq(0, 4*pi, length.out = 16)) * 10 + 50)
   result <- compute_m2_harmonics(data)
