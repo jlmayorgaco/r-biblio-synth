@@ -26,9 +26,16 @@ render_m3_country_regressions <- function(data, config = biblio_config()) {
     countries_with_data <- names(Filter(function(x) x$status == "success", 
                                          data$country_regressions))
     
-    countries_by_volume <- sort(sapply(data$country_regressions[countries_with_data], 
-                                       function(x) x$total_articles), 
-                                decreasing = TRUE)
+    countries_by_volume <- vapply(
+      data$country_regressions[countries_with_data],
+      function(x) {
+        value <- x$total_articles %||% NA_real_
+        suppressWarnings(as.numeric(value)[1])
+      },
+      numeric(1)
+    )
+    countries_by_volume <- countries_by_volume[is.finite(countries_by_volume)]
+    countries_by_volume <- sort(countries_by_volume, decreasing = TRUE)
     top_countries <- names(countries_by_volume)[1:min(top_n, length(countries_by_volume))]
     
     for (country in top_countries) {
