@@ -88,12 +88,19 @@ m3_aggregate_by_region <- function(country_data, group_by = "continent") {
   if (!is.data.frame(country_data) || !"country" %in% names(country_data)) {
     return(list(status = "error: invalid input"))
   }
+
+  if (!"article_count" %in% names(country_data) && "value" %in% names(country_data)) {
+    country_data$article_count <- country_data$value
+  }
+  if (!"value" %in% names(country_data) && "article_count" %in% names(country_data)) {
+    country_data$value <- country_data$article_count
+  }
   
   # Normalize country names
   country_data$country_norm <- toupper(trimws(as.character(country_data$country)))
   
   # Select grouping
-  if (group_by == "continent") {
+  if (tolower(group_by) == "continent") {
     groups <- REGIONAL_GROUPS[c("Africa", "Asia", "Europe", "North America", 
                                 "South America", "Oceania")]
   } else if (group_by %in% names(REGIONAL_GROUPS)) {
@@ -110,8 +117,8 @@ m3_aggregate_by_region <- function(country_data, group_by = "continent") {
     countries_in_region <- groups[[region_name]]
     
     # Find matches
-    matches <- country_data$country_norm %in% countries_in_region
-    region_data <- country_data[matches, ]
+    matches <- unassigned$country_norm %in% countries_in_region
+    region_data <- unassigned[matches, , drop = FALSE]
     
     if (nrow(region_data) > 0) {
       # Aggregate metrics
@@ -134,10 +141,27 @@ m3_aggregate_by_region <- function(country_data, group_by = "continent") {
       }
       
       aggregated[[region_name]] <- region_summary
-      unassigned <- unassigned[!matches, ]
+      unassigned <- unassigned[!matches, , drop = FALSE]
     }
   }
   
+  if (length(aggregated) == 0) {
+    return(list(
+      aggregated = list(),
+      summary = tibble::tibble(
+        region = character(),
+        n_countries = integer(),
+        total_production = numeric(),
+        share = numeric()
+      ),
+      unassigned = if (nrow(unassigned) > 0) unassigned$country else character(0),
+      n_unassigned = nrow(unassigned),
+      n_regions = 0L,
+      group_by = group_by,
+      status = "success"
+    ))
+  }
+
   # Create summary data frame
   summary_df <- do.call(rbind, lapply(aggregated, function(x) {
     data.frame(
@@ -150,7 +174,7 @@ m3_aggregate_by_region <- function(country_data, group_by = "continent") {
   
   # Calculate shares
   total_all <- sum(summary_df$total_production)
-  summary_df$share <- summary_df$total_production / total_all * 100
+  summary_df$share <- if (total_all > 0) summary_df$total_production / total_all * 100 else 0
   
   list(
     aggregated = aggregated,
@@ -189,7 +213,7 @@ m3_regional_comparison <- function(regional_data) {
   # Statistical tests
   # Chi-square test for equal distribution
   expected <- rep(sum(summary$total_production) / nrow(summary), nrow(summary))
-  chi_test <- chisq.test(summary$total_production, p = expected / sum(expected))
+  chi_test <- suppressWarnings(chisq.test(summary$total_production, p = expected / sum(expected)))
   
   # Growth comparison (if year data available)
   growth_comparison <- list()
@@ -207,18 +231,6 @@ m3_regional_comparison <- function(regional_data) {
     n_regions = nrow(summary),
     status = "success"
   )
-}
-
-#' Safe Gini coefficient
-#' @keywords internal
-safe_gini <- function(x) {
-  x <- x[!is.na(x) & x > 0]
-  n <- length(x)
-  if (n < 2) return(0)
-  
-  x <- sort(x)
-  index <- 1:n
-  (n + 1 - 2 * sum((n + 1 - index) * x) / sum(x)) / n
 }
 
 `%||%` <- function(a, b) if (!is.null(a)) a else b
