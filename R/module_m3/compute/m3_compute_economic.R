@@ -128,7 +128,7 @@ match_indicators <- function(country_data) {
       
       matched <- rbind(matched, data.frame(
         country = country_data$country[i],
-        production = country_data$value[i],
+        production = country_data$article_count[i],
         gdp_usd = indicators$gdp_usd,
         hdi = indicators$hdi,
         population = indicators$population,
@@ -149,28 +149,28 @@ compute_correlations <- function(matched_data) {
   # GDP correlation
   if (sum(!is.na(matched_data$gdp_usd)) >= 5) {
     cors$gdp <- tryCatch({
-      cor.test(matched_data$production, matched_data$gdp_usd, method = "spearman")
+      cor.test(matched_data$production, matched_data$gdp_usd, method = "spearman", exact = FALSE)
     }, error = function(e) list(estimate = NA, p.value = NA))
   }
   
   # HDI correlation
   if (sum(!is.na(matched_data$hdi)) >= 5) {
     cors$hdi <- tryCatch({
-      cor.test(matched_data$production, matched_data$hdi, method = "spearman")
+      cor.test(matched_data$production, matched_data$hdi, method = "spearman", exact = FALSE)
     }, error = function(e) list(estimate = NA, p.value = NA))
   }
   
   # Population correlation
   if (sum(!is.na(matched_data$population)) >= 5) {
     cors$population <- tryCatch({
-      cor.test(matched_data$production, matched_data$population, method = "spearman")
+      cor.test(matched_data$production, matched_data$population, method = "spearman", exact = FALSE)
     }, error = function(e) list(estimate = NA, p.value = NA))
   }
   
   # R&D expenditure correlation
   if (sum(!is.na(matched_data$rd_pct)) >= 5) {
     cors$rd <- tryCatch({
-      cor.test(matched_data$production, matched_data$rd_pct, method = "spearman")
+      cor.test(matched_data$production, matched_data$rd_pct, method = "spearman", exact = FALSE)
     }, error = function(e) list(estimate = NA, p.value = NA))
   }
   
