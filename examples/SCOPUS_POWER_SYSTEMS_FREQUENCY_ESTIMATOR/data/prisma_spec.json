@@ -1,0 +1,37 @@
+{
+  "title": "Bibliometric Analysis of Power Systems Frequency Estimation",
+  "identification": {
+    "records_database": 1250,
+    "records_other": 45,
+    "duplicates_removed": 180
+  },
+  "screening": {
+    "records_screened": 1115,
+    "excluded_screening": 780
+  },
+  "eligibility": {
+    "fulltext_assessed": 335,
+    "excluded_fulltext": 195,
+    "excluded_reasons": {
+      "Not relevant to topic": 85,
+      "Conference abstract only": 45,
+      "Duplicate study": 30,
+      "No empirical data": 20,
+      "Low quality / unclear methods": 15
+    }
+  },
+  "included": {
+    "studies_included": 140,
+    "by_type": {
+      "Journal article": 95,
+      "Conference paper": 35,
+      "Review": 10
+    }
+  },
+  "quality": {
+    "tool": "Mixed Methods Appraisal Tool (MMAT)",
+    "low_risk": 110,
+    "high_risk": 15,
+    "unclear": 15
+  }
+}
