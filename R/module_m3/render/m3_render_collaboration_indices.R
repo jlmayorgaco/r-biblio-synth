@@ -18,7 +18,7 @@ render_m3_collaboration_indices <- function(data, config = biblio_config()) {
   plots <- list()
   
   if (!is.null(data$salton_matrix) && nrow(data$salton_matrix) > 0) {
-    plots$salton_heatmap <- create_collaboration_heatmap(
+    plots$salton_heatmap <- create_collaboration_index_heatmap(
       data$salton_matrix,
       "Salton's Index (Cosine Similarity)",
       config
@@ -26,7 +26,7 @@ render_m3_collaboration_indices <- function(data, config = biblio_config()) {
   }
   
   if (!is.null(data$jaccard_matrix) && nrow(data$jaccard_matrix) > 0) {
-    plots$jaccard_heatmap <- create_collaboration_heatmap(
+    plots$jaccard_heatmap <- create_collaboration_index_heatmap(
       data$jaccard_matrix,
       "Jaccard Index",
       config
@@ -34,7 +34,7 @@ render_m3_collaboration_indices <- function(data, config = biblio_config()) {
   }
   
   if (!is.null(data$affinity_matrix) && nrow(data$affinity_matrix) > 0) {
-    plots$affinity_heatmap <- create_collaboration_heatmap(
+    plots$affinity_heatmap <- create_collaboration_index_heatmap(
       data$affinity_matrix,
       "Affinity Index",
       config
@@ -61,7 +61,7 @@ render_m3_collaboration_indices <- function(data, config = biblio_config()) {
 
 #' Create collaboration heatmap
 #' @keywords internal
-create_collaboration_heatmap <- function(matrix, title, config) {
+create_collaboration_index_heatmap <- function(matrix, title, config) {
   n <- nrow(matrix)
   if (n < 2) return(NULL)
   
