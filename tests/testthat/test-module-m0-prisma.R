@@ -3,6 +3,7 @@
 # ============================================================================
 
 test_that("export_plot_artifact exports recorded base-R plots", {
+  export_plot <- get("export_plot_artifact", envir = asNamespace("RBiblioSynth"))
   tmp_base <- tempfile("prisma_plot_")
 
   grDevices::pdf(NULL)
@@ -10,11 +11,12 @@ test_that("export_plot_artifact exports recorded base-R plots", {
   recorded <- grDevices::recordPlot()
   grDevices::dev.off()
 
-  expect_no_error(export_plot_artifact(recorded, tmp_base, width = 4, height = 4, dpi = 96))
+  expect_no_error(export_plot(recorded, tmp_base, width = 4, height = 4, dpi = 96))
   expect_true(file.exists(paste0(tmp_base, ".png")))
 })
 
 test_that("run_m0 auto-builds PRISMA counts and methodology from partial spec", {
+  run_m0_ns <- get("run_m0", envir = asNamespace("RBiblioSynth"))
   df_a <- data.frame(
     AU = c("Smith J", "Jones M", "Brown A"),
     TI = c("Paper A", "Paper B", "Paper C"),
@@ -56,7 +58,7 @@ test_that("run_m0 auto-builds PRISMA counts and methodology from partial spec", 
     )
   )
 
-  result <- run_m0(
+  result <- run_m0_ns(
     sources = sources,
     prisma_spec = prisma_partial,
     config = biblio_config(verbose = FALSE, cache_enabled = FALSE),
@@ -79,6 +81,7 @@ test_that("run_m0 auto-builds PRISMA counts and methodology from partial spec", 
 })
 
 test_that("run_m0 exports PRISMA diagram and methodology with auto mode", {
+  run_m0_ns <- get("run_m0", envir = asNamespace("RBiblioSynth"))
   df <- data.frame(
     AU = c("Smith J", "Jones M"),
     TI = c("Paper A", "Paper B"),
@@ -96,7 +99,7 @@ test_that("run_m0 exports PRISMA diagram and methodology with auto mode", {
   on.exit(unlink(c(file_a, out_dir), recursive = TRUE, force = TRUE), add = TRUE)
   utils::write.csv(df, file_a, row.names = FALSE)
 
-  result <- run_m0(
+  result <- run_m0_ns(
     sources = list(src = list(file = file_a, db = "generic", format = "csv", prisma_role = "database")),
     prisma_spec = "auto",
     config = biblio_config(output_dir = out_dir, verbose = FALSE, cache_enabled = FALSE),
