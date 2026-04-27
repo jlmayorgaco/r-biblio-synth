@@ -24,7 +24,7 @@ m3_compute_spatial <- function(prepared_data, config = biblio_config()) {
   # Prepare country data for spatial analysis
   spatial_data <- data.frame(
     country = country_summary$country,
-    value = country_summary$total_docs,
+    value = country_summary$article_count,
     stringsAsFactors = FALSE
   )
   
@@ -72,7 +72,7 @@ compute_theil_index <- function(x) {
 #' @param config Configuration list
 #' @return List with regional analysis
 #' @export
-m3_compute_regional <- function(prepared_data, config = biblio_config()) {
+m3_compute_regional_wrapper <- function(prepared_data, config = biblio_config()) {
   if (is.null(prepared_data) || prepared_data$status != "success") {
     return(list(status = "error: invalid prepared_data"))
   }
@@ -83,13 +83,13 @@ m3_compute_regional <- function(prepared_data, config = biblio_config()) {
   by_continent <- m3_aggregate_by_region(country_summary, group_by = "continent")
   
   # Aggregate by OECD status
-  by_oecd <- m3_aggregate_by_region(country_summary, group_by = "oecd")
+  by_oecd <- m3_aggregate_by_region(country_summary, group_by = "OECD")
   
   # Aggregate by BRICS status
-  by_brics <- m3_aggregate_by_region(country_summary, group_by = "brics")
+  by_brics <- m3_aggregate_by_region(country_summary, group_by = "BRICS")
   
   # Aggregate by EU status
-  by_eu <- m3_aggregate_by_region(country_summary, group_by = "eu")
+  by_eu <- m3_aggregate_by_region(country_summary, group_by = "EU")
   
   # Regional comparisons
   continent_comparison <- m3_regional_comparison(by_continent)
