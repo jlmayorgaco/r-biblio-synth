@@ -28,14 +28,53 @@ write_json_artifact <- function(x, path,
     cli::cli_warn("Cannot write NULL object to JSON")
     return(invisible(NULL))
   }
+
+  x <- json_sanitize_artifact(x)
   
   # Write with error handling
   tryCatch({
     jsonlite::write_json(x, path, auto_unbox = auto_unbox, pretty = pretty)
-    cli::cli_alert_info("JSON saved: {path}")
   }, error = function(e) {
     cli::cli_warn("Failed to write JSON to {path}: {e$message}")
   })
   
   invisible(path)
+}
+
+json_sanitize_artifact <- function(x) {
+  if (is.null(x)) {
+    return(NULL)
+  }
+
+  if (inherits(x, "table")) {
+    return(as.data.frame(x, stringsAsFactors = FALSE))
+  }
+
+  if (is.matrix(x)) {
+    out <- as.data.frame(x, stringsAsFactors = FALSE)
+    row_id <- rownames(x)
+    if (is.null(row_id)) {
+      row_id <- seq_len(nrow(out))
+    }
+    out <- cbind(rowname = row_id, out, stringsAsFactors = FALSE)
+    rownames(out) <- NULL
+    return(out)
+  }
+
+  if (is.data.frame(x)) {
+    out <- x
+    factor_cols <- vapply(out, is.factor, logical(1))
+    out[factor_cols] <- lapply(out[factor_cols], as.character)
+    return(out)
+  }
+
+  if (is.list(x)) {
+    return(lapply(x, json_sanitize_artifact))
+  }
+
+  if (is.factor(x)) {
+    return(as.character(x))
+  }
+
+  x
 }
