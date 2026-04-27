@@ -5,6 +5,8 @@
 # Usage: source("R/test_new_analyses.R")
 # ============================================================================
 
+if (isTRUE(getOption("rbibliosynth.run_dev_scripts", FALSE))) {
+
 cat("\n")
 cat("===========================================================\n")
 cat("  RBiblioSynth - New Analyses Test\n")
@@ -296,3 +298,5 @@ cat("===========================================================\n\n")
 
 cat("To run a full pipeline test with real data:\n")
 cat("  source('examples/SCOPUS_POWER_SYSTEMS_FREQUENCY_ESTIMATOR/main.r')\n\n")
+
+}
