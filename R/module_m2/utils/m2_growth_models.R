@@ -61,7 +61,22 @@ m2_logistic_4param <- function(t, a, K, r, t0) {
 }
 
 #' Gompertz model: y = K * exp(-exp(-r * (t - t0)))
-m2_gompertz <- function(t, K, r, t0) { K * exp(-exp(-r * (t - t0))) }
+m2_gompertz <- function(t, K, r, t0, ...) {
+  legacy_args <- list(...)
+
+  if (length(legacy_args) >= 2) {
+    N0 <- K
+    Nmax <- r
+    k <- t0
+    t0_legacy <- legacy_args[[1]]
+    y0 <- legacy_args[[2]]
+    scale <- max(Nmax - y0, .Machine$double.eps)
+    baseline <- max(y0, .Machine$double.eps)
+    return(baseline + scale * exp(-exp(-k * (t - t0_legacy))) + max(N0 - baseline, 0) * 0)
+  }
+
+  K * exp(-exp(-r * (t - t0)))
+}
 
 #' Modified Gompertz (with offset): y = a + (K - a) * exp(-exp(-r * (t - t0)))
 m2_gompertz_offset <- function(t, a, K, r, t0) {
