@@ -4,8 +4,6 @@
 
 context("M2 Annual Production - Core Functions")
 
-source("../../R/core/bootstrap.R")
-
 # Create annual production test fixture
 make_annual_fixture <- function() {
   data.frame(
@@ -25,6 +23,8 @@ test_that("compute_m2_eda returns correct structure", {
   expect_true("status" %in% names(result))
   expect_true("metrics" %in% names(result))
   expect_true("summary" %in% names(result))
+  expect_true("summary_stats" %in% names(result))
+  expect_true("outlier_sets" %in% names(result))
   
   if (result$status == "success") {
     expect_true("mean" %in% names(result$metrics))
@@ -32,7 +32,18 @@ test_that("compute_m2_eda returns correct structure", {
     expect_true("sd" %in% names(result$metrics))
     expect_true("min" %in% names(result$metrics))
     expect_true("max" %in% names(result$metrics))
+    expect_true("growth_rate" %in% names(result$summary_stats))
   }
+})
+
+test_that("render_m2_eda creates descriptive stats plot from compute output", {
+  data <- make_annual_fixture()
+  result <- compute_m2_eda(data, biblio_config())
+  rendered <- render_m2_eda(result, biblio_config())
+
+  expect_equal(rendered$status, "success")
+  expect_true("descriptive_stats" %in% names(rendered$plots))
+  expect_s3_class(rendered$plots$descriptive_stats, "ggplot")
 })
 
 test_that("compute_m2_regression handles linear model", {
@@ -135,7 +146,34 @@ test_that("compute_m2_residual_analysis checks model residuals", {
     
     expect_true(is.list(result))
     expect_true("status" %in% names(result))
+    expect_true("heteroscedasticity" %in% names(result))
+    expect_true("variance_model" %in% names(result))
+    expect_true("standardized_residuals" %in% names(result))
+    expect_true("pacf_values" %in% names(result$autocorrelation))
   }
+})
+
+test_that("render_m2_residual_analysis returns flat legacy diagnostics", {
+  data <- make_annual_fixture()
+  regression <- compute_m2_regression(data, biblio_config())
+  skip_if(regression$status != "success", "Regression did not converge for residual rendering test")
+
+  residuals <- compute_m2_residual_analysis(data, regression, biblio_config())
+  rendered <- render_m2_residual_analysis(residuals, biblio_config())
+
+  expect_equal(rendered$status, "success")
+  expect_true(all(c(
+    "normality_histogram",
+    "normality_qq",
+    "residual_acf",
+    "residual_pacf",
+    "durbin_watson",
+    "heteroscedasticity",
+    "standardized_residuals",
+    "residuals_squared",
+    "residuals_squared_model_fit",
+    "residual_fft"
+  ) %in% names(rendered$plots)))
 })
 
 test_that("Model comparison works correctly", {
