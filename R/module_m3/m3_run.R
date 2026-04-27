@@ -18,6 +18,9 @@ run_m3 <- function(input, config = biblio_config(), export = TRUE) {
   # 1. Validate
   validation <- validate_m3_input(input)
   if (!validation$ok) {
+    if (config$validate_strict) {
+      cli::cli_abort("M3 validation failed: {validation$error}")
+    }
     cli::cli_warn("M3 validation failed: {validation$error}")
   }
 
@@ -74,7 +77,7 @@ m3_compute_all <- function(prepared_data, config) {
     hypotheses            = m3_compute_hypotheses(prepared_data, config),
     experiments           = m3_compute_experiments(prepared_data, config),
     spatial               = m3_compute_spatial(prepared_data, config),
-    regional              = m3_compute_regional(prepared_data, config),
+    regional              = m3_compute_regional_wrapper(prepared_data, config),
     economic              = m3_compute_economic_correlation(prepared_data$country_summary, config),
     temporal_dynamics     = m3_compute_temporal_dynamics(prepared_data$country_annual, config)
   )
