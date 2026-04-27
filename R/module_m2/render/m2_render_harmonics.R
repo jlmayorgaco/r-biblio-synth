@@ -45,6 +45,11 @@ render_m2_harmonics <- function(result, config = biblio_config()) {
   if (!is.null(result$cross_analysis)) {
     plots$comparison <- create_harmonic_comparison_plot(result$cross_analysis, config)
   }
+
+  # Harmonic regression fitness across candidate frequencies
+  if (!is.null(result$r_squared_table) && nrow(result$r_squared_table) > 0) {
+    plots$r2_vs_frequency <- create_r2_frequency_plot(result$r_squared_table, config)
+  }
   
   # Summary plot
   if (!is.null(result$summary)) {
@@ -99,12 +104,20 @@ create_top_periods_plot <- function(harmonics, config, title_suffix = "") {
   if (is.null(harmonics$top_periods) || nrow(harmonics$top_periods) == 0) return(NULL)
   
   df <- harmonics$top_periods
+  value_col <- if ("variance_explained" %in% names(df)) {
+    "variance_explained"
+  } else if ("normalized_power" %in% names(df)) {
+    "normalized_power"
+  } else {
+    return(NULL)
+  }
   df$period_label <- sprintf("%.1f yr", df$period)
   df$period_label <- factor(df$period_label, levels = df$period_label)
+  df$share <- pmax(0, suppressWarnings(as.numeric(df[[value_col]])))
   
-  p <- ggplot2::ggplot(df, ggplot2::aes(x = period_label, y = variance_explained * 100)) +
+  p <- ggplot2::ggplot(df, ggplot2::aes(x = period_label, y = share * 100)) +
     ggplot2::geom_col(fill = "#0072BD", color = "black", linewidth = 0.2, width = 0.7) +
-    ggplot2::geom_text(ggplot2::aes(label = sprintf("%.1f%%", variance_explained * 100)), 
+    ggplot2::geom_text(ggplot2::aes(label = sprintf("%.1f%%", share * 100)), 
                       vjust = -0.3, size = 2.5) +
     ggplot2::scale_y_continuous(name = "Variance Explained (%)", expand = ggplot2::expansion(mult = c(0, 0.2))) +
     ieee_theme_bar() +
@@ -114,6 +127,40 @@ create_top_periods_plot <- function(harmonics, config, title_suffix = "") {
     )
   
   p
+}
+
+#' Create R-squared versus frequency plot
+#' @keywords internal
+create_r2_frequency_plot <- function(r_squared_table, config) {
+  if (is.null(r_squared_table) || nrow(r_squared_table) == 0) {
+    return(NULL)
+  }
+
+  df <- r_squared_table[order(r_squared_table$Frequency), , drop = FALSE]
+  best_idx <- which.max(df$R2)
+  best_freq <- df$Frequency[best_idx]
+  best_r2 <- df$R2[best_idx]
+
+  ggplot2::ggplot(df, ggplot2::aes(x = Frequency, y = R2)) +
+    ggplot2::geom_line(color = "black", linewidth = 0.7) +
+    ggplot2::geom_point(color = "#A2142F", size = 1.8) +
+    ggplot2::geom_vline(xintercept = best_freq, color = "#D95319", linetype = "dashed", linewidth = 0.5) +
+    ggplot2::annotate(
+      "text",
+      x = best_freq,
+      y = min(1, best_r2 + 0.08),
+      label = sprintf("Best: %.3f Hz\nR2 = %.3f", best_freq, best_r2),
+      hjust = 0,
+      size = 2.7,
+      color = "#D95319"
+    ) +
+    ggplot2::scale_x_continuous(name = "Frequency") +
+    ggplot2::scale_y_continuous(name = "R2", limits = c(0, 1), expand = ggplot2::expansion(mult = c(0, 0.05))) +
+    ieee_theme() +
+    ggplot2::labs(
+      title = "Harmonic Regression Fit by Frequency",
+      subtitle = "Recovered from legacy M2 harmonic regression workflow"
+    )
 }
 
 #' Create residual spectrum plot
