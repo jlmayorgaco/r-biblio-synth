@@ -12,6 +12,18 @@ knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>"
 )
+
+data("biblio_sample", package = "RBiblioSynth")
+demo_biblio <- utils::head(biblio_sample, 120)
+demo_source_file <- tempfile(fileext = ".csv")
+utils::write.csv(demo_biblio, demo_source_file, row.names = FALSE)
+demo_sources <- list(
+  sample = list(
+    file = demo_source_file,
+    db = "generic",
+    format = "csv"
+  )
+)
 ```
 
 # Getting Started with RBiblioSynth
@@ -21,10 +33,8 @@ This vignette provides a comprehensive introduction to RBiblioSynth, a modular R
 ## Installation
 
 ```r
-# From GitHub (development version)
-devtools::install_github("yourusername/RBiblioSynth")
-
-# Load the package
+# Load the package from a local development checkout
+# devtools::load_all()
 library(RBiblioSynth)
 ```
 
@@ -35,34 +45,29 @@ library(RBiblioSynth)
 RBiblioSynth supports multiple bibliographic databases:
 
 ```r
-# Define data sources
-sources <- list(
-  scopus = list(
-    file = "data/scopus.bib",
-    db = "scopus",
-    format = "bibtex"
-  ),
-  wos = list(
-    file = "data/wos.bib", 
-    db = "wos",
-    format = "bibtex"
-  )
-)
-
 # Or use the sample dataset
 data(biblio_sample)
 ```
 
-### 2. Run M0 Data Orchestrator
+### 2. Run the official pipeline
 
-```r
-# Run M0 to load, merge, and organize data
-m0_result <- run_m0(sources)
+```{r, eval = FALSE}
+# Run the public M0-M3 pipeline
+pipeline_result <- run_pipeline(
+  demo_sources,
+  modules = c("m0", "m1", "m2", "m3"),
+  config = biblio_config(
+    counting_mode = "full",
+    dedup_method = "title_year_normalized",
+    report_format = "none"
+  ),
+  export = FALSE
+)
 
-# Access merged data
+m0_result <- pipeline_result$modules$m0
 bib_data <- m0_get_bib_data(m0_result)
 
-# Access organized data
+# Access organized data from M0
 countries <- m0_get(m0_result, "countries")
 authors <- m0_get(m0_result, "authors")
 annual <- m0_get(m0_result, "annual")
@@ -71,8 +76,7 @@ annual <- m0_get(m0_result, "annual")
 ### 3. Run M1 Main Information
 
 ```r
-# Run comprehensive main information analysis
-m1_result <- run_m1(bib_data)
+m1_result <- pipeline_result$modules$m1
 
 # View results
 print(m1_result$data$overview)
@@ -87,8 +91,8 @@ m1_result$artifacts$plots$lotka$m1_lotka_scatter
 ### 4. Run M2 Annual Production
 
 ```r
-# Run annual production analysis
-m2_result <- run_m2(annual)
+# Module result returned by the pipeline
+m2_result <- pipeline_result$modules$m2
 
 # View growth model comparison
 print(m2_result$data$growth_models$comparison)
@@ -103,8 +107,8 @@ print(m2_result$data$forecasting$arima)
 ### 5. Run M3 Countries
 
 ```r
-# Run country-level analysis
-m3_result <- run_m3(bib_data)
+# Module result returned by the pipeline
+m3_result <- pipeline_result$modules$m3
 
 # View spatial statistics
 print(m3_result$data$spatial$morans_i)
@@ -114,6 +118,20 @@ print(m3_result$data$economic)
 
 # View collaboration indices
 print(m3_result$data$collaboration_indices)
+```
+
+## Module-Level Entry Points
+
+If you want to run modules individually, the public API remains available:
+
+```{r, eval = FALSE}
+m0_result <- run_m0(demo_sources, export = FALSE)
+bib_data <- m0_get_bib_data(m0_result)
+annual <- m0_get(m0_result, "annual")
+
+m1_result <- run_m1(bib_data, export = FALSE)
+m2_result <- run_m2(annual, export = FALSE)
+m3_result <- run_m3(bib_data, export = FALSE)
 ```
 
 ## Advanced Features
@@ -135,21 +153,14 @@ ci <- bootstrap_ci(citations, h_index, R = 1000, method = "bca")
 print(ci)
 ```
 
-### Growth Model Comparison
+### Reproducible report bundle
 
-```r
-# Compare 30+ growth models
-data(annual_sample)
-m2_result <- run_m2(annual_sample)
+```{r, eval = FALSE}
+cfg <- biblio_config(report_format = "latex_bundle")
+pipeline_result <- run_pipeline(demo_sources, config = cfg)
 
-# View all models
-print(m2_result$data$growth_models$comparison)
-
-#          model      AIC      BIC  R_squared
-# 1        bass   245.32   251.45     0.9845
-# 2    gompertz   238.91   244.12     0.9891
-# 3     weibull   241.56   246.78     0.9873
-# 4    richards   235.42   240.63     0.9912
+# Generated bundle paths
+pipeline_result$artifacts$files
 ```
 
 ### Spatial Statistics
@@ -183,39 +194,6 @@ print(qap_result$p_value_two_tailed)    # 0.002
 print(qap_result$interpretation)
 # "The networks show a moderate positive correlation (r = 0.450), 
 # which is significant (p = 0.0020)."
-```
-
-## Visualization
-
-### Treemaps
-
-```r
-# Country production treemap
-treemap <- render_m1_treemap(m1_result$data, type = "countries")
-print(treemap$plots$treemap)
-```
-
-### Sankey Diagrams
-
-```r
-# Collaboration flows
-sankey <- render_m3_sankey(m3_result$data, type = "country")
-print(sankey$plots$sankey)
-```
-
-### Three-Field Plots
-
-```r
-# Authors - Keywords - Sources
-three_field <- render_m1_three_field(
-  bib_data,
-  fields = list(
-    field1 = list(name = "Authors", column = "AU"),
-    field2 = list(name = "Keywords", column = "DE"),
-    field3 = list(name = "Sources", column = "SO")
-  )
-)
-print(three_field$plots$three_field)
 ```
 
 ## PRISMA Flow Diagrams
@@ -275,8 +253,8 @@ m3_result$data$hypotheses
 ## Next Steps
 
 1. Explore the [Module Reference](../reference/index.html) for detailed function documentation
-2. Read the [Advanced Analysis vignette](advanced-analysis.html) for time series and spatial methods
-3. Check [Visualization Examples](visualization-examples.html) for publication-ready figures
+2. Use `run_pipeline()` for the official end-to-end workflow
+3. Use module-level entrypoints when you need custom orchestration
 
 ## Citation
 
