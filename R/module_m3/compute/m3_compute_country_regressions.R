@@ -18,31 +18,21 @@ m3_compute_country_regressions <- function(prepared_data, config = biblio_config
     ))
   }
   
-  doc_country <- prepared_data$country_doc_level
-  if (is.null(doc_country) || nrow(doc_country) == 0) {
+  country_year_production <- prepared_data$country_annual
+  if (is.null(country_year_production) || nrow(country_year_production) == 0) {
     return(list(
       country_regressions = list(),
       status = "error: no country data"
     ))
   }
-  
-  year_col <- get_year_column(prepared_data)
-  if (is.null(year_col)) {
-    return(list(
-      country_regressions = list(),
-      status = "error: no year column found"
-    ))
+
+  if (!"year" %in% names(country_year_production) && "PY" %in% names(country_year_production)) {
+    country_year_production$year <- as.integer(country_year_production$PY)
   }
-  
-  country_year_production <- aggregate_production_by_country_year(doc_country, year_col)
-  
-  if (is.null(country_year_production) || nrow(country_year_production) == 0) {
-    return(list(
-      country_regressions = list(),
-      status = "error: could not compute production by country-year"
-    ))
+  if (!"article_count" %in% names(country_year_production) && "doc_id" %in% names(country_year_production)) {
+    country_year_production$article_count <- as.numeric(country_year_production$doc_id)
   }
-  
+
   country_regressions <- list()
   countries <- unique(country_year_production$country)
   min_years <- config$min_years_for_regression %||% 5
@@ -64,7 +54,7 @@ m3_compute_country_regressions <- function(prepared_data, config = biblio_config
     
     ts_data <- data.frame(
       Year = country_data$year,
-      Articles = country_data$n_articles
+      Articles = country_data$article_count
     )
     
     country_regressions[[country]] <- fit_country_regression(ts_data, growth_models, country)
@@ -109,9 +99,11 @@ aggregate_production_by_country_year <- function(doc_country, year_col) {
   doc_country$year <- as.integer(year_data)
   doc_country <- doc_country[!is.na(doc_country$year), ]
   
-  aggregate(doc_id ~ country + year, 
-            data = doc_country, 
-            FUN = function(x) length(unique(x)))
+  aggregated <- aggregate(doc_id ~ country + year, 
+                          data = doc_country, 
+                          FUN = function(x) length(unique(x)))
+  names(aggregated)[names(aggregated) == "doc_id"] <- "article_count"
+  aggregated
 }
 
 #' Available growth models
@@ -463,9 +455,15 @@ summarize_country_regressions <- function(country_regressions) {
     return(list(
       n_countries = length(country_regressions),
       n_successful = 0,
-      increasing = 0,
-      decreasing = 0,
-      stable = 0,
+      n_increasing = 0,
+      n_decreasing = 0,
+      n_stable = 0,
+      increasing_countries = character(),
+      decreasing_countries = character(),
+      mean_growth_rate = NA_real_,
+      median_growth_rate = NA_real_,
+      mean_slope = NA_real_,
+      median_slope = NA_real_,
       status = "no_successful_fits"
     ))
   }
@@ -499,23 +497,55 @@ test_country_hypotheses <- function(country_regressions, summary_stats) {
   successful <- Filter(function(x) x$status == "success", country_regressions)
   
   hypotheses <- list()
+  n_successful <- summary_stats$n_successful %||% 0L
+  n_increasing <- summary_stats$n_increasing %||% 0L
+  decreasing <- summary_stats$decreasing_countries %||% character()
+
+  if (n_successful == 0) {
+    hypotheses$H03_1 <- list(
+      hypothesis = "All countries show increasing production trend",
+      null = "Not all countries have increasing production",
+      result = "inconclusive",
+      n_increasing = 0L,
+      n_total = 0L,
+      proportion = NA_real_,
+      interpretation = "No countries met the minimum data requirement for regression analysis"
+    )
+
+    hypotheses$H03_3 <- list(
+      hypothesis = "Research topic is not declining in any country",
+      null = "Research topic is declining in at least one country",
+      result = "inconclusive",
+      n_declining = 0L,
+      declining_countries = character(),
+      interpretation = "No countries met the minimum data requirement for decline testing"
+    )
+
+    return(list(
+      hypotheses = hypotheses,
+      hyphypotheses = hypotheses,
+      summary = summarize_hypothesis_results(hypotheses),
+      n_tests = length(hypotheses),
+      status = "inconclusive"
+    ))
+  }
   
   # H03.1: Are all countries showing increasing production?
   hypotheses$H03_1 <- list(
     hypothesis = "All countries show increasing production trend",
     null = "Not all countries have increasing production",
-    result = if (summary_stats$n_increasing == summary_stats$n_successful) {
+    result = if (n_increasing == n_successful) {
       "fail_to_reject"
     } else {
       "reject"
     },
-    n_increasing = summary_stats$n_increasing,
-    n_total = summary_stats$n_successful,
-    proportion = summary_stats$n_increasing / summary_stats$n_successful,
+    n_increasing = n_increasing,
+    n_total = n_successful,
+    proportion = n_increasing / n_successful,
     interpretation = sprintf("%.1f%% of countries show increasing production (%d/%d)",
-                            summary_stats$n_increasing / summary_stats$n_successful * 100,
-                            summary_stats$n_increasing,
-                            summary_stats$n_successful)
+                            n_increasing / n_successful * 100,
+                            n_increasing,
+                            n_successful)
   )
   
   # H03.2: Is research interest uniform across all countries? (vs concentrated in bunches)
@@ -556,7 +586,6 @@ test_country_hypotheses <- function(country_regressions, summary_stats) {
   }
   
   # H03.3: Is the research topic declining in some countries?
-  declining <- summary_stats$decreasing_countries
   hypotheses$H03_3 <- list(
     hypothesis = "Research topic is not declining in any country",
     null = "Research topic is declining in at least one country",
@@ -615,10 +644,12 @@ test_country_hypotheses <- function(country_regressions, summary_stats) {
   }
   
   list(
-    hypotheses = hypotheses,
-    n_tests = length(hypotheses),
-    summary = summarize_hypothesis_results(hypotheses)
-  )
+      hypotheses = hypotheses,
+      hyphypotheses = hypotheses,
+      n_tests = length(hypotheses),
+      summary = summarize_hypothesis_results(hypotheses),
+      status = "success"
+    )
 }
 
 #' Calculate kurtosis
@@ -667,6 +698,14 @@ test_concentration_trend <- function(country_regressions) {
 #' @keywords internal
 summarize_hypothesis_results <- function(hypotheses) {
   n_total <- length(hypotheses)
+  if (n_total == 0) {
+    return(list(
+      n_hypotheses = 0L,
+      n_rejected = 0L,
+      n_failed_to_reject = 0L,
+      rejection_rate = NA_real_
+    ))
+  }
   n_rejected <- sum(sapply(hypotheses, function(h) h$result == "reject"))
   n_failed_to_reject <- n_total - n_rejected
   
