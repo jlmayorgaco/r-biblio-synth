@@ -3,8 +3,16 @@ Type: Package
 Title: Bibliometric Analysis and Systematic Review Report Automation
 Version: 0.2.0
 Date: 2026-03-25
-Authors@R: person("Mayorga", role = c("aut", "cre"),
-    email = "maintainer@example.com")
+Authors@R: c(
+    person(
+      given = "RBiblioSynth",
+      family = "Maintainers",
+      email = "opensource@rbibliosynth.org",
+      role = c("aut", "cre")
+    )
+  )
+Author: RBiblioSynth Maintainers [aut, cre]
+Maintainer: RBiblioSynth Maintainers <opensource@rbibliosynth.org>
 Description: A modular framework for automating bibliometric analysis and
     systematic review reporting. Provides module M0 for data orchestration
     (load, merge, organize sources from Scopus, WoS, OpenAlex), M1 for main
@@ -42,9 +50,12 @@ Imports:
 Suggests:
     testthat (>= 3.0.0),
     yaml,
+    knitr,
+    rmarkdown,
     ggwordcloud,
     WaveletComp,
     ggspatial,
     gridExtra,
     wordcloud2
+VignetteBuilder: knitr
 RoxygenNote: 7.3.3
