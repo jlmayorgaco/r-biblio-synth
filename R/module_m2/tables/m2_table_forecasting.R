@@ -8,8 +8,8 @@
 #' @param data Output from compute_m2_forecasting
 #' @param config Configuration list
 #' @return List with tables
-#' @export
-build_m2_forecasting_table <- function(data, config = biblio_config()) {
+#' @keywords internal
+build_m2_forecasting_tables_impl <- function(data, config = biblio_config()) {
   if (is.null(data) || data$status != "success") {
     return(list(tables = list(), status = "error: invalid data"))
   }
