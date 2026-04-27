@@ -118,8 +118,23 @@ compute_rank_volatility <- function(rank_matrices) {
     }
   }
   
+  if (length(volatility) == 0) {
+    return(list(
+      by_period = list(),
+      overall = NA_real_,
+      interpretation = "Insufficient overlap to estimate mobility"
+    ))
+  }
+
   # Overall volatility
-  mean_volatility <- mean(sapply(volatility, function(x) x$mean_change))
+  mean_volatility <- mean(vapply(volatility, function(x) x$mean_change %||% NA_real_, numeric(1)), na.rm = TRUE)
+  if (!is.finite(mean_volatility)) {
+    return(list(
+      by_period = volatility,
+      overall = NA_real_,
+      interpretation = "Insufficient overlap to estimate mobility"
+    ))
+  }
   
   list(
     by_period = volatility,
@@ -252,25 +267,45 @@ compute_rank_changes <- function(rank_matrices) {
 #' @keywords internal
 compute_share_evolution <- function(country_year_data) {
   years <- sort(unique(country_year_data$year))
+  countries <- sort(unique(as.character(country_year_data$country)))
+  if (length(years) == 0 || length(countries) == 0) {
+    return(list(
+      share_matrix = matrix(numeric(0), nrow = 0, ncol = 0),
+      share_trends = data.frame(),
+      n_years = 0L,
+      status = "error: no country-year data"
+    ))
+  }
   
   # Compute annual shares
-  share_matrix <- matrix(NA, length(unique(country_year_data$country)), length(years))
-  countries <- unique(country_year_data$country)
+  share_matrix <- matrix(NA_real_, length(countries), length(years))
   rownames(share_matrix) <- countries
   colnames(share_matrix) <- as.character(years)
   
   for (i in seq_along(years)) {
     year_data <- country_year_data[country_year_data$year == years[i], ]
-    total <- sum(year_data$production)
+    total <- sum(year_data$production, na.rm = TRUE)
+    if (!is.finite(total) || total <= 0) {
+      next
+    }
     
-    for (country in year_data$country) {
-      share_matrix[country, i] <- year_data$production[year_data$country == country] / total
+    for (country in unique(as.character(year_data$country))) {
+      share_matrix[country, i] <- sum(year_data$production[year_data$country == country], na.rm = TRUE) / total
     }
   }
   
   # Find top countries by current share
   current_shares <- share_matrix[, ncol(share_matrix)]
-  top_countries <- names(sort(current_shares, decreasing = TRUE))[1:10]
+  top_countries <- names(sort(current_shares, decreasing = TRUE, na.last = NA))
+  top_countries <- head(top_countries, 10)
+  if (length(top_countries) == 0) {
+    return(list(
+      share_matrix = share_matrix,
+      share_trends = data.frame(),
+      n_years = length(years),
+      status = "success"
+    ))
+  }
   
   # Share trends
   share_trends <- data.frame(
