@@ -13,8 +13,12 @@ test_that("run_m1 returns biblio_module_result on extended fixture", {
 test_that("result$data contains all expected slots", {
   fixture <- make_extended_biblio_fixture()
   result <- run_m1(fixture, export = FALSE)
-  expected <- c("overview", "doc_types", "authors", "citations",
-                "countries", "sources", "keywords", "bradford")
+  expected <- c(
+    "overview", "doc_types", "authors", "author_indices", "citations",
+    "countries", "sources", "keywords", "keyword_cooccurrence", "keyword_burst",
+    "bradford", "lotka", "collaboration", "price_law", "hypotheses",
+    "topic_modeling", "citation_analysis", "author_career"
+  )
   expect_true(all(expected %in% names(result$data)))
 })
 
