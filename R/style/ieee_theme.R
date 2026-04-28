@@ -1,13 +1,11 @@
 # ============================================================================
-# ieee_theme.R - IEEE Publication Theme for ggplot2 (Enhanced)
+# ieee_theme.R - IEEE publication theme and export sizing
 # ============================================================================
-# IEEE Q1 Journal Quality Standards:
-# - Single column: 3.5 in x 2.5 in (8.89 cm x 6.35 cm)
-# - Double column: 7.16 in x 3.5 in (18.2 cm x 8.9 cm)
-# - Font: Times or sans-serif, 8-10 pt
-# - Grid: subtle gray, 0.2-0.3 pt
-# - Axis lines: 0.5-0.75 pt black
-# - Legends: bottom-placed, compact
+# Export policy:
+# - Single column: 3.50 in x 2.80 in
+# - Full width:    7.16 in x 4.05 in
+# The package may still use different plot themes internally (map, polar,
+# timeseries), but export sizing is reduced to these two IEEE layouts.
 # ============================================================================
 
 #' IEEE theme for single-column figures (Enhanced)
@@ -18,21 +16,21 @@
 #' @param grid_minor Show minor grid lines
 #' @return A ggplot2 theme object
 #' @export
-ieee_theme <- function(base_size = 8, font_family = "sans", 
+ieee_theme <- function(base_size = 8, font_family = "sans",
                        grid_major = TRUE, grid_minor = FALSE) {
   t <- ggplot2::theme_bw(base_size = base_size, base_family = font_family)
   
   t <- t + ggplot2::theme(
     plot.title = ggplot2::element_text(
-      size = base_size + 2, face = "bold", hjust = 0.5,
-      margin = ggplot2::margin(b = 4, t = 0)
+      size = base_size + 1.2, face = "bold", hjust = 0,
+      margin = ggplot2::margin(b = 3, t = 0)
     ),
     plot.subtitle = ggplot2::element_text(
-      size = base_size - 1, hjust = 0.5, face = "italic",
+      size = base_size - 0.4, hjust = 0, face = "plain", color = "#333333",
       margin = ggplot2::margin(b = 4)
     ),
     plot.caption = ggplot2::element_text(
-      size = base_size - 2, hjust = 1, face = "italic",
+      size = base_size - 1.6, hjust = 0, color = "#555555",
       margin = ggplot2::margin(t = 4)
     ),
     axis.title = ggplot2::element_text(
@@ -61,7 +59,7 @@ ieee_theme <- function(base_size = 8, font_family = "sans",
     } else {
       ggplot2::element_blank()
     },
-    panel.background = ggplot2::element_rect(fill = "#FAFAFA", color = NA),
+    panel.background = ggplot2::element_rect(fill = "white", color = NA),
     plot.background = ggplot2::element_rect(fill = "white", color = NA),
     legend.position = "bottom",
     legend.direction = "horizontal",
@@ -79,7 +77,7 @@ ieee_theme <- function(base_size = 8, font_family = "sans",
     strip.text = ggplot2::element_text(size = base_size - 1, face = "bold"),
     strip.text.x = ggplot2::element_text(margin = ggplot2::margin(t = 2, b = 2)),
     strip.text.y = ggplot2::element_text(angle = 0),
-    plot.margin = ggplot2::margin(t = 6, r = 6, b = 6, l = 6)
+    plot.margin = ggplot2::margin(t = 7, r = 8, b = 7, l = 8)
   )
   
   t
@@ -87,13 +85,13 @@ ieee_theme <- function(base_size = 8, font_family = "sans",
 
 #' IEEE theme for wide figures (full page width)
 #' @export
-ieee_theme_wide <- function(base_size = 9, font_family = "sans") {
+ieee_theme_wide <- function(base_size = 8.5, font_family = "sans") {
   ieee_theme(base_size = base_size, font_family = font_family) +
     ggplot2::theme(
-      plot.title = ggplot2::element_text(size = base_size + 3),
-      axis.title = ggplot2::element_text(size = base_size + 1),
-      legend.position = "right",
-      legend.direction = "vertical"
+      plot.title = ggplot2::element_text(size = base_size + 1.4),
+      axis.title = ggplot2::element_text(size = base_size + 0.6),
+      legend.position = "bottom",
+      legend.direction = "horizontal"
     )
 }
 
@@ -140,11 +138,15 @@ ieee_theme_bar <- function(base_size = 8) {
 
 #' IEEE figure dimensions for single column
 #' @export
-ieee_dim_single <- list(width = 3.5, height = 2.5, dpi = 600)
+ieee_dim_single <- list(width = 3.5, height = 2.8, dpi = 600)
+
+#' IEEE figure dimensions for full-width figures
+#' @export
+ieee_dim_full <- list(width = 7.16, height = 4.05, dpi = 600)
 
 #' IEEE figure dimensions for double column
 #' @export
-ieee_dim_double <- list(width = 7.16, height = 3.5, dpi = 600)
+ieee_dim_double <- ieee_dim_full
 
 #' IEEE figure dimensions for square
 #' @export
@@ -152,7 +154,15 @@ ieee_dim_square <- list(width = 3.5, height = 3.5, dpi = 600)
 
 #' IEEE figure dimensions for wide
 #' @export
-ieee_dim_wide <- list(width = 7.16, height = 2.5, dpi = 600)
+ieee_dim_wide <- ieee_dim_full
+
+#' IEEE figure dimensions for tall panels
+#' @export
+ieee_dim_tall <- ieee_dim_full
+
+#' IEEE figure dimensions for maps and faceted layouts
+#' @export
+ieee_dim_map <- ieee_dim_full
 
 #' IEEE color palette (colorblind-friendly)
 #' @export
@@ -309,4 +319,223 @@ ieee_theme_detailed <- function(base_size = 8) {
       panel.grid.minor = ggplot2::element_line(linewidth = 0.1, color = "#E8E8E8"),
       axis.ticks.length = ggplot2::unit(0.2, "cm")
     )
+}
+
+ieee_null_coalesce <- function(a, b) {
+  if (!is.null(a)) a else b
+}
+
+#' Mark a plot for IEEE single-column or full-width export
+#' @keywords internal
+ieee_mark_plot_layout <- function(plot, layout = c("single", "full")) {
+  layout <- match.arg(layout)
+  attr(plot, "ieee_layout") <- layout
+  plot
+}
+
+#' IEEE theme for maps and geospatial figures
+#' @export
+ieee_theme_map <- function(base_size = 8, font_family = "sans") {
+  ggplot2::theme_void(base_size = base_size, base_family = font_family) +
+    ggplot2::theme(
+      plot.title = ggplot2::element_text(
+        size = base_size + 2, face = "bold", hjust = 0.5,
+        margin = ggplot2::margin(b = 4)
+      ),
+      plot.subtitle = ggplot2::element_text(
+        size = base_size - 1, hjust = 0.5, face = "italic",
+        margin = ggplot2::margin(b = 4)
+      ),
+      plot.caption = ggplot2::element_text(
+        size = base_size - 2, hjust = 1,
+        margin = ggplot2::margin(t = 4)
+      ),
+      legend.position = "right",
+      legend.title = ggplot2::element_text(size = base_size - 1, face = "bold"),
+      legend.text = ggplot2::element_text(size = base_size - 2),
+      legend.background = ggplot2::element_rect(fill = "white", color = NA),
+      plot.background = ggplot2::element_rect(fill = "white", color = NA),
+      plot.margin = ggplot2::margin(t = 6, r = 6, b = 6, l = 6)
+    )
+}
+
+#' IEEE theme for polar or pie-style figures
+#' @export
+ieee_theme_polar <- function(base_size = 8, font_family = "sans") {
+  ggplot2::theme_void(base_size = base_size, base_family = font_family) +
+    ggplot2::theme(
+      plot.title = ggplot2::element_text(
+        size = base_size + 2, face = "bold", hjust = 0.5,
+        margin = ggplot2::margin(b = 4)
+      ),
+      plot.subtitle = ggplot2::element_text(
+        size = base_size - 1, hjust = 0.5, face = "italic",
+        margin = ggplot2::margin(b = 4)
+      ),
+      plot.caption = ggplot2::element_text(
+        size = base_size - 2, hjust = 1,
+        margin = ggplot2::margin(t = 4)
+      ),
+      legend.position = "bottom",
+      legend.title = ggplot2::element_text(size = base_size - 1, face = "bold"),
+      legend.text = ggplot2::element_text(size = base_size - 2),
+      plot.background = ggplot2::element_rect(fill = "white", color = NA),
+      plot.margin = ggplot2::margin(t = 6, r = 6, b = 6, l = 6)
+    )
+}
+
+#' Resolve IEEE figure type from plot metadata
+#' @keywords internal
+ieee_resolve_figure_type <- function(plot = NULL,
+                                     module_id = NULL,
+                                     section_id = NULL,
+                                     plot_id = NULL) {
+  explicit_layout <- attr(plot, "ieee_layout", exact = TRUE)
+  if (is.character(explicit_layout) && length(explicit_layout) == 1L && explicit_layout %in% c("single", "full")) {
+    return(explicit_layout)
+  }
+
+  tokens <- paste(
+    c(module_id, section_id, plot_id,
+      if (inherits(plot, "ggplot")) plot$labels$title else NULL),
+    collapse = " "
+  )
+  tokens <- tolower(tokens)
+
+  if (inherits(plot, "ggplot") && inherits(plot$coordinates, "CoordSf")) {
+    return("full")
+  }
+  if (inherits(plot, "ggplot") && inherits(plot$coordinates, "CoordPolar")) {
+    return("single")
+  }
+  if (grepl("map|world|choropleth|geograph", tokens)) {
+    return("full")
+  }
+  if (grepl("prisma", tokens)) {
+    return("full")
+  }
+  if (grepl("pie|polar|donut", tokens)) {
+    return("single")
+  }
+  if (grepl("facet|network|heatmap|wavelet|spatial|regional|economic|similarity|cooccurrence|all models|comparison", tokens)) {
+    return("full")
+  }
+  if (grepl("trend|time|annual|growth|forecast|series|gini_vs_year|share_vs_year|change|regression|countries|country|productivity|hypoth", tokens)) {
+    return("full")
+  }
+  if (grepl("rank|bar|summary|lorenz|distribution", tokens)) {
+    return("single")
+  }
+
+  "single"
+}
+
+#' Get IEEE export specification for a figure type
+#' @keywords internal
+ieee_figure_spec <- function(figure_type = "single", config = biblio_config()) {
+  config <- merge_biblio_config(config)
+  normalized_type <- if (figure_type %in% c("double", "wide", "map", "tall", "full")) "full" else "single"
+  spec <- switch(
+    normalized_type,
+    single = list(width = ieee_dim_single$width, height = ieee_dim_single$height, dpi = config$dpi),
+    full = list(width = ieee_dim_full$width, height = ieee_dim_full$height, dpi = config$dpi),
+    list(width = ieee_dim_single$width, height = ieee_dim_single$height, dpi = config$dpi)
+  )
+  spec$figure_type <- normalized_type
+  spec
+}
+
+#' Build a concise IEEE-style plot caption
+#' @keywords internal
+ieee_build_caption <- function(module_id = NULL,
+                               section_id = NULL,
+                               plot_id = NULL,
+                               figure_type = "single",
+                               note = NULL) {
+  if (!is.null(note) && nzchar(note)) {
+    return(note)
+  }
+  NULL
+}
+
+#' Prepare a ggplot object for IEEE-compliant export
+#' @keywords internal
+ieee_prepare_plot_for_export <- function(plot,
+                                         module_id = NULL,
+                                         section_id = NULL,
+                                         plot_id = NULL,
+                                         config = biblio_config(),
+                                         figure_type = NULL,
+                                         note = NULL) {
+  if (!inherits(plot, "ggplot")) {
+    return(plot)
+  }
+
+  config <- merge_biblio_config(config)
+  figure_type <- ieee_null_coalesce(figure_type, ieee_resolve_figure_type(
+    plot = plot,
+    module_id = module_id,
+    section_id = section_id,
+    plot_id = plot_id
+  ))
+  spec <- ieee_figure_spec(figure_type, config)
+  caption <- plot$labels$caption
+  if (is.null(caption) || !nzchar(caption)) {
+    caption <- ieee_build_caption(
+      module_id = module_id,
+      section_id = section_id,
+      plot_id = plot_id,
+      figure_type = figure_type,
+      note = note
+    )
+  }
+
+  theme_obj <- switch(
+    figure_type,
+    map = ieee_theme_map(base_size = 8),
+    square = if (inherits(plot$coordinates, "CoordPolar")) ieee_theme_polar(base_size = 8) else ieee_theme(base_size = 8),
+    tall = ieee_theme_tall(base_size = 8),
+    wide = ieee_theme_wide(base_size = 8),
+    double = ieee_theme_wide(base_size = 8),
+    ieee_theme(base_size = 8)
+  )
+
+  plot <- plot +
+    theme_obj +
+    ggplot2::labs(caption = caption) +
+    ggplot2::theme(
+      plot.title.position = "plot",
+      plot.caption.position = "plot"
+    )
+
+  attr(plot, "ieee_export_spec") <- spec
+  attr(plot, "ieee_plot_meta") <- list(
+    module_id = module_id,
+    section_id = section_id,
+    plot_id = plot_id,
+    figure_type = figure_type
+  )
+  plot
+}
+
+#' Get export dimensions for a plot using attached IEEE metadata when available
+#' @keywords internal
+ieee_get_plot_export_spec <- function(plot,
+                                      config = biblio_config(),
+                                      figure_type = NULL,
+                                      section_id = NULL,
+                                      plot_id = NULL) {
+  spec <- attr(plot, "ieee_export_spec", exact = TRUE)
+  if (is.list(spec) && all(c("width", "height", "dpi") %in% names(spec))) {
+    return(spec)
+  }
+
+  ieee_figure_spec(
+    figure_type = ieee_null_coalesce(figure_type, ieee_resolve_figure_type(
+      plot = plot,
+      section_id = section_id,
+      plot_id = plot_id
+    )),
+    config = config
+  )
 }
