@@ -2,7 +2,7 @@
 # plot_export_service.R - Plot export service
 # ============================================================================
 
-#' Export a plot artifact to PNG and SVG
+#' Export a plot artifact to PNG, SVG, and PDF
 #'
 #' @param plot A ggplot object.
 #' @param path Character. Output file path (without extension).
@@ -29,6 +29,7 @@ export_plot_artifact <- function(plot, path,
 
   png_path <- paste0(path, ".png")
   svg_path <- paste0(path, ".svg")
+  pdf_path <- paste0(path, ".pdf")
 
   # Save PNG using Cairo if available (better for non-interactive)
   if (requireNamespace("Cairo", quietly = TRUE)) {
@@ -39,6 +40,7 @@ export_plot_artifact <- function(plot, path,
         width    = width,
         height   = height,
         dpi      = dpi,
+        bg       = "white",
         type = "cairo"
       )
     )
@@ -49,7 +51,8 @@ export_plot_artifact <- function(plot, path,
         plot     = plot,
         width    = width,
         height   = height,
-        dpi      = dpi
+        dpi      = dpi,
+        bg       = "white"
       )
     )
   }
@@ -62,7 +65,8 @@ export_plot_artifact <- function(plot, path,
         plot     = plot,
         width    = width,
         height   = height,
-        device   = "svg"
+        device   = "svg",
+        bg       = "white"
       )
     )
   }, error = function(e) {
@@ -70,10 +74,29 @@ export_plot_artifact <- function(plot, path,
     NULL
   })
 
-  invisible(c(png = png_path, svg = svg_path))
+  tryCatch({
+    suppressWarnings(
+      ggplot2::ggsave(
+        filename = pdf_path,
+        plot     = plot,
+        width    = width,
+        height   = height,
+        device   = grDevices::pdf,
+        bg       = "white"
+      )
+    )
+  }, error = function(e) {
+    NULL
+  })
+
+  invisible(c(
+    png = png_path,
+    svg = if (file.exists(svg_path)) svg_path else NA_character_,
+    pdf = if (file.exists(pdf_path)) pdf_path else NA_character_
+  ))
 }
 
-#' Export a recorded base-R plot artifact to PNG and SVG
+#' Export a recorded base-R plot artifact to PNG, SVG, and PDF
 #'
 #' @param plot A recordedplot object.
 #' @param path Character. Output file path without extension.
@@ -90,6 +113,7 @@ export_recorded_plot_artifact <- function(plot, path,
 
   png_path <- paste0(path, ".png")
   svg_path <- paste0(path, ".svg")
+  pdf_path <- paste0(path, ".pdf")
   pixel_width <- max(1L, as.integer(round(width * dpi)))
   pixel_height <- max(1L, as.integer(round(height * dpi)))
 
@@ -111,8 +135,20 @@ export_recorded_plot_artifact <- function(plot, path,
     NULL
   })
 
+  tryCatch({
+    grDevices::pdf(file = pdf_path, width = width, height = height)
+    tryCatch({
+      grDevices::replayPlot(plot)
+    }, finally = {
+      grDevices::dev.off()
+    })
+  }, error = function(e) {
+    NULL
+  })
+
   invisible(c(
     png = png_path,
-    svg = if (file.exists(svg_path)) svg_path else NA_character_
+    svg = if (file.exists(svg_path)) svg_path else NA_character_,
+    pdf = if (file.exists(pdf_path)) pdf_path else NA_character_
   ))
 }
