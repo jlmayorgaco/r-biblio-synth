@@ -28,6 +28,7 @@ test_that("run_m3 artifacts contain plots and tables", {
 test_that("run_m3 attaches a report", {
   result <- run_m3(make_m3_minimal_fixture(), export = FALSE)
   expect_true(length(result$artifacts$reports) > 0)
+  expect_true(length(result$artifacts$reports[[1]]$tex) > 0)
 })
 
 test_that("run_m3 works on extended fixture without error", {
@@ -48,7 +49,20 @@ test_that("run_m3 with export = TRUE writes to tempdir", {
   cfg     <- biblio_config()
   cfg$output_dir <- tmp_dir
 
-  expect_no_error(
-    run_m3(make_m3_minimal_fixture(), config = cfg, export = TRUE)
-  )
+  expect_no_error({
+    result <- run_m3(make_m3_minimal_fixture(), config = cfg, export = TRUE)
+    expect_true(any(grepl("\\.png$", result$artifacts$manifest$plots, ignore.case = TRUE)))
+    expect_true(any(grepl("\\.svg$", result$artifacts$manifest$plots, ignore.case = TRUE)))
+    expect_true(any(grepl("\\.pdf$", result$artifacts$manifest$plots, ignore.case = TRUE)))
+    expect_true(any(grepl("\\.txt$", result$artifacts$manifest$reports, ignore.case = TRUE)))
+    expect_true(any(grepl("\\.tex$", result$artifacts$manifest$reports, ignore.case = TRUE)))
+  })
+})
+
+test_that("run_m3 attaches IEEE export metadata to rendered plots", {
+  result <- run_m3(make_m3_minimal_fixture(), export = FALSE)
+  plot_obj <- result$artifacts$plots$productivity$plots$bar_production
+  expect_s3_class(plot_obj, "ggplot")
+  expect_true(is.list(attr(plot_obj, "ieee_export_spec", exact = TRUE)))
+  expect_true(nzchar(plot_obj$labels$caption))
 })
