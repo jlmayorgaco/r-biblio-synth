@@ -1,0 +1,2 @@
+"model","family","equation","benchmark_model","benchmark_score","selected_score","adj_r2","rmse","smape","aic","bic","carrying_capacity","growth_rate","inflection_year","shape","headline_limitation"
+"Logistic","sigmoid","y = K / (1 + exp(-r*(t - t0)))","Logistic",0.986281617320783,0.986281617320783,0.99861,2.5775,4.15,107.362,111.5401,371.542173198993,0.200038561908542,2016.57333865977,,""
