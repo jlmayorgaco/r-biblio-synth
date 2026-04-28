@@ -13,6 +13,8 @@ test_that("export_plot_artifact exports recorded base-R plots", {
 
   expect_no_error(export_plot(recorded, tmp_base, width = 4, height = 4, dpi = 96))
   expect_true(file.exists(paste0(tmp_base, ".png")))
+  expect_true(file.exists(paste0(tmp_base, ".svg")))
+  expect_true(file.exists(paste0(tmp_base, ".pdf")))
 })
 
 test_that("run_m0 auto-builds PRISMA counts and methodology from partial spec", {
@@ -107,9 +109,67 @@ test_that("run_m0 exports PRISMA diagram and methodology with auto mode", {
   )
 
   expect_true(file.exists(file.path(out_dir, "m0", "plots", "m0_prisma_diagram.png")))
+  expect_true(file.exists(file.path(out_dir, "m0", "plots", "m0_prisma_diagram.svg")))
+  expect_true(file.exists(file.path(out_dir, "m0", "plots", "m0_prisma_diagram.pdf")))
   expect_true(file.exists(file.path(out_dir, "m0", "reports", "m0_prisma_report.txt")))
   expect_true(file.exists(file.path(out_dir, "m0", "reports", "m0_prisma_methodology.txt")))
   expect_true(file.exists(file.path(out_dir, "m0", "reports", "m0_prisma_methodology.tex")))
   expect_true(file.exists(file.path(out_dir, "m0", "json", "m0_prisma.json")))
   expect_s3_class(result$artifacts$manifest, "biblio_artifact_manifest")
+})
+
+test_that("run_m0 builds rich organized M0 tables for downstream modules", {
+  run_m0_ns <- get("run_m0", envir = asNamespace("RBiblioSynth"))
+  df <- data.frame(
+    AU = c("Smith J; Brown A", "Garcia M"),
+    TI = c("Paper A", "Paper B"),
+    PY = c(2020, 2021),
+    SO = c("Journal A", "Journal B"),
+    DI = c("10.1000/a", "10.1000/b"),
+    DT = c("Article", "Review"),
+    TC = c(5, 10),
+    AU_CO = c("USA; UK", "Colombia"),
+    C1 = c(
+      "Department of Energy, University of Texas, Austin, USA; Imperial College London, London, UK",
+      "Universidad Nacional de Colombia, Bogota, Colombia"
+    ),
+    AB = c(
+      "This study evaluates forecasting methods for power systems.",
+      "A systematic review of bibliometric workflows."
+    ),
+    DE = c("forecasting; power systems", "bibliometrics; prisma"),
+    ID = c("time series; regression", "systematic review"),
+    CR = c(
+      "Smith J, 2018, IEEE Transactions on Power Systems, V33, P100-110, DOI 10.1000/ref1; Brown A, 2019, Energy, V44, P20-30",
+      "Garcia M, 2017, Journal of Informetrics, V11, P40-50, DOI 10.1000/ref2"
+    ),
+    FX = c("Supported by National Science Foundation grant CCF1234567", ""),
+    stringsAsFactors = FALSE
+  )
+
+  file_a <- tempfile(fileext = ".csv")
+  on.exit(unlink(file_a), add = TRUE)
+  utils::write.csv(df, file_a, row.names = FALSE)
+
+  result <- run_m0_ns(
+    sources = list(src = list(file = file_a, db = "generic", format = "csv", prisma_role = "database")),
+    config = biblio_config(verbose = FALSE, cache_enabled = FALSE),
+    export = FALSE
+  )
+
+  organized <- result$data$organized
+  expect_true(all(c(
+    "documents", "author_documents", "country_documents", "affiliations", "locations",
+    "keywords_long", "abstracts", "references", "reference_stats", "funding"
+  ) %in% names(organized)))
+
+  expect_true(all(c("title", "year", "country", "n_keywords", "n_references", "status") %in% names(organized$documents)))
+  expect_true(all(c("author", "author_position", "weight") %in% names(organized$author_documents)))
+  expect_true(all(c("institution", "city", "country") %in% names(organized$affiliations)))
+  expect_true(all(c("location", "article_count") %in% names(organized$locations)))
+  expect_true(all(c("abstract_clean", "abstract_language", "abstract_word_count") %in% names(organized$abstracts)))
+  expect_true(all(c("keyword", "keyword_type") %in% names(organized$keywords_long)))
+  expect_true(all(c("reference_journal", "reference_doi", "citing_title") %in% names(organized$references)))
+  expect_equal(nrow(organized$reference_stats), 1)
+  expect_true(any(organized$funding$funding_type == "grant"))
 })
