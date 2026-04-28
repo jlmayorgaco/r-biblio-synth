@@ -48,3 +48,90 @@ make_extended_biblio_fixture <- function() {
     AU_CO = c("USA; UK", "USA; China", "UK; Germany", "USA", "USA; Japan")
   )
 }
+
+#' Create a richer bibliographic fixture for advanced M1 testing
+#'
+#' @return A tibble with enough variety for advanced M1 analyses.
+#' @export
+make_m1_rich_fixture <- function() {
+  n <- 24L
+  years <- rep(2014:2025, each = 2L)
+  authors_pool <- list(
+    c("Smith J", "Jones M"),
+    c("Garcia L", "Chen Y"),
+    c("Brown A", "Davis R"),
+    c("Taylor E", "Wilson T"),
+    c("Khan S", "Lopez P"),
+    c("Martin F", "Lee H")
+  )
+  topic_pool <- list(
+    c("grid stability", "voltage control", "power systems"),
+    c("frequency estimation", "control theory", "signal processing"),
+    c("load forecasting", "machine learning", "time series"),
+    c("renewable integration", "microgrid", "energy transition")
+  )
+  country_pool <- list(
+    c("USA", "UK"),
+    c("China", "USA"),
+    c("Germany", "Spain"),
+    c("Japan", "Canada")
+  )
+  source_pool <- c(
+    "IEEE Transactions on Smart Grid",
+    "Applied Energy",
+    "Energy",
+    "Electric Power Systems Research"
+  )
+
+  rows <- lapply(seq_len(n), function(i) {
+    author_pair <- authors_pool[[((i - 1L) %% length(authors_pool)) + 1L]]
+    if (i %% 3L == 0L) {
+      author_pair <- c(author_pair, "Patel N")
+    }
+    topic_set <- topic_pool[[((i - 1L) %% length(topic_pool)) + 1L]]
+    countries <- country_pool[[((i - 1L) %% length(country_pool)) + 1L]]
+    source <- source_pool[((i - 1L) %% length(source_pool)) + 1L]
+    year <- years[i]
+    citations <- as.integer(5 + (i * 3) + ((i - 1L) %% 4L) * 4L)
+    document_type <- if (i %% 7L == 0L) "review" else "article"
+
+    title <- paste("Advanced study", i, "on", topic_set[1], "for", gsub("IEEE Transactions on ", "", source))
+    keywords <- paste(c(topic_set, "bibliometrics", "power engineering"), collapse = "; ")
+    keywords_plus <- paste(toupper(gsub(" ", "_", c(topic_set, "analysis", "trend"))), collapse = "; ")
+    abstract <- paste(
+      "This study examines", topic_set[1], "and", topic_set[2],
+      "with emphasis on", topic_set[3], "across longitudinal energy datasets."
+    )
+    refs <- paste(
+      c(
+        sprintf("%s, %d, %s", author_pair[1], max(2000, year - 4L), source),
+        sprintf("Wang H, %d, Applied Energy", max(2001, year - 5L)),
+        sprintf("Miller D, %d, Energy", max(2002, year - 6L))
+      ),
+      collapse = "; "
+    )
+    c1 <- paste(
+      sprintf("University A, Department of Energy Systems, %s", countries[1]),
+      sprintf("University B, School of Engineering, %s", countries[2]),
+      collapse = "; "
+    )
+
+    tibble::tibble(
+      AU = paste(author_pair, collapse = "; "),
+      PY = as.integer(year),
+      TI = title,
+      SO = source,
+      TC = citations,
+      DI = sprintf("10.1000/rbs-%03d", i),
+      DT = document_type,
+      DE = keywords,
+      ID = keywords_plus,
+      AB = abstract,
+      AU_CO = paste(countries, collapse = "; "),
+      C1 = c1,
+      CR = refs
+    )
+  })
+
+  dplyr::bind_rows(rows)
+}
