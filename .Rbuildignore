@@ -39,3 +39,6 @@
 ^regenerate_figures\.Rout$
 ^error_log\.txt$
 ^example_.*$
+^temp_.*$
+^tmp_.*$
+^temp_results_.*$
