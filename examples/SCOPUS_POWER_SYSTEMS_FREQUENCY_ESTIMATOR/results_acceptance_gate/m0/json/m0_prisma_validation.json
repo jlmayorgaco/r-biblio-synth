@@ -1,0 +1,11 @@
+{
+  "ok": true,
+  "warnings": [],
+  "checks": {
+    "total_identified": 13020,
+    "after_dedup": 11831,
+    "records_screened": 11831,
+    "fulltext_assessed": 2543,
+    "studies_included": 1768
+  }
+}

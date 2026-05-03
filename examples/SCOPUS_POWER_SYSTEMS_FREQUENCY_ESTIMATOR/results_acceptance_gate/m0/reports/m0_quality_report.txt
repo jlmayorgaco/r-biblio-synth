@@ -1,0 +1,21 @@
+========================================
+        DATA QUALITY REPORT
+========================================
+
+Total documents: NA
+Total columns: NA
+
+--- Missing Values ---
+
+n_missing_authors: 19
+n_missing_years: 0
+n_invalid_years: 0
+n_missing_citations: 0
+n_missing_doi: 3350
+
+--- Potential Issues ---
+
+No major issues detected.
+
+--- Recommendations ---
+

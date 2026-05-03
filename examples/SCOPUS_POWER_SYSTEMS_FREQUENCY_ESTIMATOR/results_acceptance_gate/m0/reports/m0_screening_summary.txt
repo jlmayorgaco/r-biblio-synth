@@ -1,0 +1,32 @@
+============================================================
+Screening Ledger Summary
+Generated: 2026-04-30 22:48:07.736416
+============================================================
+Methodological mode: full-review
+Full-review ready: yes
+Total decisions: 30693
+Documents with decisions: 11831
+Unresolved conflicts: 0
+
+Stage Counts
+  - eligibility / include: 1768
+  - eligibility / exclude: 775
+  - included / include: 1768
+  - screening / exclude: 9288
+  - screening / include: 2543
+
+Exclusion Reasons
+  - eligibility / Insufficient methodological detail for synthesis: 748
+  - eligibility / Peripheral frequency/control focus outside review perimeter: 27
+  - screening / Unsupported document type: 4515
+  - screening / No explicit frequency-estimation focus: 3109
+  - screening / Non-power-system context: 1593
+  - screening / Non-English document: 71
+
+Reviewer Reliability
+  Mean Cohen's kappa: 0.657
+  Fleiss' kappa: -0.803
+  Krippendorff's alpha: 0.943
+  Percent agreement: 97.6%
+  Interpretation: Almost perfect agreement
+

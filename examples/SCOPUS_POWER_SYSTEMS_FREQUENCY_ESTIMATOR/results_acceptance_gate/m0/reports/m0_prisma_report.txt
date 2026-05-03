@@ -1,0 +1,57 @@
+============================================================
+PRISMA 2020 Flow Diagram - Systematic Review Report
+Generated: 2026-05-01 00:19:46.311271
+============================================================
+
+--- IDENTIFICATION ---
+  Records from databases: 13020
+  Records from other sources: 0
+  Total records identified: 13020
+  Duplicate records removed: 1189
+  Records after dedup: 11831
+
+--- SCREENING ---
+  Records screened (titles/abstracts): 11831
+  Records excluded at title/abstract: 9288
+
+--- ELIGIBILITY ---
+  Full-text articles assessed: 2543
+  Exclusion reasons:
+    - Insufficient methodological detail for synthesis: 748
+    - Peripheral frequency/control focus outside review perimeter: 27
+  Total excluded at full-text: 775
+
+--- INCLUDED ---
+  Studies included in review: 1768
+  By type:
+    - ARTICLE: 1519
+    - PROCEEDINGS PAPER: 4471
+    - Article: 52
+    - Conference paper: 85
+    - ARTICLE; PROCEEDINGS PAPER: 42
+    - REVIEW: 45
+    - ARTICLE; BOOK CHAPTER: 17
+    - ARTICLE; EARLY ACCESS: 5
+    - Conference review: 21
+    - EDITORIAL MATERIAL: 13
+    - Book chapter: 12
+    - Review: 1
+    - EDITORIAL MATERIAL; BOOK CHAPTER: 5
+    - ARTICLE; RETRACTED PUBLICATION: 1
+    - BOOK: 3
+    - CORRECTION: 3
+    - NOTE: 2
+    - REVIEW; EARLY ACCESS: 1
+    - Letter: 1
+    - LETTER: 1
+    - MEETING ABSTRACT: 1
+    - NEWS ITEM: 1
+    - PROCEEDINGS PAPER; RETRACTED PUBLICATION: 1
+    - Retracted: 1
+
+--- QUALITY ASSESSMENT ---
+  Low risk: 0
+  High risk: 0
+  Unclear: 0
+
+============================================================

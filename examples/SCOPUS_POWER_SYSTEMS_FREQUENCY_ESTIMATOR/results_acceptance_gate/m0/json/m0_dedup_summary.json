@@ -1,0 +1,12 @@
+[
+  {
+    "total_raw_records": 13020,
+    "unique_records": 11831,
+    "duplicates_removed": 1189,
+    "dedup_rate": 0.0913,
+    "methods_configured": "doi_exact;title_year_normalized",
+    "methods_applied": "doi_exact=827;title_year_normalized=336",
+    "multi_source_records": 1163,
+    "average_provenance_count": 1.1005
+  }
+]

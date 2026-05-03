@@ -1,0 +1,145 @@
+==========================================
+M1 Main Information Report
+==========================================
+
+Generated: 2026-04-30 23:55:10.115889
+Status: success
+
+--- Overview ---
+Documents : 11831
+Sources : 3154
+Authors : 21449
+Timespan : 1965-2026
+
+--- Document Types ---
+ARTICLE : 5299 (44.8%)
+PROCEEDINGS PAPER : 4471 (37.8%)
+Article : 828 (7.0%)
+Conference paper : 803 (6.8%)
+ARTICLE; PROCEEDINGS PAPER : 132 (1.1%)
+REVIEW : 132 (1.1%)
+ARTICLE; BOOK CHAPTER : 48 (0.4%)
+ARTICLE; EARLY ACCESS : 38 (0.3%)
+Conference review : 21 (0.2%)
+EDITORIAL MATERIAL : 13 (0.1%)
+Book chapter : 12 (0.1%)
+Review : 9 (0.1%)
+EDITORIAL MATERIAL; BOOK CHAPTER : 5 (0.0%)
+ARTICLE; RETRACTED PUBLICATION : 4 (0.0%)
+BOOK : 3 (0.0%)
+CORRECTION : 3 (0.0%)
+NOTE : 2 (0.0%)
+REVIEW; EARLY ACCESS : 2 (0.0%)
+Letter : 1 (0.0%)
+LETTER : 1 (0.0%)
+MEETING ABSTRACT : 1 (0.0%)
+NEWS ITEM : 1 (0.0%)
+PROCEEDINGS PAPER; RETRACTED PUBLICATION : 1 (0.0%)
+Retracted : 1 (0.0%)
+
+--- Authors ---
+Author productivity Gini: 0.178
+1 . LIU YL - 175 publications
+2 . VANFRETTI L - 89 publications
+3 . KAMWA I - 77 publications
+4 . PEGORARO PA - 76 publications
+5 . BI TS - 68 publications
+
+--- Author Indices ---
+Mean h-index: 1.28 | Max h-index: 32.00
+1 . LIU YL (h=32, g=49)
+2 . KAMWA I (h=30, g=61)
+3 . ZHAO JB (h=24, g=55)
+4 . TERZIJA V (h=22, g=42)
+5 . CHOW JH (h=21, g=35)
+
+--- Citations ---
+1 . Taming the underlying challenges of reliable multihop routing in sensor networks | 2003, SenSys'03: Proceedings of the First International Conference on Embedded Networked Sensor Systems - 1144 citations
+2 . MULTIRESONANT FREQUENCY-LOCKED LOOP FOR GRID SYNCHRONIZATION OF POWER CONVERT... | 2011, IEEE TRANSACTIONS ON INDUSTRIAL ELECTRONICS - 889 citations
+3 . SELF-SYNCHRONIZED SYNCHRONVERTERS: INVERTERS WITHOUT A DEDICATED SYNCHRONIZAT... | 2014, IEEE TRANSACTIONS ON POWER ELECTRONICS - 767 citations
+4 . SYNCHRONIZED PHASOR MEASUREMENT APPLICATIONS IN POWER SYSTEMS | 2010, IEEE TRANSACTIONS ON SMART GRID - 733 citations
+5 . Simple direct power control of three-phase PWM rectifier using space-vector m... | 2004, IEEE Transactions on Industrial Electronics - 687 citations
+
+--- Citation Analysis ---
+Total citations: 179255 | Mean: 15.15 | Median: 4.00 | Gini: 1.000
+Best fit distribution: Power Law
+Zero-citation share: 24.95% | Half-life: 10 years | Price Index: 0.150
+
+--- Countries ---
+Country production Gini: 0.750
+1 . China - 399 articles
+2 . United States - 393 articles
+3 . India - 139 articles
+4 . United Kingdom - 114 articles
+5 . Italy - 94 articles
+
+--- Sources ---
+Source concentration Gini: 0.197
+1 . IEEE TRANSACTIONS ON POWER SYSTEMS - 586 documents
+2 . IEEE TRANSACTIONS ON SMART GRID - 373 documents
+3 . IEEE ACCESS - 316 documents
+4 . INTERNATIONAL JOURNAL OF ELECTRICAL POWER & ENERGY SYSTEMS - 303 documents
+5 . ELECTRIC POWER SYSTEMS RESEARCH - 265 documents
+
+--- Keywords ---
+1 . Phasor Measurement Units - 1270
+2 . Phasor Measurement Unit - 909
+3 . Phasor Measurement Unit Pmu - 808
+4 . Frequency Estimation - 786
+5 . Pmu - 740
+6 . Power System Stability - 641
+7 . State Estimation - 587
+8 . Smart Grid - 483
+
+--- Keyword Structure ---
+Keyword network: 21407 keywords | 318198 unique pairs | density 0.001
+Network modularity: 0.000 | Small-world index: 1.086
+Detected communities: 20
+Burst detection: 5045 bursty keywords | 277 recent bursts
+
+--- Collaboration ---
+Collaboration index: 3.749
+Collaboration coefficient: 0.662 | Degree of collaboration: 0.958
+Mean authors per paper: 3.75
+
+--- Lotka ---
+Lotka alpha: 2.259
+K-S statistic: 0.007 | p-value: 0.1484
+
+--- Bradford ---
+Core: 24 sources, 3917 articles
+Moderate: 362 sources, 3966 articles
+Peripheral: 2767 sources, 3944 articles
+
+--- Price Law ---
+Price index: 0.099
+Top sqrt(N) authors contribution: 0.106
+Lower concentration than Price's Law predicts: top sqrt(n)=147 authors account for 10.6% of publications (< 50%). Literature half-life: median citation age is 8.0 years. Price's Index: 9.9% of references are from the last 5 years.
+
+--- Topic Modeling ---
+Topics extracted: 20 | Keyword source: DE
+Coherence: -148.881 | Perplexity: 358.518
+1 . Phasor Measurement Unit / Phasor Measurement Unit Pmu / State Estimation -> Phasor Measurement Unit, Phasor Measurement Unit Pmu, State Estimation, Observability, Optimal Placement, Optimal Pmu Placement, Dynamic State Estimation, Phasor Measurement Units, Optimal Pmu Placement Opp, Measurement Redundancy
+2 . Phasor Measurement Units / Phasor Measurement Unit / Smart Grid -> Phasor Measurement Units, Phasor Measurement Unit, Smart Grid, Synchrophasor, Transient Stability, Pmu, Synchrophasors, Phasor Measurement Unit Pmu, State Estimation, Wide Area Monitoring
+3 . Frequency Control / Power System Stability / Frequency Response -> Frequency Control, Power System Stability, Frequency Response, Frequency Stability, Frequency Measurement, Rate of Change of Frequency, Power System Dynamics, Inertia, Generators, Frequency Nadir
+4 . Pmu / Smart Grid / Phasor Measurement Unit -> Pmu, Smart Grid, Phasor Measurement Unit, Wams, Synchrophasor, Fault Location, Synchrophasors, Wide Area Monitoring, Frequency Estimation, Phasor Measurement Unit Pmu
+5 . Frequency Estimation / Harmonic / Phase Locked Loops -> Frequency Estimation, Harmonic Analysis, Phase Locked Loops, Synchronization, Phase Locked Loop Pll, Estimation, Power Harmonic Filters, Power Quality, Phase Estimation, Frequency Locked Loops
+
+--- Author Career ---
+Authors analyzed for career metrics: 16489
+1 . Liu Y (h=40, career=24 years)
+2 . Zhao J (h=31, career=20 years)
+3 . Kamwa I (h=30, career=31 years)
+4 . Zhang J (h=26, career=19 years)
+5 . Zhang Y (h=25, career=22 years)
+Rising stars: Peng H, Latha S, Javorskyj I
+
+--- Hypotheses ---
+Hypotheses tested: 12
+Rejected: 5 | Failed to reject: 7 | Inconclusive: 0
+H01_5 [reject]: Author productivity inequality follows Price's Law. Price index = 0.10 (expected near 0.5). Core authors = 42.4% (sqrt(N) = 0.7%).
+H01_7 [reject]: Citation distribution is highly concentrated (Gini > 0.7). Gini coefficient = 1.000. High concentration detected (>0.7).
+H01_8 [reject]: Document types follow expected proportions. Articles = 44.8% of documents. Unusual document type distribution.
+H01_10 [reject]: Core sources (top 1/3) contain 1/3 of articles. Core sources (1/3) contain NA% of articles (expected ~33%).
+H01_12 [reject]: Top 10% authors produce > 50% of articles. Top 10% authors produce 42.4% of articles.
+

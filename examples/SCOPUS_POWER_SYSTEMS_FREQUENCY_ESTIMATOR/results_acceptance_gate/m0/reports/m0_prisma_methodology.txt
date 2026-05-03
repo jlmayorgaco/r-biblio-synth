@@ -1,0 +1,63 @@
+============================================================
+PRISMA 2020 Methodology Narrative
+Generated: 2026-05-01 00:19:46.320047
+============================================================
+
+Review Perimeter
+  Topic: power systems frequency estimation
+  Research question: How has research on power-systems frequency estimation evolved in terms of themes, temporal dynamics, and geographical structure?
+  Research gap: An updated, integrated bibliometric-systematic synthesis of power-systems frequency estimation remains fragmented across methods, applications, and geographies.
+  Inclusion criteria: English-language scholarly documents focused on power-systems frequency estimation. | Documents indexed in Scopus or Web of Science and returned by the validated search string. | Records with sufficient bibliographic metadata for automated analysis.
+  Exclusion criteria: Records outside electric power-system frequency estimation. | Non-scholarly items or records without usable bibliographic metadata. | Duplicates retained after export harmonization.
+
+Methodological Mode
+  Mode: full-review
+  Status: PRISMA counts were derived from explicit screening decisions.
+
+Data Sources
+  - scopus [scopus, database, file]:  1842 records, search date 2026-05-01, query: TITLE-ABS-KEY(("power system*" OR grid OR microgrid) AND ("frequency estimation" OR "frequency estimator"))
+  - wos [wos, database, file]: 11178 records
+
+Workflow
+  Records were identified from database sources (n = 13020) and other sources (n = 0).
+  Deduplication removed 1189 records using: doi_exact; title_year_normalized.
+  Raw records: 13020; unique records after deduplication: 11831; multi-source records retained: 1163.
+  Screening considered 11831 records, with 9288 exclusions at title/abstract level.
+  Eligibility review assessed 2543 full-text records and excluded 775.
+  The final synthesis included 1768 studies.
+
+Search Metadata
+  Primary database: scopus
+  Secondary databases: web of science
+  Search date: 2026-04-30
+  Cross-check date: 2026-04-30
+  Time span: 1970 to 2026
+  Language restriction: English
+  Document types: article, review, conference paper
+  Primary query: TITLE-ABS-KEY(("power system*" OR grid OR microgrid) AND ("frequency estimation" OR "frequency estimator"))
+
+Exclusion Reasons
+  - Insufficient methodological detail for synthesis: 748
+  - Peripheral frequency/control focus outside review perimeter: 27
+
+Note: the following PRISMA stages were auto-derived from M0 runtime counts: identification, screening, eligibility, included.
+
+Runtime Import Counts
+  Database records loaded by M0: 13020.
+  Other-source records loaded by M0: 0.
+  Unique records after runtime deduplication: 11831.
+
+Screening Ledger
+  Screening decisions recorded: 30693.
+  Documents with explicit screening decisions: 11831.
+  Full-review ready: yes.
+  Unresolved conflicts: 0.
+  Reviewers: Reviewer A, Reviewer B
+  Conflict rule: discussion and consensus
+  Screening tool: RBiblioSynth screening ledger workflow
+  Quality tool: Protocol-defined eligibility assessment
+  Reviewer agreement (mean Cohen's kappa): 0.657.
+  Fleiss' kappa: -0.803.
+  Krippendorff's alpha: 0.943.
+  Percent agreement: 97.6%.
+

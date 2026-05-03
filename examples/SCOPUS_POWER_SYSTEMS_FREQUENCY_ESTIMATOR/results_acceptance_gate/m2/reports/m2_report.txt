@@ -1,0 +1,57 @@
+============================================================
+M2 Annual Production Report
+Generated: 2026-05-01 00:03:40.331179
+============================================================
+
+Executive Summary
+  Headline model: Quadratic
+  Flexible benchmark: Spline
+  Composite score: 0.6927
+  Best forecasting model: Naive
+  Hypothesis balance: 12 supported / 14 not supported / 10 inconclusive
+  Main-text hypothesis set: 16 primary findings tracked (9 supported / 5 cautionary / 2 inconclusive).
+
+Trend and Growth
+  CAGR: 4.25%
+  Recent CAGR: -68.89%
+  Sen slope: 12.088 articles/year
+  Mann-Kendall tau: 0.856 (p = 0.0000)
+  Hurst exponent: 0.777
+  Many candidate breakpoints were detected (15 total), indicating a multi-phase trajectory rather than a single rupture.
+
+Forecasting
+  Naive achieved CV MAE 4.200 versus naive 4.200 (relative improvement 0.0%).
+  Observed 95% interval coverage for Naive = 80.0% with mean width 12.281.
+  Selection basis: temporal_cv_and_information_criteria
+
+Advanced Journal Analytics
+  Headline advanced model: richards; capacity 12907.93; inflection 2023.4; distance to saturation 8.3%.
+  Best rolling-origin forecast: Drift at horizon 1 (MASE 1.117, RMSE 103.180).
+  Strongest changepoint consensus: 1999 with 8 supporting method(s), decision=supported.
+  Advanced hypotheses: 4 supported / 4 not supported / 2 inconclusive.
+
+Model Adequacy and Limitations
+  Residual normality p-value: 0.0000
+  Breusch-Pagan p-value: 0.0006
+  Durbin-Watson statistic: 0.344
+  Selection rationale: Selected Quadratic as the main interpretable model. Flexible benchmark Spline scored 0.9585, while the selected model scored 0.6927 with adjusted R2 0.6993.
+  Limitation: Residual normality is not supported by Shapiro-Wilk.
+  Limitation: Residual variance is not constant.
+  Forecast limitation: No major forecasting limitation was flagged by the default backtesting diagnostics.
+
+Primary Supported Findings
+  - Is there a robust consensus structural break in annual production? A dominant break around 2005 is supported by 4 detectors (consensus, PELT, CUSUM, BinSeg); agreement rate = 0.50.
+  - Does the annual slope change materially after the dominant structural break? The post-break slope changed by 28.201 articles/year relative to the pre-break slope around 2005.
+  - Is the selected headline model stable under bootstrap perturbations? The headline model Quadratic was re-selected in 66.7% of bootstrap refits.
+  - Did the volatility of annual production change after the dominant break? Post-break variance / pre-break variance = 239.085 around 2005.
+  - Does the series exhibit multiple growth regimes rather than a single-phase evolution? Segmented regimes increased R-squared by 0.262 across 15 retained breaks.
+  - Is annual production monotonic over time? Kendall tau = 0.856 (p = 0.0000). Increasing trend.
+
+Primary Cautionary Findings
+  - Do saturating interpretable models outperform simple non-saturating growth alternatives? Best saturating candidate VonBertalanffy scored 0.553 versus best simple candidate Quadratic at 0.693 (delta composite -0.140; delta AIC 43.312).
+  - Is a finite carrying capacity identifiable for the field? The selected model did not expose a finite carrying-capacity parameter. This remained inconclusive under the available evidence.
+  - Does the selected forecasting model outperform the naive baseline under temporal cross-validation? Forecast superiority could not be assessed because the best model was unavailable or identical to the naive baseline. This remained inconclusive under the available evidence.
+  - Are the forecast intervals calibrated and informative? Observed interval coverage = 0.800 versus nominal = 0.950.
+
+Appendix Scope
+  20 secondary or diagnostic hypotheses were retained for appendix interpretation rather than the main narrative.

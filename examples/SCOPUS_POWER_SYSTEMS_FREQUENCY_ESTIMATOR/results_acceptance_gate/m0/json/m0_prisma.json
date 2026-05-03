@@ -1,0 +1,174 @@
+{
+  "title": {},
+  "identification": {
+    "records_database": 13020,
+    "records_other": 0,
+    "duplicates_removed": 1189
+  },
+  "screening": {
+    "records_screened": 11831,
+    "excluded_screening": 9288
+  },
+  "eligibility": {
+    "fulltext_assessed": 2543,
+    "excluded_fulltext": 775,
+    "excluded_reasons": {
+      "Insufficient methodological detail for synthesis": 748,
+      "Peripheral frequency/control focus outside review perimeter": 27
+    }
+  },
+  "included": {
+    "studies_included": 1768,
+    "by_type": {
+      "ARTICLE": 1519,
+      "PROCEEDINGS PAPER": 4471,
+      "Article": 52,
+      "Conference paper": 85,
+      "ARTICLE; PROCEEDINGS PAPER": 42,
+      "REVIEW": 45,
+      "ARTICLE; BOOK CHAPTER": 17,
+      "ARTICLE; EARLY ACCESS": 5,
+      "Conference review": 21,
+      "EDITORIAL MATERIAL": 13,
+      "Book chapter": 12,
+      "Review": 1,
+      "EDITORIAL MATERIAL; BOOK CHAPTER": 5,
+      "ARTICLE; RETRACTED PUBLICATION": 1,
+      "BOOK": 3,
+      "CORRECTION": 3,
+      "NOTE": 2,
+      "REVIEW; EARLY ACCESS": 1,
+      "Letter": 1,
+      "LETTER": 1,
+      "MEETING ABSTRACT": 1,
+      "NEWS ITEM": 1,
+      "PROCEEDINGS PAPER; RETRACTED PUBLICATION": 1,
+      "Retracted": 1
+    }
+  },
+  "quality": {
+    "tool": {},
+    "low_risk": 0,
+    "high_risk": 0,
+    "unclear": 0
+  },
+  "methods": {
+    "auto_generated": true,
+    "deduplication": "doi_exact; title_year_normalized",
+    "source_registry": {
+      "1": [
+        {
+          "source_name": "scopus",
+          "db": "scopus",
+          "mode": "file",
+          "format": "bibtex",
+          "prisma_role": "database",
+          "file": "C:/Users/walla/Documents/Github/r-biblio-synth/examples/SCOPUS_POWER_SYSTEMS_FREQUENCY_ESTIMATOR/data/scopus.bib",
+          "query": "TITLE-ABS-KEY((\"power system*\" OR grid OR microgrid) AND (\"frequency estimation\" OR \"frequency estimator\"))",
+          "search_date": "2026-05-01",
+          "n_records": 1842
+        }
+      ],
+      "2": [
+        {
+          "source_name": "wos",
+          "db": "wos",
+          "mode": "file",
+          "format": "plaintext",
+          "prisma_role": "database",
+          "file": "C:/Users/walla/Documents/Github/r-biblio-synth/examples/SCOPUS_POWER_SYSTEMS_FREQUENCY_ESTIMATOR/data/wos_0.txt;C:/Users/walla/Documents/Github/r-biblio-synth/examples/SCOPUS_POWER_SYSTEMS_FREQUENCY_ESTIMATOR/data/wos_1.txt;C:/Users/walla/Documents/Github/r-biblio-synth/examples/SCOPUS_POWER_SYSTEMS_FREQUENCY_ESTIMATOR/data/wos_10.txt;C:/Users/walla/Documents/Github/r-biblio-synth/examples/SCOPUS_POWER_SYSTEMS_FREQUENCY_ESTIMATOR/data/wos_11.txt;C:/Users/walla/Documents/Github/r-biblio-synth/examples/SCOPUS_POWER_SYSTEMS_FREQUENCY_ESTIMATOR/data/wos_12.txt;C:/Users/walla/Documents/Github/r-biblio-synth/examples/SCOPUS_POWER_SYSTEMS_FREQUENCY_ESTIMATOR/data/wos_3.txt;C:/Users/walla/Documents/Github/r-biblio-synth/examples/SCOPUS_POWER_SYSTEMS_FREQUENCY_ESTIMATOR/data/wos_4.txt;C:/Users/walla/Documents/Github/r-biblio-synth/examples/SCOPUS_POWER_SYSTEMS_FREQUENCY_ESTIMATOR/data/wos_5.txt;C:/Users/walla/Documents/Github/r-biblio-synth/examples/SCOPUS_POWER_SYSTEMS_FREQUENCY_ESTIMATOR/data/wos_6.txt;C:/Users/walla/Documents/Github/r-biblio-synth/examples/SCOPUS_POWER_SYSTEMS_FREQUENCY_ESTIMATOR/data/wos_7.txt;C:/Users/walla/Documents/Github/r-biblio-synth/examples/SCOPUS_POWER_SYSTEMS_FREQUENCY_ESTIMATOR/data/wos_8.txt;C:/Users/walla/Documents/Github/r-biblio-synth/examples/SCOPUS_POWER_SYSTEMS_FREQUENCY_ESTIMATOR/data/wos_9.txt",
+          "n_records": 11178
+        }
+      ]
+    },
+    "notes": [],
+    "screening_derived": true,
+    "unresolved_screening_conflicts": 0,
+    "runtime_counts": {
+      "records_database": 13020,
+      "records_other": 0,
+      "duplicates_removed": 1189,
+      "records_after_dedup": 11831
+    },
+    "consistency_warnings": [],
+    "auto_derived_stages": {
+      "identification": true,
+      "screening": true,
+      "eligibility": true,
+      "included": true
+    },
+    "search_metadata": {
+      "title": "Power Systems Frequency Estimation B-SLR",
+      "review_topic": "power systems frequency estimation",
+      "overview_scan_date": "2026-04-30",
+      "research_gap": "An updated, integrated bibliometric-systematic synthesis of power-systems frequency estimation remains fragmented across methods, applications, and geographies.",
+      "research_question": "How has research on power-systems frequency estimation evolved in terms of themes, temporal dynamics, and geographical structure?",
+      "objectives": [
+        "Map the descriptive structure of the corpus.",
+        "Quantify the temporal evolution and forecasting profile of the field.",
+        "Identify geographical leadership, collaboration, and comparative positioning."
+      ],
+      "inclusion_criteria": [
+        "English-language scholarly documents focused on power-systems frequency estimation.",
+        "Documents indexed in Scopus or Web of Science and returned by the validated search string.",
+        "Records with sufficient bibliographic metadata for automated analysis."
+      ],
+      "exclusion_criteria": [
+        "Records outside electric power-system frequency estimation.",
+        "Non-scholarly items or records without usable bibliographic metadata.",
+        "Duplicates retained after export harmonization."
+      ],
+      "primary_database": "scopus",
+      "secondary_databases": "web of science",
+      "queries": {
+        "primary": "TITLE-ABS-KEY((\"power system*\" OR grid OR microgrid) AND (\"frequency estimation\" OR \"frequency estimator\"))",
+        "by_database": []
+      },
+      "first_run_date": "2026-04-30",
+      "crosscheck_date": "2026-04-30",
+      "time_span": {
+        "start": 1970,
+        "end": 2026
+      },
+      "language": "English",
+      "document_types": [
+        "article",
+        "review",
+        "conference paper"
+      ],
+      "reviewers": [
+        "Reviewer A",
+        "Reviewer B"
+      ],
+      "conflict_rule": "discussion and consensus",
+      "screening_tool": "RBiblioSynth screening ledger workflow",
+      "quality_tool": "Protocol-defined eligibility assessment",
+      "agreement_target": 0.8,
+      "data_extraction_fields": [
+        "aim",
+        "method",
+        "application_context",
+        "signal_model",
+        "validation_strategy",
+        "key_findings",
+        "limitations",
+        "contribution"
+      ],
+      "bibliometric_approach": "bibliographic_coupling",
+      "secondary_approach": "co_citation",
+      "min_cluster_size": 5,
+      "resolution": 1,
+      "ranking_rule": "hybrid",
+      "cluster_labeling_process": "Representative papers are read independently and cluster labels are assigned through consensus.",
+      "sample_selection_criteria": "Representative papers are prioritised through hybrid ranking using normalized citations and within-cluster centrality.",
+      "theorising_modes": [
+        "research_agenda",
+        "taxonomy",
+        "conceptual_framework"
+      ],
+      "theorising_perimeter": "The theorising perimeter focuses on methodological categories, application domains, and future research opportunities in frequency estimation.",
+      "theorising_rationale": "The synthesis aims to turn descriptive and structural evidence into a research agenda and conceptual map.",
+      "contribution_goal": "Produce a journal-oriented bibliometric-systematic review scaffold with a defensible research agenda."
+    }
+  }
+}

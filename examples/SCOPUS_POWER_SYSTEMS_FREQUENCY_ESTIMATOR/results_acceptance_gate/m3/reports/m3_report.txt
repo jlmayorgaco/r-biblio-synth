@@ -1,0 +1,105 @@
+==========================================
+M3 Countries Module Report
+==========================================
+
+Generated: 2026-05-01 00:12:16.659436
+Status   : success
+Countries: 144
+
+--- Executive Overview ---
+  Leading producer  : United States (3127)
+  Leading citer     : United States (65159)
+
+--- Production ---
+  Total articles   : 15687
+  Countries active : 144
+  Gini (articles)  : 0.8258
+  Top producer     : United States (3127)
+
+--- Citations ---
+  Total citations  : 259947
+  Countries        : 144
+  Gini (citations) : 0.8581
+  Top cited        : United States (65159)
+
+--- Collaboration (SCP/MCP) ---
+  Total SCP        : 8629
+  Total MCP        : 7058
+  Overall MCP ratio: 45.0%
+  Top collaborator : N/A
+
+--- Inequality / Concentration ---
+  Production Gini  : 0.8258
+  Production HHI   : 0.0807
+  Production Top-5 : 53.2%
+  Citations  Gini  : 0.8581
+  Citations  HHI   : 0.0971
+  Citations  Top-5 : 56.5%
+
+--- Growth Dynamics ---
+  Years covered    : 62
+  Median prod CAGR : 10.53%
+  Median prod slope: 1.272
+  Median cit  CAGR : 2.23%
+
+--- Structural Breaks ---
+  Productivity CPs : 10
+  Citation CPs     : 9
+  Interpretive note: detected breaks are exploratory and should be triangulated with M2 before strong causal interpretation.
+
+--- Country Profiles ---
+  Countries profiled  : 144
+  Features used       : 6
+  PCA performed       : Yes
+  Clustering performed: Yes
+  Clusters (k)        : 2
+
+--- Spatial Structure ---
+  Moran's I        : -0.0070
+  Moran p-value    : not estimable
+  Hotspots flagged : 0
+  Interpretive note: global spatial significance was not estimable under the current neighborhood structure.
+
+--- Regional Structure ---
+  Leading region   : Asia (39.2%)
+
+--- Economic Correlates ---
+  Matched countries: 54
+  Regression R2    : 0.6288
+  GDP beta         : not estimable
+  HDI beta         : -0.4485
+  Interpretive note: economic coefficients are directional associations and should not be interpreted causally.
+
+--- Temporal Dynamics ---
+  Rank mobility    : 5.63
+  Largest share gain: China (15.75 pp)
+  Largest share loss: United States (-47.37 pp)
+  Peak entry wave  : 2014 (9 new countries)
+  Trajectory signal: leadership is fluid, with substantial rank turnover across countries.
+
+--- Advanced Journal Analytics ---
+  MCP citation premium: 5.786 mean citations (95% CI 4.230 to 7.443; d=0.151).
+  Production concentration: Gini 0.826, Theil 1.649, HHI 0.081, Top-5 53.2%.
+  Rank stability: Spearman rho 0.530 (p=0.0000).
+  Trajectory classes: declining=17, emerging=6, late_entry=104, stable=4, volatile=10.
+  Age-normalized impact leader: Malawi (7.375 citations/year/article).
+  MCP trend: annual MCP-share slope 0.0064 (p=0.0000; R2=0.682).
+  Full/fractional robustness: Spearman rho 0.988; mean absolute rank shift 5.48.
+  Uncertainty layer: 14 bootstrap intervals exported for premium, dominance, and share-change claims.
+  Geographic outliers: 4 countries exceeded the residual impact-production threshold.
+  Advanced hypotheses: 13 supported / 1 not supported / 0 inconclusive.
+
+--- Experiments (Exploratory) ---
+  Quadrant analysis       : Yes
+  Concentration sensitivity: Yes
+  Momentum scoring        : Yes
+
+--- Limitations & Caveats ---
+  - Country normalization applies a fixed rule set; edge cases may exist.
+  - Multi-country results should be interpreted alongside the selected
+    counting mode and SCP/MCP breakdown.
+  - Change-point detection in M3 is exploratory and should be confirmed
+    with the richer breakpoint engine available in M2.
+  - Clustering uses k=2 by default; interpret with care for small samples.
+  - Shapiro-Wilk tests are informative only; p-values should not be
+    over-interpreted given non-random bibliometric samples.
