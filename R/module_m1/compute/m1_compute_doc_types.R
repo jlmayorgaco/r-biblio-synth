@@ -36,7 +36,16 @@ compute_m1_doc_types <- function(input, config = biblio_config()) {
     count = as.integer(unlist(dt_counts)),
     stringsAsFactors = FALSE
   )
-  dt_df <- dt_df[dt_df$count > 0, ]
+  dt_df <- dt_df[dt_df$count > 0, , drop = FALSE]
+
+  if (nrow(dt_df) == 0) {
+    return(list(
+      doc_type_table  = m1_empty_rank_table(),
+      doc_type_counts = dt_counts,
+      doc_type_percentages = list(),
+      status          = "success"
+    ))
+  }
 
   total <- sum(dt_df$count)
   dt_df$percentage <- m1_compute_percentage(dt_df$count, total)

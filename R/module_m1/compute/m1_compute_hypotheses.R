@@ -330,13 +330,24 @@ test_collaboration_trend_hypothesis <- function(input, config) {
   }
   
   slope <- coef(fit)[2]
-  p_value <- summary(fit)$coefficients[2, 4]
+  p_value <- suppressWarnings(summary(fit)$coefficients[2, 4])
   
   # Ensure scalar values
   slope <- slope[1]
   p_value <- p_value[1]
+
+  if (!is.finite(slope) || !is.finite(p_value)) {
+    return(list(
+      hyphypothesis = "Collaboration rate has increased over time",
+      null = "Collaboration rate is stable or decreasing",
+      result = "inconclusive",
+      slope = slope,
+      p_value = p_value,
+      interpretation = "Collaboration trend statistics were not estimable from the available yearly profile."
+    ))
+  }
   
-  result <- if (slope > 0 && p_value < 0.05) "reject_null" 
+  result <- if (slope > 0 && p_value < 0.05) "reject_null"
             else if (slope <= 0 && p_value < 0.05) "reject"
             else "fail_to_reject"
   
@@ -534,7 +545,20 @@ test_document_type_hypothesis <- function(input, config) {
     ))
   }
   
-  article_prop <- dt_table$proportion[dt_table$type == "Article"]
+  labels <- if ("label" %in% names(dt_table)) as.character(dt_table$label) else
+    if ("type" %in% names(dt_table)) as.character(dt_table$type) else character(nrow(dt_table))
+  article_mask <- tolower(labels) == "article"
+  article_prop <- if ("proportion" %in% names(dt_table)) {
+    dt_table$proportion[article_mask]
+  } else if ("percentage" %in% names(dt_table)) {
+    dt_table$percentage[article_mask] / 100
+  } else if ("value" %in% names(dt_table)) {
+    values <- suppressWarnings(as.numeric(dt_table$value))
+    total <- sum(values, na.rm = TRUE)
+    if (total > 0) values[article_mask] / total else numeric(0)
+  } else {
+    numeric(0)
+  }
   if (length(article_prop) == 0) article_prop <- NA
   if (length(article_prop) > 1) article_prop <- article_prop[1]
   
@@ -812,5 +836,141 @@ summarize_hypothesis_results <- function(hypotheses) {
     n_failed_to_reject = n_failed_to_reject,
     n_inconclusive = n_inconclusive,
     rejection_rate = if (n_total > 0) n_rejected / n_total else NA_real_
+  )
+}
+
+#' Conservative power-law test override with cleaner reporting
+#' @keywords internal
+test_citation_power_law_hypothesis <- function(input, config) {
+  tc_col <- get_citation_column(input)
+  if (is.null(tc_col)) {
+    return(list(
+      hyphypothesis = "Citation distribution follows power law",
+      null = "Citations do not follow power law",
+      result = "inconclusive",
+      interpretation = "No citation data available"
+    ))
+  }
+
+  citations <- input[[tc_col]]
+  citations <- citations[!is.na(citations) & citations > 0]
+  if (length(citations) < 50) {
+    return(list(
+      hyphypothesis = "Citation distribution follows power law",
+      null = "Citations do not follow power law",
+      result = "inconclusive",
+      interpretation = "Insufficient citation data"
+    ))
+  }
+
+  log_citations <- log(citations)
+  fit <- lm(log_citations ~ seq_along(citations))
+  r2 <- summary(fit)$r.squared
+  sorted_cites <- sort(citations, decreasing = TRUE)
+  rank <- seq_along(sorted_cites)
+  log_fit <- lm(log(sorted_cites) ~ log(rank))
+  power_exp <- coef(log_fit)[2]
+  if (length(power_exp) > 1) power_exp <- power_exp[1]
+
+  result <- if (abs(power_exp + 1) < 0.5) "fail_to_reject" else "reject"
+
+  list(
+    hyphypothesis = "Citation distribution follows power law",
+    null = "Citations do not follow power law",
+    result = result,
+    power_exponent = power_exp,
+    r_squared = r2,
+    n_citations = length(citations),
+    interpretation = sprintf(
+      "Fitted power exponent = %.2f (expected about -1 for power law). R^2 = %.3f.",
+      as.numeric(power_exp)[1],
+      r2[1]
+    )
+  )
+}
+
+#' Conservative Bradford test override
+#' @keywords internal
+test_bradford_hypothesis <- function(input, config) {
+  bradford_result <- tryCatch(compute_m1_bradford(input, config), error = function(e) NULL)
+  if (is.null(bradford_result) || (bradford_result$status %||% "error") != "success") {
+    return(list(
+      hyphypothesis = "Bradford's Law applies to source distribution",
+      null = "Source distribution does not follow Bradford's Law",
+      result = "inconclusive",
+      interpretation = "Could not compute Bradford zones"
+    ))
+  }
+
+  coeff <- bradford_result$bradford_coefficient %||% NA_real_
+  n_sources <- bradford_result$n_sources %||% NA_real_
+  coeff <- suppressWarnings(as.numeric(coeff)[1])
+  n_sources <- suppressWarnings(as.numeric(n_sources)[1])
+
+  if (!is.finite(coeff)) {
+    return(list(
+      hyphypothesis = "Bradford's Law applies to source distribution",
+      null = "Source distribution does not follow Bradford's Law",
+      result = "inconclusive",
+      interpretation = "Bradford coefficient could not be estimated"
+    ))
+  }
+
+  result <- if (coeff < 2) "fail_to_reject" else "reject"
+  list(
+    hyphypothesis = "Bradford's Law applies to source distribution",
+    null = "Source distribution does not follow Bradford's Law",
+    result = result,
+    bradford_coefficient = coeff,
+    n_sources = n_sources,
+    interpretation = sprintf(
+      "Bradford coefficient = %.2f. %s",
+      coeff,
+      if (result == "fail_to_reject") "Distribution follows a Bradford-like pattern." else "Distribution deviates from a Bradford-like pattern."
+    )
+  )
+}
+
+#' Conservative Price-law test override
+#' @keywords internal
+test_price_law_hypothesis <- function(input, config) {
+  price_result <- tryCatch(compute_m1_price_law(input, config), error = function(e) NULL)
+  if (is.null(price_result) || (price_result$status %||% "error") != "success") {
+    return(list(
+      hyphypothesis = "Author productivity inequality follows Price's Law",
+      null = "Productivity distribution does not follow Price's Law",
+      result = "inconclusive",
+      interpretation = "Could not compute Price's Law metrics"
+    ))
+  }
+
+  price_index <- suppressWarnings(as.numeric((price_result$price_index$index %||% NA_real_))[1])
+  core_prop <- suppressWarnings(as.numeric((price_result$author_concentration$top_10_pct_share %||% NA_real_))[1])
+  n_authors_val <- suppressWarnings(as.numeric((price_result$price_law$n_authors %||% 100))[1])
+  expected_core_prop <- 1 / sqrt(max(n_authors_val, 1))
+
+  if (!is.finite(price_index)) {
+    return(list(
+      hyphypothesis = "Author productivity inequality follows Price's Law",
+      null = "Productivity distribution does not follow Price's Law",
+      result = "inconclusive",
+      interpretation = "Price index could not be estimated from the available data"
+    ))
+  }
+
+  result <- if (abs(price_index - 0.5) < 0.2) "fail_to_reject" else "reject"
+  list(
+    hyphypothesis = "Author productivity inequality follows Price's Law",
+    null = "Productivity distribution does not follow Price's Law",
+    result = result,
+    price_index = price_index,
+    core_author_proportion = core_prop,
+    expected_core = expected_core_prop,
+    interpretation = sprintf(
+      "Price index = %.2f (expected near 0.5). Core authors = %.1f%% (sqrt(N) = %.1f%%).",
+      price_index,
+      core_prop * 100,
+      expected_core_prop * 100
+    )
   )
 }

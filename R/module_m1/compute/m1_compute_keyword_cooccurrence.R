@@ -14,7 +14,6 @@
 #' @return List with network data, metrics, and visualization data
 #' @export
 compute_m1_keyword_cooccurrence <- function(input, config = biblio_config()) {
-  cat("      [M1-kw-cooc] Starting...\n")
   validate_is_data_frame(input)
   
   kw_col <- NULL
@@ -24,8 +23,6 @@ compute_m1_keyword_cooccurrence <- function(input, config = biblio_config()) {
       break
     }
   }
-  cat("      [M1-kw-cooc] Using column:", kw_col, "\n")
-  
   if (is.null(kw_col)) {
     return(list(
       adjacency = matrix(0, 0, 0),
@@ -35,12 +32,7 @@ compute_m1_keyword_cooccurrence <- function(input, config = biblio_config()) {
     ))
   }
   
-  cat("      [M1-kw-cooc] Extracting keywords...\n")
   keywords <- extract_keywords(input[[kw_col]])
-  cat("      [M1-kw-cooc] Extracted", length(keywords), "documents with keywords\n")
-  
-  cat("      [M1-kw-cooc] Building co-occurrence matrix...\n")
-  flush.console()
   
   if (length(keywords) == 0) {
     return(list(
@@ -52,8 +44,6 @@ compute_m1_keyword_cooccurrence <- function(input, config = biblio_config()) {
   }
   
   cooc_matrix <- build_cooccurrence_matrix(keywords)
-  cat("      [M1-kw-cooc] Co-occurrence matrix built:", nrow(cooc_matrix), "x", ncol(cooc_matrix), "\n")
-  flush.console()
   
   if (nrow(cooc_matrix) == 0) {
     return(list(
@@ -81,7 +71,11 @@ compute_m1_keyword_cooccurrence <- function(input, config = biblio_config()) {
     unique_pairs = sum(cooc_matrix > 0) / 2,
     avg_cooccurrence = mean(cooc_matrix[cooc_matrix > 0]),
     max_cooccurrence = max(cooc_matrix),
-    density = sum(cooc_matrix > 0) / (ncol(cooc_matrix)^2 - ncol(cooc_matrix)),
+    density = if (ncol(cooc_matrix) > 1) {
+      sum(cooc_matrix > 0) / (ncol(cooc_matrix)^2 - ncol(cooc_matrix))
+    } else {
+      0
+    },
     top_keywords = names(keyword_freq)[1:min(10, length(keyword_freq))],
     top_pairs = get_top_pairs(cooc_matrix, 20)
   )

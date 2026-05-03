@@ -19,7 +19,7 @@ compute_m1_author_career <- function(input, config = biblio_config()) {
   }
   
   # Extract authors and their papers
-  author_data <- extract_author_papers(input, au_col, py_col, tc_col)
+  author_data <- extract_author_career_papers(input, au_col, py_col, tc_col)
   
   if (length(author_data) == 0) {
     return(list(status = "error: no authors found"))
@@ -130,11 +130,14 @@ compute_m1_author_career <- function(input, config = biblio_config()) {
       status = "success"
     ))
   }
+
+  career_df$display_author <- vapply(career_df$author, m1_author_display_label, character(1))
   
   # Top authors by various metrics
   top_by_papers <- head(career_df[order(-as.numeric(career_df$total_papers)), ], 20)
   top_by_citations <- head(career_df[order(-as.numeric(career_df$total_citations)), ], 20)
   top_by_h_index <- head(career_df[order(-as.numeric(career_df$h_index)), ], 20)
+  trajectories <- build_author_trajectories(author_data, top_by_citations$author)
   
   # Rising stars (high M-index, early career)
   rising <- career_df[career_df$career_stage == "early", , drop = FALSE]
@@ -152,14 +155,82 @@ compute_m1_author_career <- function(input, config = biblio_config()) {
     top_by_h_index = top_by_h_index,
     rising_stars = rising_stars,
     established_stars = established_stars,
+    trajectories = trajectories,
     n_authors = length(author_data),
     status = "success"
   )
 }
 
+#' Build cumulative author trajectories
+#' @keywords internal
+build_author_trajectories <- function(author_data, authors = character()) {
+  if (length(author_data) == 0) {
+    return(data.frame(
+      author = character(),
+      year = numeric(),
+      papers = integer(),
+      citations = numeric(),
+      cumulative_papers = numeric(),
+      cumulative_citations = numeric(),
+      stringsAsFactors = FALSE
+    ))
+  }
+
+  if (length(authors) == 0) {
+    authors <- names(author_data)
+  }
+
+  authors <- unique(authors[authors %in% names(author_data)])
+  authors <- authors[seq_len(min(length(authors), 10))]
+
+  trajectory_rows <- lapply(authors, function(author) {
+    papers <- author_data[[author]]
+    if (is.null(papers) || !is.list(papers) || is.null(papers$year) || length(papers$year) == 0) {
+      return(NULL)
+    }
+
+    years <- as.numeric(papers$year)
+    citations <- as.numeric(papers$citations)
+    valid <- !is.na(years)
+    if (!any(valid)) {
+      return(NULL)
+    }
+
+    yearly <- stats::aggregate(
+      cbind(papers = rep(1L, sum(valid)), citations = citations[valid]) ~ year,
+      data = data.frame(
+        year = years[valid],
+        citations = citations[valid]
+      ),
+      FUN = sum
+    )
+    yearly <- yearly[order(yearly$year), , drop = FALSE]
+    yearly$cumulative_papers <- cumsum(yearly$papers)
+    yearly$cumulative_citations <- cumsum(yearly$citations)
+    yearly$author <- author
+    yearly
+  })
+
+  out <- do.call(rbind, trajectory_rows[!vapply(trajectory_rows, is.null, logical(1))])
+  if (is.null(out)) {
+    return(data.frame(
+      author = character(),
+      year = numeric(),
+      papers = integer(),
+      citations = numeric(),
+      cumulative_papers = numeric(),
+      cumulative_citations = numeric(),
+      stringsAsFactors = FALSE
+    ))
+  }
+
+  rownames(out) <- NULL
+  out
+}
+
 #' Extract author papers
 #' @keywords internal
-extract_author_papers <- function(input, au_col, py_col, tc_col) {
+extract_author_career_papers <- function(input, au_col, py_col, tc_col) {
   authors_list <- strsplit(as.character(input[[au_col]]), ";")
   years <- as.numeric(input[[py_col]])
   citations <- if (tc_col %in% names(input)) as.numeric(input[[tc_col]]) else rep(0, nrow(input))
@@ -196,22 +267,64 @@ extract_author_papers <- function(input, au_col, py_col, tc_col) {
   author_papers
 }
 
+#' Convert canonical author key into a journal-facing display label
+#' @keywords internal
+m1_author_display_label <- function(name) {
+  raw_name <- trimws(as.character(name))
+  if (!nzchar(raw_name) || is.na(raw_name)) {
+    return(raw_name)
+  }
+
+  if (grepl(",", raw_name, fixed = TRUE)) {
+    split_name <- strsplit(raw_name, ",", fixed = TRUE)[[1]]
+    last_name <- trimws(split_name[1])
+    initials <- gsub("\\s+", " ", trimws(paste(split_name[-1], collapse = " ")))
+    initials <- gsub("[^A-Za-z ]", "", initials)
+    initials <- trimws(initials)
+    return(trimws(paste(last_name, initials)))
+  }
+
+  raw_name
+}
+
 #' Normalize author name
 #' @keywords internal
 normalize_author_name <- function(name) {
-  name <- tolower(name)
-  name <- gsub("[[:punct:]]", " ", name)
-  name <- gsub("\\s+", " ", name)
-  name <- trimws(name)
-  
-  # Last name, first initial format
-  parts <- strsplit(name, "\\s+")[[1]]
-  if (length(parts) == 0) return(name)
-  
+  raw_name <- trimws(as.character(name))
+  if (!nzchar(raw_name)) return(raw_name)
+
+  to_title <- function(x) {
+    parts <- unlist(strsplit(tolower(x), "\\s+"))
+    parts <- parts[nzchar(parts)]
+    paste0(toupper(substr(parts, 1, 1)), substring(parts, 2), collapse = " ")
+  }
+
+  if (grepl(",", raw_name, fixed = TRUE)) {
+    split_name <- strsplit(raw_name, ",", fixed = TRUE)[[1]]
+    last_name <- trimws(split_name[1])
+    given_name <- paste(trimws(split_name[-1]), collapse = " ")
+    given_parts <- unlist(strsplit(gsub("[[:punct:]]", " ", given_name), "\\s+"))
+    given_parts <- given_parts[nzchar(given_parts)]
+    initials <- paste(toupper(substr(given_parts, 1, 1)), collapse = "")
+    return(paste(to_title(last_name), initials, sep = ", "))
+  }
+
+  clean_name <- gsub("[[:punct:]]", " ", raw_name)
+  clean_name <- gsub("\\s+", " ", clean_name)
+  parts <- unlist(strsplit(trimws(clean_name), "\\s+"))
+  if (length(parts) == 0) return(raw_name)
+
+  # Heuristic: "Lastname Initial" or "Lastname Initial Initial" is common in
+  # bibliographic exports and should not be inverted to "Initial, L".
+  if (length(parts) >= 2 && nchar(parts[1]) > 1 && all(nchar(parts[-1]) <= 2)) {
+    last_name <- parts[1]
+    initials <- paste(toupper(substr(parts[-1], 1, 1)), collapse = "")
+    return(paste(to_title(last_name), initials, sep = ", "))
+  }
+
   last_name <- parts[length(parts)]
-  first_initials <- paste(substr(parts[-length(parts)], 1, 1), collapse = "")
-  
-  paste(last_name, first_initials, sep = ", ")
+  initials <- if (length(parts) > 1) paste(toupper(substr(parts[-length(parts)], 1, 1)), collapse = "") else ""
+  paste(to_title(last_name), initials, sep = ", ")
 }
 
 #' Compute M-index (h-index / career length)

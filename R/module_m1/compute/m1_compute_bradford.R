@@ -15,9 +15,7 @@ compute_m1_bradford <- function(input, config = biblio_config()) {
                 zone_summary = list(), status = "error"))
   }
 
-  source_df <- tryCatch({
-    bibliometrix::bradford(input)$table
-  }, error = function(e) m1_bradford_manual(input))
+  source_df <- m1_bradford_manual(input)
 
   if (nrow(source_df) == 0) {
     return(list(bradford_table = tibble::tibble(), core_sources = m1_empty_rank_table(),

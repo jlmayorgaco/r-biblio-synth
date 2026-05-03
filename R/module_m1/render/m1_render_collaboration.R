@@ -143,5 +143,3 @@ create_authors_per_paper_plot <- function(result, config) {
   
   p
 }
-
-`%||%` <- function(a, b) if (!is.null(a)) a else b

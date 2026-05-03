@@ -67,11 +67,11 @@ create_burst_timeline_plot <- function(data, config) {
   p <- ggplot2::ggplot(top_bursts) +
     ggplot2::geom_segment(
       ggplot2::aes(x = start_year, xend = end_year, y = keyword, yend = keyword,
-                   color = strength, size = height),
+                   color = strength, linewidth = height),
       arrow = ggplot2::arrow(length = ggplot2::unit(0.1, "inches"), type = "closed")
     ) +
     ggplot2::scale_color_gradient(low = "#FED876", high = "#FB7E06", name = "Strength") +
-    ggplot2::scale_size_continuous(range = c(1, 3), name = "Height") +
+    ggplot2::scale_linewidth_continuous(range = c(1, 3), name = "Height") +
     ggplot2::scale_x_continuous(name = "Year", expand = ggplot2::expansion(mult = c(0.05, 0.1))) +
     ieee_theme() +
     ggplot2::labs(

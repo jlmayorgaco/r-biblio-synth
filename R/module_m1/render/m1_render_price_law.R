@@ -150,5 +150,3 @@ create_contribution_pie <- function(result, config) {
   
   p
 }
-
-`%||%` <- function(a, b) if (!is.null(a)) a else b

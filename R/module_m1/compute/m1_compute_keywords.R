@@ -35,10 +35,22 @@ compute_m1_keywords <- function(input, config = biblio_config()) {
   })
 
   if (length(kw_data$keywords) > 0) {
+    kw_df <- data.frame(
+      keyword = as.character(kw_data$keywords),
+      freq = as.numeric(kw_data$freq),
+      stringsAsFactors = FALSE
+    )
+    kw_df$keyword_norm <- m1_normalize_keyword_phrase(kw_df$keyword)
+    kw_df <- kw_df[!is.na(kw_df$keyword_norm) & nzchar(kw_df$keyword_norm), , drop = FALSE]
+    kw_df <- kw_df |>
+      dplyr::group_by(keyword_norm) |>
+      dplyr::summarise(value = sum(freq, na.rm = TRUE), .groups = "drop") |>
+      dplyr::arrange(dplyr::desc(value), keyword_norm)
+
     top_keywords <- tibble::tibble(
-      rank  = seq_len(min(top_n, length(kw_data$keywords))),
-      label = kw_data$keywords[1:min(top_n, length(kw_data$keywords))],
-      value = kw_data$freq[1:min(top_n, length(kw_data$freq))]
+      rank  = seq_len(min(top_n, nrow(kw_df))),
+      label = kw_df$keyword_norm[1:min(top_n, nrow(kw_df))],
+      value = kw_df$value[1:min(top_n, nrow(kw_df))]
     )
   } else {
     top_keywords <- m1_empty_rank_table()

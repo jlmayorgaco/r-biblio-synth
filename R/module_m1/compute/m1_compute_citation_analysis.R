@@ -112,8 +112,12 @@ fit_citation_distributions <- function(citations) {
   
   # KS test for goodness of fit
   ks_tests <- list(
-    power_law = tryCatch(ks.test(citations, function(x) ppareto(x, power_law$xmin, power_law$alpha)), error = function(e) NULL),
-    log_normal = tryCatch(ks.test(log(citations), "pnorm", log_normal$meanlog, log_normal$sdlog), error = function(e) NULL)
+    power_law = tryCatch(suppressWarnings(
+      ks.test(citations, function(x) ppareto(x, power_law$xmin, power_law$alpha))
+    ), error = function(e) NULL),
+    log_normal = tryCatch(suppressWarnings(
+      ks.test(log(citations), "pnorm", log_normal$meanlog, log_normal$sdlog)
+    ), error = function(e) NULL)
   )
   
   results$comparison <- data.frame(
@@ -154,8 +158,10 @@ fit_power_law <- function(x) {
     
     # KS statistic
     ks_stat <- tryCatch({
-      cdf_empirical <- cumsum(table(x_tail)) / n_tail
-      cdf_theoretical <- 1 - (xmin / sort(x_tail))^(alpha - 1)
+      x_unique <- sort(unique(x_tail))
+      counts <- tabulate(match(x_tail, x_unique), nbins = length(x_unique))
+      cdf_empirical <- cumsum(counts) / n_tail
+      cdf_theoretical <- 1 - (xmin / x_unique)^(alpha - 1)
       max(abs(cdf_empirical - cdf_theoretical))
     }, error = function(e) Inf)
     
@@ -486,7 +492,7 @@ compute_citation_velocity <- function(input, tc_col) {
   if (nrow(velocity_by_year) > 2) {
     velocity_fit <- lm(median_velocity ~ year, data = velocity_by_year)
     velocity_trend <- coef(velocity_fit)[2]
-    velocity_trend_p <- summary(velocity_fit)$coefficients[2, 4]
+    velocity_trend_p <- suppressWarnings(summary(velocity_fit)$coefficients[2, 4])
   } else {
     velocity_trend <- NA
     velocity_trend_p <- NA

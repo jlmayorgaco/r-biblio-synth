@@ -120,10 +120,13 @@ compute_m1_keyword_burst <- function(input, config = biblio_config()) {
     summary = list(
       n_keywords = length(all_keywords),
       n_bursty_keywords = length(burst_results),
-      n_recent_bursts = sum(sapply(burst_results, function(x) {
+      n_recent_bursts = sum(vapply(burst_results, function(x) {
         if (length(x$bursts) == 0) return(FALSE)
-        any(sapply(x$bursts, function(b) b$start_year >= max(years) - 3))
-      })),
+        any(vapply(x$bursts, function(b) {
+          start_year <- b$start_year %||% NA_integer_
+          !is.na(start_year) && start_year >= max(years) - 3
+        }, logical(1)))
+      }, logical(1))),
       max_burst_height = if (length(burst_results) > 0) max(sapply(burst_results, function(x) x$max_height), na.rm = TRUE) else 0,
       parameters = list(s = s)
     ),

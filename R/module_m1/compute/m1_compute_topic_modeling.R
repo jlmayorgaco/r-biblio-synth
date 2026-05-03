@@ -59,6 +59,7 @@ compute_m1_topic_modeling <- function(input, config = biblio_config()) {
   
   # Document-topic distribution
   doc_topics <- get_document_topics(lda_result, nrow(dtm))
+  doc_topic_weights <- flatten_document_topic_weights(lda_result$gamma)
   
   # Topic metrics
   topic_metrics <- compute_topic_metrics(lda_result, topics_df, doc_topics)
@@ -74,7 +75,9 @@ compute_m1_topic_modeling <- function(input, config = biblio_config()) {
     status = "success",
     n_topics = n_topics,
     topics = topics_df,
+    topic_terms_long = topics_result$topic_terms_long,
     document_topics = doc_topics,
+    document_topic_weights = doc_topic_weights,
     topic_metrics = topic_metrics,
     topic_evolution = topic_evolution,
     topic_cooccurrence = topic_cooccurrence,
@@ -88,17 +91,31 @@ compute_m1_topic_modeling <- function(input, config = biblio_config()) {
 #' Extract keywords from column
 #' @keywords internal
 extract_keywords <- function(keyword_column) {
+  abstract_stopwords <- c(
+    "the", "and", "for", "with", "from", "into", "that", "this", "these", "those",
+    "study", "studies", "analysis", "review", "reviews", "paper", "article",
+    "using", "based", "approach", "approaches", "method", "methods", "results",
+    "through", "across", "among", "between", "within", "their", "there", "which"
+  )
+
   keywords_list <- lapply(as.character(keyword_column), function(x) {
     if (is.na(x) || x == "") return(character(0))
-    
-    # Split by semicolon or comma
-    kw <- strsplit(x, "[;,]")[[1]]
-    kw <- trimws(kw)
-    kw <- tolower(kw)
-    kw <- gsub("[^a-z0-9 ]", "", kw)
-    kw <- kw[kw != "" & nchar(kw) > 2]
-    
-    kw
+
+    if (grepl("[;,]", x)) {
+      kw <- strsplit(x, "[;,]")[[1]]
+      kw <- trimws(kw)
+      kw <- m1_normalize_keyword_phrase(kw)
+      kw <- kw[!is.na(kw) & nzchar(kw)]
+      return(unique(kw))
+    }
+
+    kw <- tolower(x)
+    kw <- gsub("[^a-z0-9 ]", " ", kw)
+    kw <- gsub("\\s+", " ", trimws(kw))
+    tokens <- unlist(strsplit(kw, "\\s+"))
+    tokens <- tokens[nchar(tokens) > 2 & !tokens %in% abstract_stopwords]
+    tokens <- unique(m1_title_case_phrase(tokens))
+    tokens[!is.na(tokens) & nzchar(tokens)]
   })
   
   names(keywords_list) <- seq_along(keywords_list)
@@ -310,18 +327,21 @@ extract_topics <- function(lda_result, dtm, n_top_words = 10) {
   terms <- colnames(beta)
   
   if (is.null(terms)) {
+    terms <- colnames(dtm)
+  }
+  if (is.null(terms)) {
     terms <- paste0("term", 1:ncol(beta))
   }
   
   topics_list <- list()
+  topic_terms_long <- list()
   
   for (k in 1:n_topics) {
     top_idx <- order(beta[k, ], decreasing = TRUE)[1:n_top_words]
     top_words <- terms[top_idx]
     top_probs <- beta[k, top_idx]
     
-    # Topic label (first few words)
-    label <- paste(top_words[1:min(3, length(top_words))], collapse = "_")
+    label <- m1_make_topic_label(top_words)
     
     topics_list[[k]] <- list(
       topic_id = k,
@@ -330,18 +350,27 @@ extract_topics <- function(lda_result, dtm, n_top_words = 10) {
       probabilities = top_probs,
       weight = mean(lda_result$gamma[, k])
     )
+
+    topic_terms_long[[k]] <- data.frame(
+      topic_id = k,
+      topic_label = label,
+      term = m1_normalize_keyword_phrase(top_words),
+      probability = as.numeric(top_probs),
+      rank = seq_along(top_words),
+      stringsAsFactors = FALSE
+    )
   }
   
   # Convert to data frame
   if (length(topics_list) == 0) {
-    return(list(topics = data.frame(), topics_list = list()))
+    return(list(topics = data.frame(), topics_list = list(), topic_terms_long = data.frame()))
   }
   
   topics_df <- do.call(rbind, lapply(topics_list, function(t) {
-    data.frame(
+      data.frame(
       topic_id = t$topic_id,
       label = t$label,
-      top_words = paste(t$top_words, collapse = ", "),
+      top_words = paste(m1_normalize_keyword_phrase(t$top_words), collapse = ", "),
       top_probabilities = paste(round(t$probabilities, 4), collapse = ", "),
       weight = t$weight,
       stringsAsFactors = FALSE
@@ -354,7 +383,8 @@ extract_topics <- function(lda_result, dtm, n_top_words = 10) {
   
   list(
     topics = topics_df,
-    topics_list = topics_list
+    topics_list = topics_list,
+    topic_terms_long = do.call(rbind, topic_terms_long)
   )
 }
 
@@ -379,6 +409,28 @@ get_document_topics <- function(lda_result, n_docs) {
     dominant_prob = dominant_prob,
     stringsAsFactors = FALSE
   )
+}
+
+#' Flatten document-topic weights for plotting
+#' @keywords internal
+flatten_document_topic_weights <- function(gamma) {
+  if (is.null(gamma) || length(dim(gamma)) != 2L || nrow(gamma) == 0 || ncol(gamma) == 0) {
+    return(data.frame(
+      doc_id = integer(),
+      topic_id = integer(),
+      probability = numeric(),
+      stringsAsFactors = FALSE
+    ))
+  }
+
+  out <- expand.grid(
+    doc_id = seq_len(nrow(gamma)),
+    topic_id = seq_len(ncol(gamma)),
+    KEEP.OUT.ATTRS = FALSE,
+    stringsAsFactors = FALSE
+  )
+  out$probability <- as.numeric(gamma)
+  out
 }
 
 #' Compute topic metrics

@@ -13,9 +13,9 @@ render_m1_citations <- function(result, config = biblio_config()) {
 
   plots <- list()
 
-  # Clean labels: use short PaperID or truncate
-  tc$label_clean <- ifelse(is.na(tc$label) | tc$label == "NA", paste0("[", tc$rank, "]"), tc$label)
-  tc$label_clean <- substr(tc$label_clean, 1, 20)
+  tc$label_clean <- if ("label_short" %in% names(tc)) tc$label_short else tc$label
+  tc$label_clean <- ifelse(is.na(tc$label_clean) | tc$label_clean == "NA", paste0("Document ", tc$rank), tc$label_clean)
+  tc$label_clean <- substr(tc$label_clean, 1, 48)
 
   # 1. Top Cited Papers (horizontal bar)
   plots$bar <- ggplot2::ggplot(tc[1:min(10, nrow(tc)), ], ggplot2::aes(x = reorder(label_clean, value), y = value)) +
@@ -30,8 +30,9 @@ render_m1_citations <- function(result, config = biblio_config()) {
   # 2. Citations per year
   if ("citations_per_year" %in% names(result) && nrow(result$citations_per_year) > 0) {
     cpy <- result$citations_per_year
-    cpy$label_clean <- ifelse(is.na(cpy$label) | cpy$label == "NA", paste0("[", cpy$rank, "]"), cpy$label)
-    cpy$label_clean <- substr(cpy$label_clean, 1, 20)
+    cpy$label_clean <- if ("label_short" %in% names(cpy)) cpy$label_short else cpy$label
+    cpy$label_clean <- ifelse(is.na(cpy$label_clean) | cpy$label_clean == "NA", paste0("Document ", cpy$rank), cpy$label_clean)
+    cpy$label_clean <- substr(cpy$label_clean, 1, 48)
 
     plots$citations_per_year <- ggplot2::ggplot(cpy[1:min(10, nrow(cpy)), ], ggplot2::aes(x = reorder(label_clean, value), y = value)) +
       ggplot2::geom_col(fill = ieee_colors$green, color = "black", linewidth = 0.2) +
@@ -45,8 +46,8 @@ render_m1_citations <- function(result, config = biblio_config()) {
     merged <- merge(tc, cpy, by = "rank", suffixes = c("_tc", "_cpy"))
     if (nrow(merged) > 0) {
       merged$label_clean <- ifelse(is.na(merged$label_tc) | merged$label_tc == "NA",
-                                   paste0("[", merged$rank, "]"), merged$label_tc)
-      merged$label_clean <- substr(merged$label_clean, 1, 20)
+                                   paste0("Document ", merged$rank), merged$label_tc)
+      merged$label_clean <- substr(merged$label_clean, 1, 48)
 
       plots$dual_bar_line <- ggplot2::ggplot(merged[1:min(8, nrow(merged)), ]) +
         ggplot2::geom_col(ggplot2::aes(x = reorder(label_clean, value_tc), y = value_tc),

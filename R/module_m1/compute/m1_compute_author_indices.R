@@ -131,11 +131,16 @@ compute_all_author_indices <- function(author_papers) {
   # Compute author summary statistics using dplyr-like approach
   author_stats <- lapply(unique(author_papers$author), function(au) {
     papers <- author_papers[author_papers$author == au, ]
+    year_min <- if ("year" %in% names(papers) && any(is.finite(papers$year))) {
+      min(papers$year, na.rm = TRUE)
+    } else {
+      NA_real_
+    }
     data.frame(
       author = au,
       citations_sum = sum(papers$citations, na.rm = TRUE),
       citations_count = length(papers$citations),
-      year_min = min(papers$year, na.rm = TRUE),
+      year_min = year_min,
       stringsAsFactors = FALSE
     )
   })

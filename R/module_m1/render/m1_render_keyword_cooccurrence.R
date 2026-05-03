@@ -105,7 +105,7 @@ create_network_plot <- function(data, config) {
     # Edges
     ggplot2::geom_segment(
       data = edges_df,
-      ggplot2::aes(x = x1, y = y1, xend = x2, yend = y2, size = weight),
+      ggplot2::aes(x = x1, y = y1, xend = x2, yend = y2, linewidth = weight),
       alpha = 0.3,
       color = "#666666"
     ) +
@@ -125,6 +125,10 @@ create_network_plot <- function(data, config) {
     ggplot2::scale_size_continuous(
       name = "Frequency",
       range = c(3, 10)
+    ) +
+    ggplot2::scale_linewidth_continuous(
+      name = "Co-occurrence",
+      range = c(0.2, 1.2)
     ) +
     ggplot2::scale_color_manual(values = colors, name = "Community") +
     ieee_theme() +

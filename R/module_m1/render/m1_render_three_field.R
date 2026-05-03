@@ -200,7 +200,7 @@ create_alluvial_three_field <- function(tf_data, fields, n_items, config) {
   ) +
     ggalluvial::geom_alluvium(ggplot2::aes(fill = source), width = 1/4, alpha = 0.7) +
     ggalluvial::geom_stratum(width = 1/4, fill = "grey80", color = "white") +
-    ggplot2::geom_text(stat = "stratum", ggplot2::aes(label = after_stat(ggplot2::stratum)), size = 3) +
+    ggplot2::geom_text(stat = "stratum", ggplot2::aes(label = after_stat(stratum)), size = 3) +
     ggplot2::scale_x_discrete(
       limits = c(fields$field1$name, fields$field2$name),
       expand = c(0.05, 0.05)

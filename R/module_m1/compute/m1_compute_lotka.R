@@ -216,11 +216,9 @@ test_lotka_goodness_of_fit <- function(freq_table, alpha) {
   ks_stat <- max(abs(cumsum(observed_prop) - cumsum(expected_prop)))
   if (length(ks_stat) > 1) ks_stat <- ks_stat[1]
   
-  pvalue <- tryCatch({
-    1 - .C("pkolmogorov2x", p = as.double(0.5))$p
-  }, error = function(e) {
-    exp(-2 * ks_stat^2 * total)
-  })
+  # Use the standard asymptotic KS tail approximation instead of a direct
+  # foreign call so package checks remain portable across build environments.
+  pvalue <- exp(-2 * ks_stat^2 * total)
   if (length(pvalue) > 1) pvalue <- pvalue[1]
   
   list(

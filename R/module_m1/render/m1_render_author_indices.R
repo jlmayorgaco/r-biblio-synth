@@ -158,5 +158,3 @@ create_h_index_distribution_plot <- function(result, config) {
   
   p
 }
-
-`%||%` <- function(a, b) if (!is.null(a)) a else b
