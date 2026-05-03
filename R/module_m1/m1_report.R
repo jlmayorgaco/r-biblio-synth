@@ -12,6 +12,7 @@ build_m1_report <- function(result, config = biblio_config()) {
   sections <- Filter(
     function(x) length(x$lines) > 0,
     list(
+      narrative = m1_report_section_payload("Narrative Evidence", m1_report_narrative(data)),
       overview = m1_report_section_payload("Overview", m1_report_overview(data)),
       doc_types = m1_report_section_payload("Document Types", m1_report_doc_types(data)),
       authors = m1_report_section_payload("Authors", m1_report_authors(data)),
@@ -64,6 +65,16 @@ m1_report_overview <- function(data) {
   tbl <- data$overview$summary_table %||% NULL
   if (is.null(tbl) || !is.data.frame(tbl) || nrow(tbl) == 0) return(character())
   paste(tbl$metric, ":", tbl$value)
+}
+
+m1_report_narrative <- function(data) {
+  narrative <- data$narrative %||% list()
+  metrics <- narrative$metrics %||% data.frame()
+  if (!is.data.frame(metrics) || nrow(metrics) == 0) return(character())
+  c(
+    "Narrative evidence integrates concentration, impact, collaboration, and conceptual-structure indicators.",
+    ieee_narrative_lines(metrics, max_lines = 8)
+  )
 }
 
 m1_report_doc_types <- function(data) {

@@ -54,6 +54,7 @@ m1_compute_all <- function(input, config) {
   data$semantic_advanced    <- compute_m1_semantic_advanced(input, data, config)
   data$citation_analysis    <- compute_m1_citation_analysis(input, config)
   data$author_career        <- compute_m1_author_career(input, config)
+  data$narrative            <- compute_m1_narrative(data, config)
   data
 }
 
@@ -140,7 +141,8 @@ m1_render_all <- function(result, data, config) {
     topic_modeling       = render_m1_topic_modeling(data$topic_modeling, config),
     semantic_advanced    = render_m1_semantic_advanced(data$semantic_advanced, config),
     citation_analysis    = render_m1_citation_analysis(data$citation_analysis, config),
-    author_career        = render_m1_author_career(data$author_career, config)
+    author_career        = render_m1_author_career(data$author_career, config),
+    narrative            = render_m1_narrative(data$narrative, config)
   )
   result$artifacts$plots <- m1_fill_core_plot_placeholders(result$artifacts$plots)
   result
@@ -247,7 +249,8 @@ m1_build_tables <- function(result, data, config) {
     topic_modeling       = build_m1_topic_modeling_table(data$topic_modeling, config),
     semantic_advanced    = build_m1_semantic_advanced_table(data$semantic_advanced, config),
     citation_analysis    = build_m1_citation_analysis_table(data$citation_analysis, config),
-    author_career        = build_m1_author_career_table(data$author_career, config)
+    author_career        = build_m1_author_career_table(data$author_career, config),
+    narrative            = build_m1_narrative_table(data$narrative, config)
   )
   result
 }
