@@ -27,7 +27,7 @@ Status legend:
   - tests cover `files`, `file_pattern`, and chunked reads
 
 ### JG-002 `M0` PRISMA full-review mode
-- Status: `in_progress`
+- Status: `done`
 - Goal: move PRISMA from counts-derived reporting to review-grade methodology when human review metadata are available.
 - Scope:
   - formal `screening_ledger` template
@@ -39,9 +39,10 @@ Status legend:
   - `counts_only` and `full_review` modes are both tested
   - no inconsistent PRISMA counts across diagram, report, and JSON
   - methods text includes search, deduplication, screening, eligibility, inclusion, and limitations
+  - Scopus acceptance gate completes in `full-review` mode with reviewer agreement statistics
 
 ### JG-003 `B-SLR` journal-grade workflow hardening
-- Status: `in_progress`
+- Status: `done`
 - Goal: keep the current architecture and add a robust methodological layer that requires human judgment where needed and automates the rest.
 - Scope:
   - stricter protocol validation
@@ -51,6 +52,7 @@ Status legend:
 - Acceptance criteria:
   - `run_bslr()` clearly differentiates partial vs journal-grade readiness
   - missing human inputs are surfaced as required actions, not hidden
+  - journal-grade protocol can render a full manuscript bundle in source, HTML, and PDF form
 
 ### JG-004 `M1` semantic cleanup
 - Status: `done`
@@ -112,7 +114,7 @@ Status legend:
   - run `R CMD check --no-manual` cleanly for the official core
 - Acceptance criteria:
   - `pkgload::load_all('.')` does not emit misleading conflict guidance in a clean session
-  - `R CMD check --no-manual` is clean or only has explicitly accepted residual notes
+  - `R CMD check --no-manual` is clean with `0 ERROR`, `0 WARNING`, and `0 NOTE`
 
 ### JG-009 Paper assembly v2
 - Status: `done`
@@ -136,3 +138,4 @@ Status legend:
 - Acceptance criteria:
   - the example completes end-to-end with no broken core artifacts
   - the generated reports and figures are suitable for journal-oriented review without ad hoc cleanup
+  - the gate emits a reproducible snapshot and renders the submission bundle in HTML and PDF

@@ -103,9 +103,14 @@ test_that("journal-grade M2 hypotheses expose a common editorial contract", {
     "p_value",
     "p_adjusted",
     "decision",
+    "reporting_scope",
     "plain_language_interpretation"
   ) %in% names(table)))
   expect_true(all(c("H02_15", "H02_18", "H02_21", "H02_24", "H02_35", "H02_36") %in% table$hypothesis_id))
+  tables <- build_m2_hypotheses_table(result)$tables
+  expect_true(all(c("main_text_hypotheses", "appendix_hypotheses", "summary") %in% names(tables)))
+  expect_true(all(tables$main_text_hypotheses$reporting_scope == "main_text"))
+  expect_true(all(tables$appendix_hypotheses$reporting_scope == "appendix"))
 })
 
 test_that("journal-grade regression tables separate core and exploratory candidates", {
@@ -145,6 +150,38 @@ test_that("M2 report recovers Kendall tau from curated hypotheses when needed", 
   report <- build_m2_report(result$data, biblio_config())
 
   expect_true(any(grepl("Mann-Kendall tau: 1\\.000", report$lines)))
+  expect_true(any(grepl("^Primary Supported Findings$", report$lines)))
+  expect_true(any(grepl("^Primary Cautionary Findings$", report$lines)))
+})
+
+test_that("hypothesis JSON export separates main-text and appendix evidence", {
+  data <- make_annual_fixture_advanced()
+  forecasting <- compute_m2_forecasting(data, biblio_config())
+  regression <- compute_m2_regression(data, biblio_config())
+  changepoint <- compute_m2_changepoint(data, biblio_config())
+  diagnostics <- compute_m2_diagnostics(
+    data,
+    list(annual = regression$models),
+    biblio_config(),
+    changepoint_result = changepoint,
+    forecasting_result = forecasting
+  )
+
+  result <- compute_m2_hypotheses(
+    data,
+    biblio_config(),
+    context = list(
+      forecasting = forecasting,
+      regression = regression,
+      changepoint = changepoint,
+      diagnostics = diagnostics
+    )
+  )
+
+  payload <- m2_prepare_json_export_payload("hypotheses", result)
+  expect_true(all(c("hypotheses", "main_text_hypotheses", "appendix_hypotheses") %in% names(payload)))
+  expect_true(is.data.frame(payload$main_text_hypotheses))
+  expect_true(is.data.frame(payload$appendix_hypotheses))
 })
 
 test_that("changepoint detection includes Pettitt consensus metadata", {

@@ -118,6 +118,66 @@ test_that("run_m0 exports PRISMA diagram and methodology with auto mode", {
   expect_s3_class(result$artifacts$manifest, "biblio_artifact_manifest")
 })
 
+test_that("M0 builds screening templates and full-review artifacts from explicit decisions", {
+  run_m0_ns <- get("run_m0", envir = asNamespace("RBiblioSynth"))
+  template_ns <- get("m0_screening_ledger_template", envir = asNamespace("RBiblioSynth"))
+
+  df <- data.frame(
+    AU = c("Smith J", "Jones M"),
+    TI = c("Paper A", "Paper B"),
+    PY = c(2020, 2021),
+    SO = c("Journal A", "Journal B"),
+    DI = c("10.1000/a", "10.1000/b"),
+    DT = c("Article", "Review"),
+    TC = c(5, 10),
+    stringsAsFactors = FALSE
+  )
+
+  screening_ledger <- data.frame(
+    title = c("Paper A", "Paper A", "Paper B", "Paper B"),
+    stage = c("screening", "screening", "screening", "screening"),
+    reviewer = c("r1", "r2", "r1", "r2"),
+    decision = c("include", "include", "exclude", "exclude"),
+    reason = c(NA, NA, "Out of scope", "Out of scope"),
+    is_final = c(TRUE, TRUE, TRUE, TRUE),
+    status = c("final", "final", "final", "final"),
+    stringsAsFactors = FALSE
+  )
+
+  file_a <- tempfile(fileext = ".csv")
+  out_dir <- tempfile("m0_screening_results_")
+  dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
+  on.exit(unlink(c(file_a, out_dir), recursive = TRUE, force = TRUE), add = TRUE)
+  utils::write.csv(df, file_a, row.names = FALSE)
+
+  result <- run_m0_ns(
+    sources = list(src = list(file = file_a, db = "generic", format = "csv", prisma_role = "database")),
+    prisma_spec = "auto",
+    screening_ledger = screening_ledger,
+    search_metadata = list(
+      review_topic = "Test topic",
+      research_question = "What survives screening?",
+      reviewers = c("r1", "r2"),
+      conflict_rule = "consensus",
+      screening_tool = "Rayyan"
+    ),
+    config = biblio_config(output_dir = out_dir, verbose = FALSE, cache_enabled = FALSE),
+    export = TRUE
+  )
+
+  template <- template_ns(result$data$bib_merged, reviewers = c("r1", "r2"))
+  expect_true(all(c("M0_DOC_ID", "title", "doi", "stage", "reviewer", "decision", "reason", "decision_date") %in% names(template)))
+  expect_equal(nrow(template), nrow(result$data$bib_merged) * 2 * 2)
+
+  expect_true(is.data.frame(result$artifacts$tables$screening_template))
+  expect_true(is.data.frame(result$artifacts$tables$screening_consensus))
+  expect_true(any(grepl("Methodological mode: full-review", result$artifacts$reports$screening$lines, fixed = TRUE)))
+  expect_true(any(grepl("Krippendorff", result$artifacts$reports$prisma_methodology$lines, fixed = TRUE)))
+  expect_true(file.exists(file.path(out_dir, "m0", "tables", "m0_screening_template.csv")))
+  expect_true(file.exists(file.path(out_dir, "m0", "tables", "m0_screening_consensus.csv")))
+  expect_true(file.exists(file.path(out_dir, "m0", "tables", "m0_screening_stage_counts.csv")))
+})
+
 test_that("run_m0 builds rich organized M0 tables for downstream modules", {
   run_m0_ns <- get("run_m0", envir = asNamespace("RBiblioSynth"))
   df <- data.frame(

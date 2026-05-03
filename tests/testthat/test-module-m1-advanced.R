@@ -42,6 +42,36 @@ test_that("M1 report includes advanced sections on rich fixture", {
   expect_true(any(grepl("Hypotheses tested", report$lines, fixed = TRUE)))
 })
 
+test_that("M1 produces journal-grade labels for citations, keywords, countries, and topics", {
+  fixture <- make_m1_rich_fixture()
+  result <- run_m1(fixture, export = FALSE)
+
+  citations <- result$data$citations$top_cited_documents
+  keywords <- result$data$keywords$top_keywords
+  countries <- result$data$countries$top_countries_by_articles
+  topics <- result$data$topic_modeling$topics
+
+  expect_true(all(!grepl("^\\[[0-9]+\\]$", citations$label)))
+  expect_true(any(grepl("Advanced study", citations$label, fixed = TRUE)))
+  expect_true(all(!grepl("_", topics$label, fixed = TRUE)))
+  expect_true(all(!grepl("^term[0-9]+$", tolower(topics$label))))
+  expect_true(all(!grepl("^[A-Z]{2}$", countries$label)))
+  expect_true(all(!grepl("_", keywords$label, fixed = TRUE)))
+})
+
+test_that("M1 author-career outputs use publication-grade author labels", {
+  fixture <- make_m1_rich_fixture()
+  result <- run_m1(fixture, export = FALSE)
+
+  top_h <- result$data$author_career$top_by_h_index
+  report <- result$artifacts$reports[[1]]
+
+  expect_true("display_author" %in% names(top_h))
+  expect_true(any(grepl("^Patel N$", top_h$display_author)))
+  expect_false(any(grepl("^[A-Z],\\s*[A-Z]$", top_h$display_author)))
+  expect_true(any(grepl("Patel N", report$lines, fixed = TRUE)))
+})
+
 test_that("M1 export manifest tracks multi-format plots", {
   fixture <- make_m1_rich_fixture()
   tmp <- tempdir()
@@ -50,4 +80,5 @@ test_that("M1 export manifest tracks multi-format plots", {
 
   expect_true(any(grepl("\\.png$", result$artifacts$manifest$plots)))
   expect_true(any(grepl("\\.pdf$", result$artifacts$manifest$plots)))
+  expect_true(any(grepl("\\.csv$", result$artifacts$manifest$tables)))
 })

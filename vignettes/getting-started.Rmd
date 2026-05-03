@@ -13,8 +13,7 @@ knitr::opts_chunk$set(
   comment = "#>"
 )
 
-data("biblio_sample", package = "RBiblioSynth")
-demo_biblio <- utils::head(biblio_sample, 120)
+demo_biblio <- utils::head(RBiblioSynth::biblio_sample, 120)
 demo_source_file <- tempfile(fileext = ".csv")
 utils::write.csv(demo_biblio, demo_source_file, row.names = FALSE)
 demo_sources <- list(
@@ -46,7 +45,7 @@ RBiblioSynth supports multiple bibliographic databases:
 
 ```r
 # Or use the sample dataset
-data(biblio_sample)
+demo_biblio <- RBiblioSynth::biblio_sample
 ```
 
 ### 2. Run the official pipeline
