@@ -573,6 +573,7 @@ m0_cluster_authors <- function(names, sim_matrix, threshold = 0.85) {
 m0_check_data_quality <- function(df) {
   issues <- list()
   metrics <- list()
+  missing_fields <- list()
   
   # Check required columns
   required_cols <- c("AU", "TI", "PY", "SO")
@@ -585,26 +586,35 @@ m0_check_data_quality <- function(df) {
   if ("AU" %in% names(df)) {
     metrics$n_missing_authors <- sum(is.na(df$AU) | df$AU == "")
     metrics$pct_missing_authors <- metrics$n_missing_authors / nrow(df) * 100
+    missing_fields$AU <- metrics$n_missing_authors
   }
   
   if ("PY" %in% names(df)) {
     metrics$n_missing_years <- sum(is.na(df$PY))
     metrics$pct_missing_years <- metrics$n_missing_years / nrow(df) * 100
+    missing_fields$PY <- metrics$n_missing_years
     
     # Check for invalid years
     years <- as.numeric(df$PY)
     invalid_years <- sum(years < 1800 | years > as.numeric(format(Sys.Date(), "%Y")) + 1, na.rm = TRUE)
     metrics$n_invalid_years <- invalid_years
+    if (invalid_years > 0) {
+      issues$future_year <- invalid_years
+    }
   }
   
   if ("TC" %in% names(df)) {
     metrics$n_missing_citations <- sum(is.na(df$TC))
     metrics$n_negative_citations <- sum(df$TC < 0, na.rm = TRUE)
     metrics$max_citations <- max(df$TC, na.rm = TRUE)
+    missing_fields$TC <- metrics$n_missing_citations
     # Outlier detection
     q <- quantile(df$TC, c(0.25, 0.75), na.rm = TRUE)
     iqr <- q[2] - q[1]
     metrics$n_citation_outliers <- sum(df$TC > q[2] + 3 * iqr, na.rm = TRUE)
+    if (metrics$n_negative_citations > 0) {
+      issues$negative_citations <- metrics$n_negative_citations
+    }
   }
   
   if ("DI" %in% names(df)) {
@@ -628,6 +638,7 @@ m0_check_data_quality <- function(df) {
   
   list(
     metrics = metrics,
+    missing_fields = missing_fields,
     issues = issues,
     summary = data.frame(
       check = names(metrics),
@@ -805,32 +816,36 @@ m0_fix_encoding <- function(text) {
 #' @return List with quality metrics
 #' @export
 m0_create_quality_report <- function(df, output_file = NULL) {
-  quality <- m0_check_data_quality(df)
+  quality <- if (is.data.frame(df)) m0_check_data_quality(df) else df
+  n_docs <- if (is.data.frame(df)) nrow(df) else quality$n_records %||% NA_integer_
+  n_cols <- if (is.data.frame(df)) ncol(df) else NA_integer_
+  metrics <- quality$metrics %||% list()
+  issues <- quality$issues %||% list()
   
   report_lines <- c(
     "========================================",
     "        DATA QUALITY REPORT",
     "========================================",
     "",
-    paste("Total documents:", nrow(df)),
-    paste("Total columns:", ncol(df)),
+    paste("Total documents:", n_docs),
+    paste("Total columns:", n_cols),
     "",
     "--- Missing Values ---",
     ""
   )
   
-  for (nm in names(quality$metrics)) {
+  for (nm in names(metrics)) {
     if (grepl("n_missing|n_invalid", nm)) {
-      report_lines <- c(report_lines, paste0(nm, ": ", quality$metrics[[nm]]))
+      report_lines <- c(report_lines, paste0(nm, ": ", metrics[[nm]]))
     }
   }
   
   report_lines <- c(report_lines, "", "--- Potential Issues ---", "")
   
-  if (length(quality$issues) > 0) {
-    for (issue_name in names(quality$issues)) {
+  if (length(issues) > 0) {
+    for (issue_name in names(issues)) {
       report_lines <- c(report_lines, paste0(issue_name, ": ", 
-                                              paste(quality$issues[[issue_name]], collapse = ", ")))
+                                              paste(issues[[issue_name]], collapse = ", ")))
     }
   } else {
     report_lines <- c(report_lines, "No major issues detected.")
@@ -839,13 +854,13 @@ m0_create_quality_report <- function(df, output_file = NULL) {
   report_lines <- c(report_lines, "", "--- Recommendations ---", "")
   
   # Add recommendations based on issues
-  if (quality$metrics$n_missing_years > nrow(df) * 0.1) {
+  if (!is.null(metrics$n_missing_years) && !is.na(n_docs) && metrics$n_missing_years > n_docs * 0.1) {
     report_lines <- c(report_lines, "Consider year imputation for missing values.")
   }
-  if (quality$metrics$pct_with_doi < 50) {
+  if (!is.null(metrics$pct_with_doi) && metrics$pct_with_doi < 50) {
     report_lines <- c(report_lines, "Low DOI coverage may affect deduplication accuracy.")
   }
-  if (quality$metrics$n_potential_duplicates > nrow(df) * 0.05) {
+  if (!is.null(metrics$n_potential_duplicates) && !is.na(n_docs) && metrics$n_potential_duplicates > n_docs * 0.05) {
     report_lines <- c(report_lines, "Consider enabling fuzzy deduplication.")
   }
   
@@ -855,7 +870,7 @@ m0_create_quality_report <- function(df, output_file = NULL) {
   
   list(
     report_lines = report_lines,
-    metrics = quality$metrics,
-    issues = quality$issues
+    metrics = metrics,
+    issues = issues
   )
 }

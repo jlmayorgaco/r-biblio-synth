@@ -20,7 +20,10 @@ m0_merge_sources <- function(raw_list, config = biblio_config()) {
   }
 
   if (length(raw_list) == 1) {
-    return(raw_list[[1]])
+    merged <- m0_harmonize_columns(raw_list[[1]])
+    merged <- m0_deduplicate(merged, config)
+    merged <- m0_clean_merged(merged)
+    return(m0_finalize_provenance_columns(merged))
   }
 
   # Step 1: Harmonize columns across all sources
@@ -34,6 +37,7 @@ m0_merge_sources <- function(raw_list, config = biblio_config()) {
 
   # Step 4: Clean and standardize key columns
   merged <- m0_clean_merged(merged)
+  merged <- m0_finalize_provenance_columns(merged)
 
   if (config$verbose) {
     total_raw <- sum(sapply(raw_list, nrow))
@@ -109,25 +113,45 @@ m0_deduplicate <- function(df, config = biblio_config()) {
   if (nrow(df) <= 1) return(df)
 
   n_before <- nrow(df)
+  config <- merge_biblio_config(config)
 
-  # Strategy 1: DOI-based dedup
-  if ("DI" %in% names(df)) {
-    has_doi <- !is.na(df$DI) & nzchar(trimws(df$DI))
-    if (sum(has_doi) > 1) {
-      doi_lower <- tolower(trimws(df$DI))
-      doi_dup <- duplicated(doi_lower) & has_doi
-      df <- df[!doi_dup, ]
-    }
+  if (!"M0_SOURCE_DBS" %in% names(df)) {
+    df$M0_SOURCE_DBS <- toupper(trimws(as.character(df$SOURCE_DB %||% NA_character_)))
+  }
+  if (!"M0_SOURCE_TAGS" %in% names(df)) {
+    df$M0_SOURCE_TAGS <- trimws(as.character(df$SOURCE_TAG %||% NA_character_))
+  }
+  if (!"M0_PROVENANCE_COUNT" %in% names(df)) {
+    df$M0_PROVENANCE_COUNT <- 1L
+  }
+  if (!"M0_DEDUP_METHOD" %in% names(df)) {
+    df$M0_DEDUP_METHOD <- NA_character_
   }
 
-  # Strategy 2: Title + Year dedup for records without DOI
-  if ("TI" %in% names(df) && "PY" %in% names(df)) {
+  dedup_methods <- config$dedup_method %||% c("doi_exact", "title_year_normalized")
+  if ("DI" %in% names(df)) {
+    df$M0_DOI_KEY <- m0_normalize_doi(df$DI)
+  } else if (!"M0_DOI_KEY" %in% names(df)) {
+    df$M0_DOI_KEY <- NA_character_
+  }
+
+  if ("doi_exact" %in% dedup_methods && "DI" %in% names(df)) {
+    df <- m0_collapse_duplicate_groups(df, df$M0_DOI_KEY, "doi_exact", config)
+  }
+
+  if ("title_year_normalized" %in% dedup_methods && all(c("TI", "PY") %in% names(df))) {
+    no_doi <- is.na(df$M0_DOI_KEY) | !nzchar(trimws(as.character(df$M0_DOI_KEY)))
     title_norm <- m0_normalize_title(df$TI)
-    # Handle NA years by using a placeholder
+    df$M0_TITLE_KEY <- title_norm
     year_key <- ifelse(is.na(df$PY), "NA_YEAR", as.character(df$PY))
-    key <- paste(title_norm, year_key, sep = "|||")
-    dup <- duplicated(key) & !is.na(title_norm) & nzchar(title_norm)
-    df <- df[!dup, ]
+    title_key <- ifelse(no_doi & !is.na(title_norm) & nzchar(title_norm),
+                        paste(title_norm, year_key, sep = "|||"),
+                        NA_character_)
+    df <- m0_collapse_duplicate_groups(df, title_key, "title_year_normalized", config)
+  }
+
+  if ("title_year_fuzzy" %in% dedup_methods && all(c("TI", "PY") %in% names(df))) {
+    df <- m0_deduplicate_fuzzy_titles(df, config)
   }
 
   n_after <- nrow(df)
@@ -138,6 +162,80 @@ m0_deduplicate <- function(df, config = biblio_config()) {
   df
 }
 
+#' Collapse duplicate groups while preserving provenance
+#' @keywords internal
+m0_collapse_duplicate_groups <- function(df, group_key, method, config = biblio_config()) {
+  if (length(group_key) != nrow(df)) {
+    stop("group_key must have the same length as df")
+  }
+
+  valid <- !is.na(group_key) & nzchar(group_key)
+  if (sum(valid) <= 1) {
+    return(df)
+  }
+
+  grouped <- split(which(valid), group_key[valid], drop = TRUE)
+  duplicate_groups <- Filter(function(idx) length(idx) > 1, grouped)
+  if (length(duplicate_groups) == 0) {
+    return(df)
+  }
+
+  for (idx in duplicate_groups) {
+    keep <- idx[[1]]
+    resolved <- m0_resolve_duplicate_group(df[idx, , drop = FALSE], config, method)
+    missing_cols <- setdiff(names(resolved), names(df))
+    for (col in missing_cols) {
+      df[[col]] <- NA
+    }
+    df[keep, names(resolved)] <- resolved[1, names(resolved), drop = FALSE]
+  }
+
+  drop_idx <- unlist(lapply(duplicate_groups, function(idx) idx[-1]), use.names = FALSE)
+  if (length(drop_idx) == 0) {
+    return(df)
+  }
+  df[-drop_idx, , drop = FALSE]
+}
+
+#' Deduplicate records by fuzzy title matching within year
+#' @keywords internal
+m0_deduplicate_fuzzy_titles <- function(df, config = biblio_config()) {
+  threshold <- config$dedup_threshold %||% 0.9
+  doi_key <- if ("M0_DOI_KEY" %in% names(df)) df$M0_DOI_KEY else m0_normalize_doi(df$DI %||% NA_character_)
+  no_doi <- is.na(doi_key) | !nzchar(trimws(as.character(doi_key)))
+  valid_title <- !is.na(df$TI) & nzchar(trimws(as.character(df$TI)))
+  candidate_idx <- which(no_doi & valid_title)
+
+  if (length(candidate_idx) < 2) {
+    return(df)
+  }
+
+  years <- as.character(df$PY[candidate_idx])
+  years[is.na(years)] <- "NA_YEAR"
+  fuzzy_groups <- rep(NA_character_, nrow(df))
+
+  for (year_key in unique(years)) {
+    year_idx <- candidate_idx[years == year_key]
+    if (length(year_idx) < 2) next
+
+    sim <- m0_fuzzy_title_match(df$TI[year_idx], threshold = threshold)
+    assigned <- rep(FALSE, length(year_idx))
+
+    for (i in seq_along(year_idx)) {
+      if (assigned[i]) next
+      matches <- which(sim[i, ] >= threshold)
+      if (length(matches) > 1) {
+        group_members <- year_idx[matches]
+        fuzzy_key <- paste0("fuzzy::", year_key, "::", min(group_members))
+        fuzzy_groups[group_members] <- fuzzy_key
+        assigned[matches] <- TRUE
+      }
+    }
+  }
+
+  m0_collapse_duplicate_groups(df, fuzzy_groups, "title_year_fuzzy", config)
+}
+
 #' Normalize title for deduplication
 #'
 #' @param titles Character vector of titles.
@@ -145,11 +243,33 @@ m0_deduplicate <- function(df, config = biblio_config()) {
 #' @keywords internal
 m0_normalize_title <- function(titles) {
   if (!is.character(titles)) titles <- as.character(titles)
+  titles[is.na(titles)] <- NA_character_
+  titles <- enc2utf8(titles)
+  titles <- iconv(titles, from = "", to = "ASCII//TRANSLIT", sub = "")
   titles <- tolower(trimws(titles))
-  # Remove punctuation and extra spaces
+  titles <- gsub("&amp;", " and ", titles, fixed = TRUE)
   titles <- gsub("[[:punct:]]", " ", titles)
   titles <- gsub("\\s+", " ", titles)
   trimws(titles)
+}
+
+#' Normalize DOI strings for cross-source deduplication
+#'
+#' @param doi Character vector of DOI strings.
+#' @return Normalized DOI keys.
+#' @keywords internal
+m0_normalize_doi <- function(doi) {
+  if (!is.character(doi)) doi <- as.character(doi)
+  doi[is.na(doi)] <- NA_character_
+  doi <- enc2utf8(doi)
+  doi <- tolower(trimws(doi))
+  doi <- gsub("^https?://(dx\\.)?doi\\.org/", "", doi)
+  doi <- gsub("^doi\\s*[:=]\\s*", "", doi)
+  doi <- gsub("^https?://", "", doi)
+  doi <- gsub("\\s+", "", doi)
+  doi <- gsub("[\\.;,]+$", "", doi)
+  doi[is.na(doi) | !nzchar(doi)] <- NA_character_
+  doi
 }
 
 #' Clean and standardize merged data
@@ -167,6 +287,21 @@ m0_clean_merged <- function(df) {
   if ("TC" %in% names(df)) {
     df$TC <- suppressWarnings(as.numeric(df$TC))
     df$TC[is.na(df$TC)] <- 0
+  }
+
+  # Keep stable deduplication keys for downstream audit and provenance.
+  if ("DI" %in% names(df)) {
+    doi_key <- m0_normalize_doi(df$DI)
+    df$M0_DOI_KEY <- doi_key
+    df$DI <- ifelse(!is.na(doi_key) & nzchar(doi_key), doi_key, as.character(df$DI))
+  } else if (!"M0_DOI_KEY" %in% names(df)) {
+    df$M0_DOI_KEY <- NA_character_
+  }
+
+  if ("TI" %in% names(df)) {
+    df$M0_TITLE_KEY <- m0_normalize_title(df$TI)
+  } else if (!"M0_TITLE_KEY" %in% names(df)) {
+    df$M0_TITLE_KEY <- NA_character_
   }
 
   # Standardize AU format: semicolon-separated

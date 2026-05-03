@@ -16,28 +16,64 @@ m0_validate_sources <- function(sources) {
     return(list(ok = FALSE, error = "All source entries must be named"))
   }
 
-  allowed_dbs <- c("scopus", "wos", "openalex", "generic")
-  allowed_fmt <- c("bibtex", "plaintext", "csv", "xlsx")
+  allowed_dbs <- c("scopus", "wos", "openalex", "crossref", "pubmed", "generic")
+  allowed_fmt <- c("bibtex", "plaintext", "csv", "xlsx", "json")
+  allowed_schemas <- c("scopus_csv", "wos_csv", "generic_csv")
 
   details <- list()
   for (nm in names(sources)) {
     spec <- sources[[nm]]
+    is_api <- m0_is_api_source_spec(spec)
     if (!is.list(spec)) {
       return(list(ok = FALSE, error = paste0("Source '", nm, "' must be a list")))
-    }
-    if (is.null(spec$file) || !file.exists(spec$file)) {
-      return(list(ok = FALSE, error = paste0("Source '", nm, "': file not found: ", spec$file)))
     }
     if (is.null(spec$db) || !(spec$db %in% allowed_dbs)) {
       return(list(ok = FALSE, error = paste0("Source '", nm, "': db must be one of ",
                                               paste(allowed_dbs, collapse = ", "))))
     }
+    schema <- m0_resolve_source_schema(spec)
+    source_files <- if (!is_api) m0_resolve_source_files(spec) else character()
+    if (!is_api && length(source_files) == 0) {
+      return(list(ok = FALSE, error = paste0("Source '", nm, "': file not found: ", spec$file %||% spec$file_pattern %||% "<unspecified>")))
+    }
+    if (!is_api && any(!file.exists(source_files))) {
+      missing_files <- source_files[!file.exists(source_files)]
+      return(list(ok = FALSE, error = paste0("Source '", nm, "': file not found: ", paste(missing_files, collapse = ", "))))
+    }
+    if (is_api && is.null(spec$query) && is.null(spec$doi) && is.null(spec$ids) && is.null(spec$filter) && spec$db != "crossref") {
+      return(list(ok = FALSE, error = paste0("Source '", nm, "': API sources require query, doi, or ids.")))
+    }
     if (!is.null(spec$format) && !(spec$format %in% allowed_fmt)) {
       return(list(ok = FALSE, error = paste0("Source '", nm, "': format must be one of ",
                                               paste(allowed_fmt, collapse = ", "))))
     }
-    details[[nm]] <- list(db = spec$db, file = spec$file,
-                          format = spec$format %||% "bibtex")
+    if (!is.null(spec$schema) && !(tolower(as.character(spec$schema)[1]) %in% allowed_schemas)) {
+      return(list(ok = FALSE, error = paste0("Source '", nm, "': schema must be one of ",
+                                             paste(allowed_schemas, collapse = ", "))))
+    }
+    if (!is.null(spec$chunk_size_rows)) {
+      chunk_size <- suppressWarnings(as.integer(spec$chunk_size_rows))
+      if (is.na(chunk_size) || chunk_size <= 0) {
+        return(list(ok = FALSE, error = paste0("Source '", nm, "': chunk_size_rows must be a positive integer")))
+      }
+    }
+    if (!is.null(spec$delimiter) && !nzchar(as.character(spec$delimiter)[1])) {
+      return(list(ok = FALSE, error = paste0("Source '", nm, "': delimiter must be a non-empty string")))
+    }
+    if (!is.null(spec$encoding) && !nzchar(as.character(spec$encoding)[1])) {
+      return(list(ok = FALSE, error = paste0("Source '", nm, "': encoding must be a non-empty string")))
+    }
+    details[[nm]] <- list(
+      db = spec$db,
+      file = spec$file %||% NA_character_,
+      files = if (length(source_files) > 0) source_files else spec$files %||% character(),
+      n_files = length(source_files),
+      file_pattern = spec$file_pattern %||% NA_character_,
+      format = spec$format %||% if (!is.na(schema) && grepl("_csv$", schema)) "csv" else "bibtex",
+      schema = schema,
+      chunk_size_rows = spec$chunk_size_rows %||% NA_integer_,
+      mode = if (is_api) "api" else "file"
+    )
   }
 
   list(ok = TRUE, error = NULL, details = details)

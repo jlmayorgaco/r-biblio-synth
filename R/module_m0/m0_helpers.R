@@ -131,6 +131,77 @@ m0_prisma_template <- function(title = NULL) {
       low_risk   = 0,
       high_risk  = 0,
       unclear    = 0
+    ),
+    methods = list(
+      reviewers = NULL,
+      search_date = NULL,
+      search_queries = list(),
+      screening_tool = NULL,
+      notes = character()
     )
   )
+}
+
+#' Create a screening ledger template
+#'
+#' Builds a reviewer-level screening sheet that users can complete to move
+#' PRISMA and B-SLR from counts-only mode to explicit full-review mode.
+#'
+#' @param merged Optional merged M0 bibliographic data frame. When supplied, the
+#'   template is pre-populated with document identifiers and metadata.
+#' @param reviewers Character vector of reviewer identifiers.
+#' @param stages Character vector of review stages to pre-allocate.
+#' @return A data frame ready to be saved as CSV/XLSX and completed by humans.
+#' @export
+m0_screening_ledger_template <- function(merged = NULL,
+                                         reviewers = c("reviewer_1", "reviewer_2"),
+                                         stages = c("screening", "eligibility")) {
+  reviewers <- as.character(reviewers %||% character())
+  reviewers <- reviewers[nzchar(trimws(reviewers))]
+  if (length(reviewers) == 0) reviewers <- c("reviewer_1", "reviewer_2")
+
+  stages <- as.character(stages %||% character())
+  stages <- stages[nzchar(trimws(stages))]
+  if (length(stages) == 0) stages <- c("screening", "eligibility")
+
+  cols <- c(
+    "M0_DOC_ID", "title", "doi", "year", "source",
+    "stage", "reviewer", "decision", "reason",
+    "notes", "decision_date", "is_final", "status"
+  )
+
+  if (is.null(merged) || !is.data.frame(merged) || nrow(merged) == 0) {
+    out <- as.data.frame(matrix(ncol = length(cols), nrow = 0), stringsAsFactors = FALSE)
+    names(out) <- cols
+    return(out)
+  }
+
+  merged <- m0_org_prepare_input(merged)
+  base <- data.frame(
+    M0_DOC_ID = merged$M0_DOC_ID %||% seq_len(nrow(merged)),
+    title = as.character(m0_org_get_column(merged, "TI")),
+    doi = as.character(m0_org_get_column(merged, "DI")),
+    year = suppressWarnings(as.integer(m0_org_get_column(merged, "PY"))),
+    source = as.character(m0_org_get_column(merged, "SO")),
+    stringsAsFactors = FALSE
+  )
+
+  template <- merge(
+    base,
+    expand.grid(
+      stage = stages,
+      reviewer = reviewers,
+      KEEP.OUT.ATTRS = FALSE,
+      stringsAsFactors = FALSE
+    ),
+    by = NULL
+  )
+  template$decision <- NA_character_
+  template$reason <- NA_character_
+  template$notes <- NA_character_
+  template$decision_date <- as.character(Sys.Date())
+  template$is_final <- FALSE
+  template$status <- "pending"
+
+  template[, cols, drop = FALSE]
 }
