@@ -4,14 +4,14 @@
 
 #' Run the official RBiblioSynth pipeline
 #'
-#' Executes the public core modules (`M0`-`M3`) in a consistent order and
+#' Executes the public core modules (`M0`-`M4`) in a consistent order and
 #' returns a single pipeline result object. The pipeline always runs `M0`
 #' first to create the merged bibliometric dataset used by downstream modules.
 #'
 #' @param sources Named list of source specifications accepted by
 #'   \code{\link{run_m0}}.
 #' @param modules Character vector selecting downstream modules to run.
-#'   Supported values are \code{"m0"}, \code{"m1"}, \code{"m2"}, \code{"m3"}.
+#'   Supported values are \code{"m0"}, \code{"m1"}, \code{"m2"}, \code{"m3"}, \code{"m4"}.
 #' @param config Configuration list created with \code{\link{biblio_config}}.
 #' @param prisma_spec Optional PRISMA specification passed to \code{\link{run_m0}}.
 #' @param export Logical. If TRUE, module artifacts and pipeline bundle are
@@ -29,7 +29,7 @@
 #' @return An object of class \code{biblio_pipeline_result}.
 #' @export
 run_pipeline <- function(sources,
-                         modules = c("m0", "m1", "m2", "m3"),
+                         modules = c("m0", "m1", "m2", "m3", "m4"),
                          config = biblio_config(),
                          prisma_spec = NULL,
                          export = TRUE,
@@ -122,6 +122,11 @@ run_pipeline <- function(sources,
   if ("m3" %in% modules) {
     module_results$m3 <- run_m3(bib_data, config = config, export = export)
     module_status[["m3"]] <- module_results$m3$status
+  }
+
+  if ("m4" %in% modules) {
+    module_results$m4 <- run_m4(bib_data, config = config, export = export)
+    module_status[["m4"]] <- module_results$m4$status
   }
 
   pipeline_result <- m0_build_pipeline_result(

@@ -1,179 +1,239 @@
 # ============================================================================
-# m4_run.R - M4 Institutional Analysis Orchestrator
+# m4_run.R - M4 Sources / Journals & Venues Orchestrator
 # ============================================================================
 
-#' Run M4 module (Institutional Analysis)
+#' Run M4 module (Sources / Journals & Venues)
 #'
-#' Analyzes institutional affiliations, productivity, and collaboration networks.
+#' Analyzes journal and venue productivity, citation impact, Bradford zones,
+#' source growth, concentration, clustering, and narrative evidence.
 #'
-#' @param input Bibliographic data frame
-#' @param config Configuration list
+#' @param input Bibliographic data frame with at least a source column (`SO`,
+#'   `Source`, `Journal`, or `Publication.Source`).
+#' @param config Configuration list.
 #' @param export Logical. If TRUE, exports artifacts to disk.
-#' @return Module result object
+#' @return A `biblio_module_result`.
 #' @export
 run_m4 <- function(input, config = biblio_config(), export = TRUE) {
   config <- merge_biblio_config(config)
-  
-  # Initialize logging
-  log_message("INFO", "Starting M4: Institutional Analysis")
-  
-  # 1. Validate input
+
   validation <- validate_m4_input(input, config)
+  if (!validation$ok && isTRUE(config$validate_strict)) {
+    cli::cli_abort("M4 validation failed: {validation$error}")
+  }
   if (!validation$ok) {
-    log_message("ERROR", "M4 validation failed: {msg}", msg = validation$message)
-    return(create_error_result("m4", "Institutional Analysis", validation$message))
+    cli::cli_warn("M4 validation failed: {validation$error}")
   }
-  
-  # 2. Extract and parse institutions
-  log_message("INFO", "Extracting institutions from affiliations...")
-  parsed_data <- m4_extract_institutions(input, config)
-  
-  if (parsed_data$status != "success") {
-    log_message("ERROR", "Institution extraction failed")
-    return(create_error_result("m4", "Institutional Analysis", "Extraction failed"))
-  }
-  
-  # 3. Compute all metrics
-  log_message("INFO", "Computing institutional metrics...")
-  data <- m4_compute_all(parsed_data, config)
-  
-  # 4. Build result
+
+  prepared <- m4_prepare_source_data(input, config)
+  data <- m4_compute_all(prepared, config)
+
   result <- new_module_result(
-    module_id   = "m4",
-    module_name = "Institutional Analysis",
-    status      = "success",
-    inputs      = list(n_records = nrow(input)),
-    data        = data,
-    diagnostics = list(warnings = character(), checks = list())
+    module_id = "m4",
+    module_name = "Sources / Journals & Venues",
+    status = if (validation$ok && identical(prepared$status, "success")) "success" else "warning",
+    inputs = list(
+      n_rows = validation$n_rows %||% if (is.data.frame(input)) nrow(input) else 0L,
+      n_cols = validation$n_cols %||% if (is.data.frame(input)) ncol(input) else 0L,
+      n_sources = nrow(prepared$source_summary %||% data.frame())
+    ),
+    data = data,
+    diagnostics = list(
+      warnings = c(validation$warning %||% character(), prepared$warning %||% character()),
+      checks = list(validation = validation, preparation = prepared$status),
+      notes = character()
+    )
   )
-  
-  # 5. Render visualizations
-  log_message("INFO", "Rendering institutional visualizations...")
+
   result <- m4_render_all(result, data, config)
-  
-  # 6. Build tables
   result <- m4_build_tables(result, data, config)
-  
-  # 7. Export if requested
+  report <- build_m4_report(result, config)
+  result <- attach_report_to_result(result, report)
+
   if (export) {
-    log_message("INFO", "Exporting M4 artifacts...")
     exported <- export_m4(result, config)
     manifest <- build_m4_manifest(result, exported, config)
     result <- attach_manifest_to_result(result, manifest)
   }
-  
-  log_message("INFO", "M4: Institutional Analysis completed successfully")
+
   result
 }
 
-#' Validate M4 input
-#' @keywords internal
-validate_m4_input <- function(input, config) {
-  if (!is.data.frame(input) || nrow(input) == 0) {
-    return(list(ok = FALSE, message = "Input must be a non-empty data frame"))
+validate_m4_input <- function(input, config = biblio_config()) {
+  if (!is.data.frame(input)) {
+    return(list(ok = FALSE, error = "Input must be a data frame", n_rows = 0L, n_cols = 0L))
   }
-  
-  # Check for affiliation column
-  affil_col <- if ("C1" %in% names(input)) "C1" else NULL
-  if (is.null(affil_col)) {
-    return(list(ok = FALSE, message = "Missing affiliation column (C1)"))
+  if (nrow(input) == 0) {
+    return(list(ok = FALSE, error = "Input must contain at least one record", n_rows = 0L, n_cols = ncol(input)))
   }
-  
-  list(ok = TRUE, n_rows = nrow(input), n_cols = ncol(input))
+  source_col <- m4_select_source_column(input)
+  if (is.null(source_col)) {
+    return(list(
+      ok = FALSE,
+      error = "No source column found. Expected one of SO, Source, Journal, Publication.Source, JI, or J9.",
+      n_rows = nrow(input),
+      n_cols = ncol(input)
+    ))
+  }
+  list(ok = TRUE, source_col = source_col, n_rows = nrow(input), n_cols = ncol(input))
 }
 
-#' Compute all M4 metrics
-#' @keywords internal
-m4_compute_all <- function(parsed_data, config) {
-  list(
-    extraction       = parsed_data,
-    production       = m4_compute_institutional_production(parsed_data, config),
-    collaboration    = m4_compute_institutional_collaboration(parsed_data, config),
-    ranking          = m4_compute_institutional_ranking(parsed_data, config),
-    networks         = m4_compute_institutional_networks(parsed_data, config),
-    sector_analysis  = m4_compute_sector_analysis(parsed_data, config),
-    geography        = m4_compute_institutional_geography(parsed_data, config)
+m4_compute_all <- function(prepared, config) {
+  data <- list(
+    prepared = prepared,
+    sources = m4_compute_sources(prepared, config),
+    impact = m4_compute_source_impact(prepared, config),
+    bradford = m4_compute_bradford(prepared, config),
+    growth = m4_compute_source_growth(prepared, config),
+    concentration = m4_compute_source_concentration(prepared, config),
+    keywords = m4_compute_source_keywords(prepared, config)
   )
+  data$clusters <- m4_compute_source_clusters(data, config)
+  data$narrative <- m4_compute_narrative(data, config)
+  data
 }
 
-#' Render all M4 visualizations
-#' @keywords internal
 m4_render_all <- function(result, data, config) {
   result$artifacts$plots <- list(
-    production    = render_m4_production(data$production, config),
-    collaboration = render_m4_collaboration(data$collaboration, config),
-    networks      = render_m4_networks(data$networks, config),
-    geography     = render_m4_geography(data$geography, config)
+    sources = render_m4_sources(data, config),
+    bradford = render_m4_bradford(data$bradford, data$impact, config),
+    growth = render_m4_growth(data$growth, data$impact, config),
+    clusters = render_m4_clusters(data$clusters, data$impact, config),
+    narrative = render_m4_narrative(data$narrative, config)
   )
+  result$artifacts$plots <- m4_fill_plot_placeholders(result$artifacts$plots)
   result
 }
 
-#' Build all M4 tables
-#' @keywords internal
+m4_fill_plot_placeholders <- function(plot_sections) {
+  core_specs <- list(
+    sources = list(title = "Source productivity unavailable", message = "No valid journal or venue source data were available.", layout = "full"),
+    bradford = list(title = "Bradford source zones unavailable", message = "The source distribution was too sparse for Bradford zoning.", layout = "full"),
+    growth = list(title = "Source growth unavailable", message = "Source-year data were insufficient for growth and emergence plots.", layout = "full"),
+    clusters = list(title = "Source clustering unavailable", message = "K-means source clusters could not be estimated from productivity, impact, and growth features.", layout = "full"),
+    narrative = list(title = "Source narrative evidence unavailable", message = "Source evidence metrics could not be normalized into a narrative dashboard.", layout = "full")
+  )
+
+  for (section_nm in names(core_specs)) {
+    section <- plot_sections[[section_nm]]
+    flat <- if (is.list(section) && !is.null(section$plots)) m4_flatten_plot_collection(section$plots) else list()
+    if (length(Filter(Negate(is.null), flat)) == 0) {
+      spec <- core_specs[[section_nm]]
+      plot_sections[[section_nm]] <- list(
+        status = "placeholder",
+        plots = list(insufficient_data = ieee_no_data_plot(spec$title, spec$message, layout = spec$layout))
+      )
+    }
+  }
+  plot_sections
+}
+
 m4_build_tables <- function(result, data, config) {
   result$artifacts$tables <- list(
-    production    = build_m4_production_table(data$production, config),
-    collaboration = build_m4_collaboration_table(data$collaboration, config),
-    ranking       = build_m4_ranking_table(data$ranking, config)
+    sources = build_m4_sources_table(data$sources, config),
+    impact = build_m4_impact_table(data$impact, config),
+    bradford = build_m4_bradford_table(data$bradford, config),
+    growth = build_m4_growth_table(data$growth, config),
+    concentration = build_m4_concentration_table(data$concentration, config),
+    keywords = build_m4_keywords_table(data$keywords, config),
+    clusters = build_m4_clusters_table(data$clusters, config),
+    narrative = build_m4_narrative_table(data$narrative, config)
   )
   result
 }
 
-#' Export M4 results
-#' @keywords internal
-export_m4 <- function(result, config) {
-  exported <- character()
-  
-  # Export plots
+export_m4 <- function(result, config = biblio_config()) {
+  config <- merge_biblio_config(config)
+  exported_plots <- character()
+  exported_tables <- character()
+  exported_reports <- character()
+  exported_jsons <- character()
+
   if (config$export_plots) {
-    for (plot_name in names(result$artifacts$plots)) {
-      if (!is.null(result$artifacts$plots[[plot_name]])) {
-        path <- export_plot_artifact(
-          result$artifacts$plots[[plot_name]],
-          file.path(config$output_dir, "m4", plot_name),
-          width = config$plot_width,
-          height = config$plot_height,
-          dpi = config$dpi
+    for (section_nm in names(result$artifacts$plots)) {
+      section <- result$artifacts$plots[[section_nm]]
+      if (!is.list(section) || !is.list(section$plots)) next
+      flat_plots <- m4_flatten_plot_collection(section$plots)
+      for (plot_nm in names(flat_plots)) {
+        plot_obj <- ieee_prepare_plot_for_export(
+          flat_plots[[plot_nm]],
+          module_id = "m4",
+          section_id = section_nm,
+          plot_id = plot_nm,
+          config = config
         )
-        exported <- c(exported, path)
+        if (!inherits(plot_obj, "ggplot") && !inherits(plot_obj, "recordedplot")) next
+        spec <- ieee_get_plot_export_spec(plot_obj, config, section_id = section_nm, plot_id = plot_nm)
+        base <- build_artifact_path(config, "m4", "plots", paste(section_nm, plot_nm, sep = "_"))
+        exported_plots <- c(exported_plots, export_plot_artifact(plot_obj, base, width = spec$width, height = spec$height, dpi = spec$dpi))
       }
     }
   }
-  
-  # Export tables
-  if (config$export_json) {
-    for (table_name in names(result$artifacts$tables)) {
-      path <- file.path(config$output_dir, "m4", paste0(table_name, ".json"))
-      write_json_artifact(result$artifacts$tables[[table_name]], path)
-      exported <- c(exported, path)
+
+  if (config$export_tables) {
+    for (table_nm in names(result$artifacts$tables)) {
+      tables <- m4_flatten_table_collection(result$artifacts$tables[[table_nm]])
+      for (sub_nm in names(tables)) {
+        path <- build_artifact_path(config, "m4", "tables", paste(table_nm, sub_nm, sep = "_"), ext = "json")
+        write_json_artifact(tables[[sub_nm]], path)
+        exported_tables <- c(exported_tables, path)
+      }
     }
   }
-  
-  exported
+
+  if (config$export_json) {
+    path <- build_artifact_path(config, "m4", "data", "m4_result_data", ext = "json")
+    write_json_artifact(result$data, path)
+    exported_jsons <- c(exported_jsons, path)
+  }
+
+  if (config$export_reports && length(result$artifacts$reports) > 0) {
+    path <- build_artifact_path(config, "m4", "reports", "m4_report", ext = "txt")
+    write_text_report(result$artifacts$reports[[1]]$lines %||% result$artifacts$reports[[1]], path)
+    exported_reports <- c(exported_reports, path)
+  }
+
+  list(plots = exported_plots, tables = exported_tables, reports = exported_reports, files = exported_jsons)
 }
 
-#' Build M4 manifest
-#' @keywords internal
-build_m4_manifest <- function(result, exported, config) {
-  list(
-    module = "m4",
-    timestamp = format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
-    n_records = result$inputs$n_records,
-    n_institutions = nrow(result$data$production$institutions),
-    exported_files = exported,
-    status = result$status
+build_m4_manifest <- function(result, exported = list(), config = biblio_config()) {
+  new_artifact_manifest(
+    module_id = "m4",
+    generated_at = Sys.time(),
+    files = exported$files %||% character(),
+    plots = exported$plots %||% character(),
+    tables = exported$tables %||% character(),
+    reports = exported$reports %||% character(),
+    status = result$status %||% "unknown"
   )
 }
 
-#' Create error result helper
-#' @keywords internal
-create_error_result <- function(module_id, module_name, message) {
-  new_module_result(
-    module_id = module_id,
-    module_name = module_name,
-    status = "error",
-    inputs = list(),
-    data = list(),
-    diagnostics = list(errors = message)
-  )
+m4_flatten_plot_collection <- function(x) {
+  if (is.null(x)) return(list())
+  if (inherits(x, "ggplot") || inherits(x, "recordedplot")) return(list(plot = x))
+  if (!is.list(x)) return(list())
+  out <- list()
+  for (nm in names(x)) {
+    item <- x[[nm]]
+    if (inherits(item, "ggplot") || inherits(item, "recordedplot")) {
+      out[[nm]] <- item
+    } else if (is.list(item)) {
+      nested <- m4_flatten_plot_collection(item)
+      for (sub_nm in names(nested)) out[[paste(nm, sub_nm, sep = "_")]] <- nested[[sub_nm]]
+    }
+  }
+  out
+}
+
+m4_flatten_table_collection <- function(x) {
+  if (is.null(x)) return(list())
+  if (is.data.frame(x)) return(list(table = x))
+  if (is.list(x) && is.data.frame(x$table)) return(list(table = x$table))
+  if (!is.list(x)) return(list())
+  out <- list()
+  for (nm in names(x)) {
+    item <- x[[nm]]
+    if (is.data.frame(item)) out[[nm]] <- item
+    else if (is.list(item) && is.data.frame(item$table)) out[[nm]] <- item$table
+  }
+  out
 }

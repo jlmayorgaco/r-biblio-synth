@@ -7,7 +7,7 @@
 #' @return Character vector of registered module ids.
 #' @export
 get_available_modules <- function() {
-  c("m0", "m1", "m2", "m3")
+  c("m0", "m1", "m2", "m3", "m4")
 }
 
 #' Get metadata for a specific module
@@ -36,6 +36,11 @@ get_module_metadata <- function(module_id) {
       id   = "m3",
       name = "Countries",
       description = "Country-level production, citations, SCP/MCP, inequality, clustering, collaboration indices."
+    ),
+    m4 = list(
+      id   = "m4",
+      name = "Sources / Journals & Venues",
+      description = "Source-level productivity, impact, Bradford zones, growth, concentration, clustering, and narrative evidence."
     )
   )
   registry[[module_id]]
