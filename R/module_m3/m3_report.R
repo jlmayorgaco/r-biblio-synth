@@ -35,6 +35,8 @@ build_m3_report <- function(result, config = biblio_config()) {
     "",
     .m3_report_scp_mcp(data),
     "",
+    .m3_report_positioning(data),
+    "",
     .m3_report_inequality(data),
     "",
     .m3_report_growth(data),
@@ -79,6 +81,9 @@ build_m3_report <- function(result, config = biblio_config()) {
     "\\subsection*{Collaboration}",
     paste(.m3_report_scp_mcp(data), collapse = "\\\\"),
     "",
+    "\\subsection*{Country Positioning and Trajectories}",
+    paste(.m3_report_positioning(data), collapse = "\\\\"),
+    "",
     "\\subsection*{Inequality}",
     paste(.m3_report_inequality(data), collapse = "\\\\"),
     "",
@@ -104,7 +109,7 @@ build_m3_report <- function(result, config = biblio_config()) {
   list(
     status   = "success",
     title    = "M3 Countries Module Report",
-    sections = c("narrative", "overview", "production", "citations", "scp_mcp", "inequality",
+    sections = c("narrative", "overview", "production", "citations", "scp_mcp", "positioning", "inequality",
                  "growth", "change_points", "profiles", "spatial",
                  "regional", "economic", "temporal_dynamics", "advanced_journal", "experiments", "caveats"),
     lines    = lines,
@@ -211,6 +216,43 @@ build_m3_report <- function(result, config = biblio_config()) {
         "N/A"
       }
     )
+  )
+}
+
+.m3_report_positioning <- function(data) {
+  pos <- data$positioning %||% list()
+  table <- pos$table %||% tibble::tibble()
+  if (!is.data.frame(table) || nrow(table) == 0) {
+    return(c(
+      "--- Country Positioning and Trajectories ---",
+      "  Not available: country positioning metrics could not be computed."
+    ))
+  }
+
+  notes <- pos$quadrant_notes %||% m3_positioning_quadrant_notes()
+  top_mcp <- table[order(-table$mcp_slope, -table$mcp), , drop = FALSE]
+  top_tc <- table[order(-table$tc_slope, -table$tc), , drop = FALSE]
+  clusters <- table$cluster[!is.na(table$cluster)]
+
+  c(
+    "--- Country Positioning and Trajectories ---",
+    sprintf("  Projection horizon: %s years.", .safe_int(pos$horizon, default = 3L)),
+    sprintf("  SCP/MCP quadrant split: median SCP and median MCP among displayed countries."),
+    paste0("  - ", notes$scp_mcp),
+    sprintf("  TC/TP quadrant split: median TP and median TC among displayed countries."),
+    paste0("  - ", notes$tc_tp),
+    if (nrow(top_mcp) > 0) sprintf(
+      "  Strongest MCP trajectory: %s (MCP slope %.3f/year; SCP slope %.3f/year).",
+      top_mcp$country[1], .safe_num(top_mcp$mcp_slope[1]), .safe_num(top_mcp$scp_slope[1])
+    ) else NULL,
+    if (nrow(top_tc) > 0) sprintf(
+      "  Strongest TC trajectory: %s (TC slope %.3f/year; TP slope %.3f/year).",
+      top_tc$country[1], .safe_num(top_tc$tc_slope[1]), .safe_num(top_tc$tp_slope[1])
+    ) else NULL,
+    if (length(clusters) > 0) sprintf(
+      "  K-means retained %d country clusters from standardized TP, TC, SCP, MCP, MCP share, and TC/TP features.",
+      length(unique(clusters))
+    ) else "  K-means clusters: not available."
   )
 }
 

@@ -84,6 +84,7 @@ m3_compute_all <- function(prepared_data, config) {
   )
   data$advanced_journal <- m3_compute_advanced_journal(prepared_data, data, config)
   data$narrative <- m3_compute_narrative(data, prepared_data, config)
+  data$positioning <- m3_compute_positioning(prepared_data, data$scp_mcp, config)
   data
 }
 
@@ -129,7 +130,8 @@ m3_render_all <- function(result, data, config) {
     temporal_dynamics      = render_m3_temporal_dynamics(data$temporal_dynamics, config),
     network                = render_m3_collaboration_network(data$collaboration_indices, config),
     advanced_journal       = render_m3_advanced_journal(data$advanced_journal, config),
-    narrative              = render_m3_narrative(data$narrative, config)
+    narrative              = render_m3_narrative(data$narrative, config),
+    positioning            = render_m3_positioning(data$positioning, config)
   )
   result$artifacts$plots <- m3_fill_core_plot_placeholders(result$artifacts$plots, data, config)
   result
@@ -184,6 +186,10 @@ m3_fill_core_plot_placeholders <- function(plot_sections, data, config) {
     narrative = list(
       title = "Geographic narrative evidence unavailable",
       message = "Coverage, concentration, impact, collaboration, and growth metrics could not be normalized into a narrative dashboard."
+    ),
+    positioning = list(
+      title = "Country positioning and trajectory plots unavailable",
+      message = "SCP/MCP, TC/TP, trend-vector, or k-means positioning evidence could not be computed from the country-year data."
     )
   )
 
@@ -236,7 +242,8 @@ m3_build_tables <- function(result, data, config) {
     economic                = build_m3_economic_table(data$economic, config),
     temporal_dynamics       = m3_table_temporal_dynamics(data$temporal_dynamics, config),
     advanced_journal        = m3_table_advanced_journal(data$advanced_journal, config),
-    narrative               = m3_table_narrative(data$narrative, config)
+    narrative               = m3_table_narrative(data$narrative, config),
+    positioning             = m3_table_positioning(data$positioning, config)
   )
   result
 }
