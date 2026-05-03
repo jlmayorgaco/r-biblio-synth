@@ -19,7 +19,8 @@ m3_render_lorenz <- function(inequality_data, config = biblio_config()) {
   .lorenz_plot <- function(lorenz_df, gini, title, color) {
     if (nrow(lorenz_df) == 0) return(NULL)
 
-    gini_label <- if (!is.na(gini)) sprintf("Gini = %.3f", gini) else "Gini = N/A"
+    gini_val <- if (length(gini) > 0) suppressWarnings(as.numeric(gini[1])) else NA_real_
+    gini_label <- if (length(gini_val) == 1L && is.finite(gini_val)) sprintf("Gini = %.3f", gini_val) else "Gini = N/A"
 
     # Smooth interpolation for display
     ent <- c(0, lorenz_df$cumulative_entities)

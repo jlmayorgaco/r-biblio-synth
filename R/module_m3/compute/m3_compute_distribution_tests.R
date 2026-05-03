@@ -74,7 +74,7 @@ m3_compute_distribution_tests <- function(prepared_data, config = biblio_config(
     sd_val <- sd(values)
     # Skewness and kurtosis using moments (if package available, but we'll implement manually)
     # We'll use the definitions: skewness = E[(x - mu)^3] / sigma^3, kurtosis = E[(x - mu)^4] / sigma^4 - 3
-    if (sd_val == 0) {
+    if (!is.finite(sd_val) || sd_val == 0) {
       skewness <- 0
       kurtosis <- -3
     } else {
@@ -95,7 +95,7 @@ m3_compute_distribution_tests <- function(prepared_data, config = biblio_config(
       }
     }
     
-    cv <- if (mean_val != 0) sd_val / mean_val else NA_real_
+    cv <- if (is.finite(mean_val) && is.finite(sd_val) && mean_val != 0) sd_val / mean_val else NA_real_
     
     return(list(
       n = n,

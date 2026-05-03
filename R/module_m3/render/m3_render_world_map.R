@@ -18,8 +18,10 @@ render_m3_world_map <- function(data, config = biblio_config()) {
   
   # Check if rnaturalearth is available
   if (!requireNamespace("rnaturalearth", quietly = TRUE)) {
-    cli::cli_warn("rnaturalearth package not available, skipping world map")
-    return(list(plots = list(), status = "error: rnaturalearth not available"))
+    return(list(plots = list(), status = "stub: rnaturalearth not available"))
+  }
+  if (!requireNamespace("rnaturalearthdata", quietly = TRUE)) {
+    return(list(plots = list(), status = "stub: rnaturalearthdata not available"))
   }
   
   # Get production data

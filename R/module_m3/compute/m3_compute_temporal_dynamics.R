@@ -26,13 +26,16 @@ m3_compute_temporal_dynamics <- function(country_year_data, config = biblio_conf
     return(list(status = "error: missing required columns (need country, year, production or PY/article_count)"))
   }
   
+  years <- sort(unique(country_year_data$year))
+  window_n <- m3_temporal_window_size(years)
+
   results <- list()
   
   # 1. Rank mobility analysis
-  results$rank_mobility <- compute_rank_mobility(country_year_data)
+  results$rank_mobility <- compute_rank_mobility(country_year_data, years = years, window_n = window_n)
   
   # 2. Share evolution
-  results$share_evolution <- compute_share_evolution(country_year_data)
+  results$share_evolution <- compute_share_evolution(country_year_data, years = years, window_n = window_n)
   
   # 3. Emergence patterns (new countries)
   results$emergence <- compute_emergence_patterns(country_year_data)
@@ -42,6 +45,11 @@ m3_compute_temporal_dynamics <- function(country_year_data, config = biblio_conf
   
   # 5. NELSOP patterns
   results$nelsop <- compute_nelsop_patterns(country_year_data)
+  results$meta <- list(
+    window_n = window_n,
+    first_window = head(years, window_n),
+    last_window = tail(years, window_n)
+  )
   
   results$status <- "success"
   results
@@ -49,9 +57,8 @@ m3_compute_temporal_dynamics <- function(country_year_data, config = biblio_conf
 
 #' Compute rank mobility analysis
 #' @keywords internal
-compute_rank_mobility <- function(country_year_data) {
-  years <- sort(unique(country_year_data$year))
-  
+compute_rank_mobility <- function(country_year_data, years = sort(unique(country_year_data$year)),
+                                  window_n = m3_temporal_window_size(years)) {
   if (length(years) < 3) {
     return(list(status = "error: insufficient years"))
   }
@@ -76,7 +83,7 @@ compute_rank_mobility <- function(country_year_data) {
   rank_correlations <- compute_rank_correlations(rank_matrices)
   
   # Rank changes
-  rank_changes <- compute_rank_changes(rank_matrices)
+  rank_changes <- compute_rank_changes(country_year_data, years = years, window_n = window_n)
   
   list(
     volatility = volatility,
@@ -84,6 +91,9 @@ compute_rank_mobility <- function(country_year_data) {
     rank_correlations = rank_correlations,
     rank_changes = rank_changes,
     n_years = length(years),
+    window_n = window_n,
+    first_window = head(years, window_n),
+    last_window = tail(years, window_n),
     status = "success"
   )
 }
@@ -224,49 +234,66 @@ compute_rank_correlations <- function(rank_matrices) {
 
 #' Compute rank changes
 #' @keywords internal
-compute_rank_changes <- function(rank_matrices) {
-  year_names <- names(rank_matrices)
-  first_year <- year_names[1]
-  last_year <- year_names[length(year_names)]
-  
-  rank_first <- rank_matrices[[first_year]]
-  rank_last <- rank_matrices[[last_year]]
-  
-  common <- intersect(rank_first$country, rank_last$country)
-  
-  if (length(common) == 0) {
-    return(list(status = "no common countries"))
+compute_rank_changes <- function(country_year_data, years = sort(unique(country_year_data$year)),
+                                 window_n = m3_temporal_window_size(years)) {
+  if (length(years) == 0) {
+    return(list(status = "no country-year data"))
   }
-  
+
+  first_window <- head(years, window_n)
+  last_window <- tail(years, window_n)
+
+  first_avg <- m3_average_window_production(country_year_data, first_window)
+  last_avg <- m3_average_window_production(country_year_data, last_window)
+  all_countries <- union(first_avg$country, last_avg$country)
+
+  if (length(all_countries) < 2) {
+    return(list(status = "insufficient countries across windows"))
+  }
+
   changes <- data.frame(
-    country = common,
-    rank_first = rank_first$rank[match(common, rank_first$country)],
-    rank_last = rank_last$rank[match(common, rank_last$country)],
+    country = all_countries,
+    first_window_output = first_avg$avg_production[match(all_countries, first_avg$country)],
+    last_window_output = last_avg$avg_production[match(all_countries, last_avg$country)],
     stringsAsFactors = FALSE
   )
-  
+
+  changes$first_window_output[is.na(changes$first_window_output)] <- 0
+  changes$last_window_output[is.na(changes$last_window_output)] <- 0
+  changes <- changes[
+    changes$first_window_output > 0 | changes$last_window_output > 0,
+    ,
+    drop = FALSE
+  ]
+
+  changes$rank_first <- rank(-changes$first_window_output, ties.method = "min")
+  changes$rank_last <- rank(-changes$last_window_output, ties.method = "min")
   changes$rank_change <- changes$rank_first - changes$rank_last
-  changes$direction <- ifelse(changes$rank_change > 0, "improved",
-                             ifelse(changes$rank_change < 0, "declined", "stable"))
-  
-  # Most improved / declined
-  most_improved <- head(changes[order(-changes$rank_change), ], 10)
-  most_declined <- head(changes[order(changes$rank_change), ], 10)
-  
+  changes$direction <- ifelse(
+    changes$rank_change > 0, "improved",
+    ifelse(changes$rank_change < 0, "declined", "stable")
+  )
+
+  most_improved <- head(changes[order(-changes$rank_change, -changes$last_window_output), ], 10)
+  most_declined <- head(changes[order(changes$rank_change, -changes$first_window_output), ], 10)
+
   list(
     changes = changes,
     most_improved = most_improved,
     most_declined = most_declined,
     n_improved = sum(changes$rank_change > 0),
     n_declined = sum(changes$rank_change < 0),
-    n_stable = sum(changes$rank_change == 0)
+    n_stable = sum(changes$rank_change == 0),
+    first_window = first_window,
+    last_window = last_window,
+    window_n = window_n
   )
 }
 
 #' Compute share evolution over time
 #' @keywords internal
-compute_share_evolution <- function(country_year_data) {
-  years <- sort(unique(country_year_data$year))
+compute_share_evolution <- function(country_year_data, years = sort(unique(country_year_data$year)),
+                                    window_n = m3_temporal_window_size(years)) {
   countries <- sort(unique(as.character(country_year_data$country)))
   if (length(years) == 0 || length(countries) == 0) {
     return(list(
@@ -294,11 +321,16 @@ compute_share_evolution <- function(country_year_data) {
     }
   }
   
-  # Find top countries by current share
-  current_shares <- share_matrix[, ncol(share_matrix)]
-  top_countries <- names(sort(current_shares, decreasing = TRUE, na.last = NA))
-  top_countries <- head(top_countries, 10)
-  if (length(top_countries) == 0) {
+  share_matrix[is.na(share_matrix)] <- 0
+
+  first_window <- head(years, window_n)
+  last_window <- tail(years, window_n)
+  first_idx <- match(as.character(first_window), colnames(share_matrix))
+  last_idx <- match(as.character(last_window), colnames(share_matrix))
+  first_idx <- first_idx[!is.na(first_idx)]
+  last_idx <- last_idx[!is.na(last_idx)]
+
+  if (length(first_idx) == 0 || length(last_idx) == 0) {
     return(list(
       share_matrix = share_matrix,
       share_trends = data.frame(),
@@ -306,23 +338,30 @@ compute_share_evolution <- function(country_year_data) {
       status = "success"
     ))
   }
-  
-  # Share trends
+
+  first_share <- rowMeans(share_matrix[, first_idx, drop = FALSE], na.rm = TRUE)
+  last_share <- rowMeans(share_matrix[, last_idx, drop = FALSE], na.rm = TRUE)
+
   share_trends <- data.frame(
-    country = top_countries,
-    first_share = share_matrix[top_countries, 1] * 100,
-    last_share = share_matrix[top_countries, ncol(share_matrix)] * 100,
-    change = (share_matrix[top_countries, ncol(share_matrix)] - share_matrix[top_countries, 1]) * 100,
+    country = countries,
+    first_share = first_share * 100,
+    last_share = last_share * 100,
+    change = (last_share - first_share) * 100,
     stringsAsFactors = FALSE
   )
-  
-  share_trends$trend <- ifelse(share_trends$change > 1, "gaining",
-                              ifelse(share_trends$change < -1, "losing", "stable"))
+  share_trends <- share_trends[order(abs(share_trends$change), decreasing = TRUE), , drop = FALSE]
+  share_trends$trend <- ifelse(
+    share_trends$change > 0.5, "gaining",
+    ifelse(share_trends$change < -0.5, "losing", "stable")
+  )
   
   list(
     share_matrix = share_matrix,
     share_trends = share_trends,
     n_years = length(years),
+    first_window = first_window,
+    last_window = last_window,
+    window_n = window_n,
     status = "success"
   )
 }
@@ -539,6 +578,27 @@ compute_specialization_index <- function(country_year_data) {
   specialization$production_per_year <- specialization$total_production / specialization$years_present
   
   specialization[order(-specialization$production_per_year), ]
+}
+
+#' Choose a stable comparison window for temporal summaries
+#' @keywords internal
+m3_temporal_window_size <- function(years) {
+  n_years <- length(unique(years))
+  if (n_years <= 6) return(max(1L, floor(n_years / 2)))
+  min(5L, max(3L, floor(n_years / 4)))
+}
+
+#' Average production across a year window
+#' @keywords internal
+m3_average_window_production <- function(country_year_data, years_window) {
+  country_year_data %>%
+    dplyr::filter(year %in% years_window) %>%
+    dplyr::group_by(country) %>%
+    dplyr::summarise(
+      avg_production = mean(production, na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    dplyr::arrange(dplyr::desc(avg_production))
 }
 
 `%||%` <- function(a, b) if (!is.null(a)) a else b

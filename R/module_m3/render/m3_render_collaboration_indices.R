@@ -18,7 +18,7 @@ render_m3_collaboration_indices <- function(data, config = biblio_config()) {
   plots <- list()
   
   if (!is.null(data$salton_matrix) && nrow(data$salton_matrix) > 0) {
-    plots$salton_heatmap <- create_collaboration_index_heatmap(
+    plots$salton_heatmap <- m3_create_collaboration_index_heatmap(
       data$salton_matrix,
       "Salton's Index (Cosine Similarity)",
       config
@@ -26,7 +26,7 @@ render_m3_collaboration_indices <- function(data, config = biblio_config()) {
   }
   
   if (!is.null(data$jaccard_matrix) && nrow(data$jaccard_matrix) > 0) {
-    plots$jaccard_heatmap <- create_collaboration_index_heatmap(
+    plots$jaccard_heatmap <- m3_create_collaboration_index_heatmap(
       data$jaccard_matrix,
       "Jaccard Index",
       config
@@ -34,7 +34,7 @@ render_m3_collaboration_indices <- function(data, config = biblio_config()) {
   }
   
   if (!is.null(data$affinity_matrix) && nrow(data$affinity_matrix) > 0) {
-    plots$affinity_heatmap <- create_collaboration_index_heatmap(
+    plots$affinity_heatmap <- m3_create_collaboration_index_heatmap(
       data$affinity_matrix,
       "Affinity Index",
       config
@@ -42,15 +42,15 @@ render_m3_collaboration_indices <- function(data, config = biblio_config()) {
   }
   
   if (!is.null(data$bilateral) && nrow(data$bilateral) > 0) {
-    plots$top_collaborations <- create_top_collaborations_plot(data$bilateral, config)
+    plots$top_collaborations <- m3_create_top_collaborations_plot(data$bilateral, config)
   }
   
   if (!is.null(data$indices) && nrow(data$indices) > 0) {
-    plots$country_indices <- create_country_indices_plot(data$indices, config)
+    plots$country_indices <- m3_create_country_indices_plot(data$indices, config)
   }
   
   if (!is.null(data$summary$top_collaborators) && nrow(data$summary$top_collaborators) > 0) {
-    plots$top_pairs <- create_top_pairs_barplot(data$summary$top_collaborators, config)
+    plots$top_pairs <- m3_create_top_pairs_barplot(data$summary$top_collaborators, config)
   }
   
   list(
@@ -61,7 +61,7 @@ render_m3_collaboration_indices <- function(data, config = biblio_config()) {
 
 #' Create collaboration heatmap
 #' @keywords internal
-create_collaboration_index_heatmap <- function(matrix, title, config) {
+m3_create_collaboration_index_heatmap <- function(matrix, title, config) {
   n <- nrow(matrix)
   if (n < 2) return(NULL)
   
@@ -110,15 +110,20 @@ create_collaboration_index_heatmap <- function(matrix, title, config) {
 
 #' Create top collaborations plot
 #' @keywords internal
-create_top_collaborations_plot <- function(bilateral_data, config) {
+m3_create_top_collaborations_plot <- function(bilateral_data, config) {
   top_n <- config$top_n_collaborations %||% 20
   
-  df <- head(bilateral_data[order(-bilateral_data$salton), ], top_n)
+  bilateral_data$pair <- paste(bilateral_data$country_1, "-", bilateral_data$country_2)
+  df <- stats::aggregate(
+    cbind(salton, jaccard, avg_affinity) ~ pair,
+    data = bilateral_data,
+    FUN = function(x) max(x, na.rm = TRUE)
+  )
+  df <- head(df[order(-df$salton), ], top_n)
   
   if (nrow(df) == 0) return(NULL)
   
-  df$pair <- paste(df$country_1, "-", df$country_2)
-  df$pair <- factor(df$pair, levels = rev(df$pair))
+  df$pair <- factor(df$pair, levels = unique(rev(df$pair)))
   
   metrics_long <- reshape2::melt(
     df[, c("pair", "salton", "jaccard", "avg_affinity")],
@@ -151,7 +156,7 @@ create_top_collaborations_plot <- function(bilateral_data, config) {
 
 #' Create country indices plot
 #' @keywords internal
-create_country_indices_plot <- function(indices_data, config) {
+m3_create_country_indices_plot <- function(indices_data, config) {
   top_n <- config$top_n_countries %||% 15
   
   df <- head(indices_data[order(-indices_data$n_documents), ], top_n)
@@ -197,14 +202,15 @@ create_country_indices_plot <- function(indices_data, config) {
 
 #' Create top pairs barplot
 #' @keywords internal
-create_top_pairs_barplot <- function(top_pairs, config) {
+m3_create_top_pairs_barplot <- function(top_pairs, config) {
   top_n <- min(15, nrow(top_pairs))
-  df <- head(top_pairs[order(-top_pairs$salton), ], top_n)
+  top_pairs$pair <- paste(top_pairs$country_1, "-", top_pairs$country_2)
+  df <- stats::aggregate(salton ~ pair, data = top_pairs, FUN = function(x) max(x, na.rm = TRUE))
+  df <- head(df[order(-df$salton), ], top_n)
   
   if (nrow(df) == 0) return(NULL)
   
-  df$pair <- paste(df$country_1, "-", df$country_2)
-  df$pair <- factor(df$pair, levels = rev(df$pair))
+  df$pair <- factor(df$pair, levels = unique(rev(df$pair)))
   
   p <- ggplot2::ggplot(df, ggplot2::aes(x = pair, y = salton)) +
     ggplot2::geom_col(fill = "#A2142F", color = "black", linewidth = 0.2, width = 0.7) +

@@ -67,26 +67,30 @@ create_tp_bars_plot <- function(top_countries, top_n, config) {
   
   # Take top N countries
   top_countries <- head(top_countries[order(-top_countries$value), ], top_n)
-  top_countries$label <- substr(trimws(top_countries$label), 1, 25)
+  top_countries$label <- vapply(as.character(top_countries$label), function(x) {
+    parts <- unlist(strsplit(tolower(trimws(x)), "\\s+"))
+    paste0(toupper(substr(parts, 1, 1)), substring(parts, 2), collapse = " ")
+  }, character(1))
+  top_countries$label <- substr(trimws(top_countries$label), 1, 30)
   top_countries$label <- factor(top_countries$label, levels = rev(top_countries$label))
   
   # Calculate percentage
   total <- sum(top_countries$value, na.rm = TRUE)
   top_countries$pct <- top_countries$value / total * 100
+  top_countries$value_label <- sprintf("%s (%.1f%%)", scales::comma(top_countries$value), top_countries$pct)
   
   p <- ggplot2::ggplot(top_countries, ggplot2::aes(x = label, y = value)) +
     ggplot2::geom_col(fill = "#0072BD", color = "black", linewidth = 0.3, width = 0.7) +
     ggplot2::geom_text(
-      ggplot2::aes(label = sprintf("%d\n(%.1f%%)", value, pct)),
-      hjust = -0.1,
-      size = 2.5,
-      family = "mono"
+      ggplot2::aes(label = value_label),
+      hjust = -0.08,
+      size = 2.7
     ) +
     ggplot2::coord_flip() +
     ggplot2::scale_y_continuous(
       name = "Total Publications",
       labels = scales::label_number(big.mark = ","),
-      expand = ggplot2::expansion(mult = c(0, 0.25))
+      expand = ggplot2::expansion(mult = c(0, 0.32))
     ) +
     ggplot2::scale_x_discrete(name = NULL) +
     ieee_theme_bar() +
@@ -95,9 +99,10 @@ create_tp_bars_plot <- function(top_countries, top_n, config) {
       subtitle = sprintf("Showing top %d countries", top_n)
     ) +
     ggplot2::theme(
-      axis.text.y = ggplot2::element_text(size = 7),
+      axis.text.y = ggplot2::element_text(size = 8),
       plot.title = ggplot2::element_text(size = 10, face = "bold", hjust = 0.5),
-      plot.subtitle = ggplot2::element_text(size = 8, hjust = 0.5, face = "italic")
+      plot.subtitle = ggplot2::element_text(size = 8, hjust = 0.5, face = "italic"),
+      plot.margin = ggplot2::margin(6, 28, 6, 6)
     )
   
   p

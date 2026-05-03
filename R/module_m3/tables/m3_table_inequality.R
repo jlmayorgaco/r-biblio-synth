@@ -15,7 +15,16 @@ m3_table_inequality <- function(inequality_data, config = biblio_config()) {
 
   s <- inequality_data$inequality_summary
 
-  .fmt <- function(x) if (is.null(x) || is.na(x)) NA_real_ else round(as.numeric(x), 4)
+  .fmt <- function(x) {
+    if (is.null(x) || length(x) == 0) {
+      return(NA_real_)
+    }
+    value <- suppressWarnings(as.numeric(x[1]))
+    if (!length(value) || !is.finite(value)) {
+      return(NA_real_)
+    }
+    round(value, 4)
+  }
 
   tibble::tibble(
     Metric               = c("Gini Coefficient", "HHI",

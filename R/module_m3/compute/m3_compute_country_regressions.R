@@ -499,7 +499,7 @@ test_country_hypotheses <- function(country_regressions, summary_stats) {
   hypotheses <- list()
   n_successful <- summary_stats$n_successful %||% 0L
   n_increasing <- summary_stats$n_increasing %||% 0L
-  decreasing <- summary_stats$decreasing_countries %||% character()
+  declining <- summary_stats$decreasing_countries %||% character()
 
   if (n_successful == 0) {
     hypotheses$H03_1 <- list(

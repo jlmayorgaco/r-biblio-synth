@@ -38,6 +38,7 @@ run_m3 <- function(input, config = biblio_config(), export = TRUE) {
 
   # 5. Render plots
   result <- m3_render_all(result, data, config)
+  result <- m3_apply_ieee_plot_standards(result, config)
 
   # 6. Build tables
   result <- m3_build_tables(result, data, config)
@@ -61,7 +62,7 @@ run_m3 <- function(input, config = biblio_config(), export = TRUE) {
 # ---------------------------------------------------------------------------
 
 m3_compute_all <- function(prepared_data, config) {
-  list(
+  data <- list(
     production            = m3_compute_production(prepared_data, config),
     citations             = m3_compute_citations(prepared_data, config),
     scp_mcp               = m3_compute_scp_mcp(prepared_data, config),
@@ -81,6 +82,8 @@ m3_compute_all <- function(prepared_data, config) {
     economic              = m3_compute_economic_correlation(prepared_data$country_summary, config),
     temporal_dynamics     = m3_compute_temporal_dynamics(prepared_data$country_annual, config)
   )
+  data$advanced_journal <- m3_compute_advanced_journal(prepared_data, data, config)
+  data
 }
 
 m3_build_result <- function(data, validation, prepared_data) {
@@ -122,9 +125,90 @@ m3_render_all <- function(result, data, config) {
     spatial                = render_m3_spatial(data$spatial, config),
     regional               = render_m3_regional(data$regional, config),
     economic               = render_m3_economic(data$economic, config),
-    network                = render_m3_collaboration_network(data$collaboration_indices, config)
+    temporal_dynamics      = render_m3_temporal_dynamics(data$temporal_dynamics, config),
+    network                = render_m3_collaboration_network(data$collaboration_indices, config),
+    advanced_journal       = render_m3_advanced_journal(data$advanced_journal, config)
   )
+  result$artifacts$plots <- m3_fill_core_plot_placeholders(result$artifacts$plots, data, config)
   result
+}
+
+m3_fill_core_plot_placeholders <- function(plot_sections, data, config) {
+  core_specs <- list(
+    productivity = list(
+      title = "Country productivity overview unavailable",
+      message = "Insufficient data remained after validation to render the core production comparison."
+    ),
+    citations = list(
+      title = "Country citation overview unavailable",
+      message = "Citation totals were not sufficient to render the core impact comparison reliably."
+    ),
+    scp_mcp = list(
+      title = "Collaboration structure unavailable",
+      message = "Domestic versus international collaboration could not be summarized from the available records."
+    ),
+    lorenz = list(
+      title = "Concentration profile unavailable",
+      message = "The inequality profile could not be estimated robustly for the available country sample."
+    ),
+    growth = list(
+      title = "Country growth dynamics unavailable",
+      message = "Annual country trajectories were too sparse to support a stable growth-dynamics figure."
+    ),
+    experiments = list(
+      title = "Quadrant and momentum view unavailable",
+      message = "The exploratory quadrant layer requires a richer country profile to remain interpretable."
+    ),
+    spatial = list(
+      title = "Spatial structure unavailable",
+      message = "Spatial diagnostics were not estimable under the current country coverage and neighborhood structure."
+    ),
+    regional = list(
+      title = "Regional summary unavailable",
+      message = "Regional aggregation did not yield enough signal to support a publication-grade comparison."
+    ),
+    economic = list(
+      title = "Economic correlates unavailable",
+      message = "Economic matching or regression evidence was too limited to support a journal-ready figure."
+    ),
+    temporal_dynamics = list(
+      title = "Temporal country dynamics unavailable",
+      message = "Windowed share, rank, or emergence dynamics were too sparse to render a stable temporal narrative."
+    ),
+    advanced_journal = list(
+      title = "Advanced geographic journal analytics unavailable",
+      message = "The optional advanced M3 layer did not have enough country, citation, collaboration, or temporal evidence to render premium, mobility, trajectory, concentration, and regional plots."
+    )
+  )
+
+  for (section_nm in names(core_specs)) {
+    section <- plot_sections[[section_nm]]
+    has_content <- FALSE
+    if (is.list(section) && is.list(section$plots)) {
+      has_content <- length(m3_flatten_plot_collection(section$plots)) > 0
+    }
+
+    if (!has_content) {
+      spec <- core_specs[[section_nm]]
+      layout <- if (section_nm %in% c("productivity", "citations", "experiments", "regional", "temporal_dynamics")) "full" else "single"
+      plot_sections[[section_nm]] <- list(
+        status = "placeholder",
+        plots = list(
+          insufficient_data = m3_placeholder_plot(
+            title = spec$title,
+            message = spec$message,
+            layout = layout
+          )
+        )
+      )
+    }
+  }
+
+  plot_sections
+}
+
+m3_placeholder_plot <- function(title, message, layout = "single") {
+  ieee_no_data_plot(title = title, message = message, layout = layout)
 }
 
 m3_build_tables <- function(result, data, config) {
@@ -143,7 +227,9 @@ m3_build_tables <- function(result, data, config) {
     country_regressions     = m3_table_country_regressions(data$country_regressions, config),
     spatial                 = build_m3_spatial_table(data$spatial, config),
     regional                = build_m3_regional_table(data$regional, config),
-    economic                = build_m3_economic_table(data$economic, config)
+    economic                = build_m3_economic_table(data$economic, config),
+    temporal_dynamics       = m3_table_temporal_dynamics(data$temporal_dynamics, config),
+    advanced_journal        = m3_table_advanced_journal(data$advanced_journal, config)
   )
   result
 }
@@ -154,28 +240,44 @@ export_m3 <- function(result, config = biblio_config()) {
   config <- merge_biblio_config(config)
 
   exported_plots   <- character()
+  exported_tables  <- character()
   exported_reports <- character()
   exported_jsons   <- character()
-
-  w <- config$plot_width
-  h <- config$plot_height
 
   if (config$export_plots) {
     for (section_nm in names(result$artifacts$plots)) {
       section <- result$artifacts$plots[[section_nm]]
       if (!is.list(section) || !is.list(section$plots)) next
-      for (plot_nm in names(section$plots)) {
-        p_obj <- section$plots[[plot_nm]]
+      flat_plots <- m3_flatten_plot_collection(section$plots)
+      for (plot_nm in names(flat_plots)) {
+        p_obj <- ieee_prepare_plot_for_export(
+          flat_plots[[plot_nm]],
+          module_id = "m3",
+          section_id = section_nm,
+          plot_id = plot_nm,
+          config = config
+        )
         if (is.null(p_obj)) next
+        spec <- ieee_get_plot_export_spec(
+          p_obj,
+          config = config,
+          section_id = section_nm,
+          plot_id = plot_nm
+        )
         out <- build_artifact_path(
           "m3", "plots",
           paste0("m3_", section_nm, "_", plot_nm), "png", config
         )
         tryCatch(
           {
-            export_plot_artifact(p_obj, tools::file_path_sans_ext(out),
-                                 width = w, height = h, dpi = config$dpi)
-            exported_plots <- c(exported_plots, out)
+            exported_paths <- export_plot_artifact(
+              p_obj,
+              tools::file_path_sans_ext(out),
+              width = spec$width,
+              height = spec$height,
+              dpi = spec$dpi
+            )
+            exported_plots <- c(exported_plots, unname(exported_paths[!is.na(exported_paths)]))
           },
           error = function(e) cli::cli_warn("M3 plot export failed [{plot_nm}]: {e$message}")
         )
@@ -196,6 +298,25 @@ export_m3 <- function(result, config = biblio_config()) {
     }
   }
 
+  for (section_nm in names(result$artifacts$tables)) {
+    table_section <- result$artifacts$tables[[section_nm]]
+    flat_tables <- m3_flatten_table_collection(table_section)
+    for (table_nm in names(flat_tables)) {
+      csv_path <- build_artifact_path(
+        "m3", "tables",
+        paste0("m3_", section_nm, "_", table_nm), "csv", config
+      )
+      dir.create(dirname(csv_path), recursive = TRUE, showWarnings = FALSE)
+      tryCatch(
+        {
+          utils::write.csv(flat_tables[[table_nm]], csv_path, row.names = FALSE, na = "")
+          exported_tables <- c(exported_tables, csv_path)
+        },
+        error = function(e) cli::cli_warn("M3 table export failed [{table_nm}]: {e$message}")
+      )
+    }
+  }
+
   if (config$export_reports && length(result$artifacts$reports) > 0) {
     report <- result$artifacts$reports[[1]]
     if (!is.null(report$lines) && length(report$lines) > 0) {
@@ -203,10 +324,120 @@ export_m3 <- function(result, config = biblio_config()) {
       write_text_report(report$lines, r)
       exported_reports <- c(exported_reports, r)
     }
+    if (!is.null(report$tex) && length(report$tex) > 0) {
+      t <- build_artifact_path("m3", "reports", "m3_report", "tex", config)
+      writeLines(report$tex, t)
+      exported_reports <- c(exported_reports, t)
+    }
   }
 
-  list(plots = exported_plots, tables = character(),
+  list(plots = exported_plots, tables = exported_tables,
        reports = exported_reports, files = exported_jsons)
+}
+
+#' Apply IEEE-ready styling metadata to all rendered M3 plots
+#' @keywords internal
+m3_apply_ieee_plot_standards <- function(result, config = biblio_config()) {
+  if (!inherits(result, "biblio_module_result") || !is.list(result$artifacts$plots)) {
+    return(result)
+  }
+
+  for (section_nm in names(result$artifacts$plots)) {
+    section <- result$artifacts$plots[[section_nm]]
+    if (!is.list(section) || !is.list(section$plots)) {
+      next
+    }
+
+    for (plot_nm in names(section$plots)) {
+      plot_obj <- section$plots[[plot_nm]]
+      if (inherits(plot_obj, "ggplot")) {
+        plot_caption <- plot_obj$labels$caption %||% ""
+        if (!nzchar(plot_caption)) {
+          default_caption <- sprintf(
+            "M3 %s figure: %s.",
+            gsub("_", " ", section_nm),
+            gsub("_", " ", plot_nm)
+          )
+          plot_obj <- plot_obj + ggplot2::labs(caption = default_caption)
+        }
+        section$plots[[plot_nm]] <- ieee_prepare_plot_for_export(
+          plot_obj,
+          module_id = "m3",
+          section_id = section_nm,
+          plot_id = plot_nm,
+          config = config
+        )
+      }
+    }
+
+    result$artifacts$plots[[section_nm]] <- section
+  }
+
+  result
+}
+
+#' Flatten nested M3 plot collections for export
+#' @keywords internal
+m3_flatten_plot_collection <- function(x, prefix = NULL) {
+  if (inherits(x, "ggplot") || inherits(x, "recordedplot")) {
+    plot_name <- if (is.null(prefix) || identical(prefix, "")) "plot" else prefix
+    out <- list(x)
+    names(out) <- plot_name
+    return(out)
+  }
+
+  if (!is.list(x) || length(x) == 0) {
+    return(list())
+  }
+
+  flattened <- list()
+  child_names <- names(x)
+  if (is.null(child_names)) {
+    child_names <- as.character(seq_along(x))
+  }
+
+  for (i in seq_along(x)) {
+    child_prefix <- if (is.null(prefix) || identical(prefix, "")) {
+      child_names[i]
+    } else {
+      paste(prefix, child_names[i], sep = "_")
+    }
+    flattened <- c(flattened, m3_flatten_plot_collection(x[[i]], child_prefix))
+  }
+
+  flattened
+}
+
+#' Flatten nested M3 tables for export
+#' @keywords internal
+m3_flatten_table_collection <- function(x, prefix = NULL) {
+  if (is.data.frame(x)) {
+    table_name <- if (is.null(prefix) || identical(prefix, "")) "table" else prefix
+    out <- list(x)
+    names(out) <- table_name
+    return(out)
+  }
+
+  if (!is.list(x) || length(x) == 0) {
+    return(list())
+  }
+
+  flattened <- list()
+  child_names <- names(x)
+  if (is.null(child_names)) {
+    child_names <- as.character(seq_along(x))
+  }
+
+  for (i in seq_along(x)) {
+    child_prefix <- if (is.null(prefix) || identical(prefix, "")) {
+      child_names[i]
+    } else {
+      paste(prefix, child_names[i], sep = "_")
+    }
+    flattened <- c(flattened, m3_flatten_table_collection(x[[i]], child_prefix))
+  }
+
+  flattened
 }
 
 # Null-coalescing helper (avoid rlang dependency for one symbol)

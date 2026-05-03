@@ -10,7 +10,7 @@
 #' @export
 build_m3_report <- function(result, config = biblio_config()) {
   stub <- list(status = "stub", title = "M3 Countries Report",
-               sections = list(), lines = character())
+               sections = list(), lines = character(), tex = character())
 
   if (!inherits(result, "biblio_module_result")) return(stub)
 
@@ -23,6 +23,9 @@ build_m3_report <- function(result, config = biblio_config()) {
     "",
     paste("Generated:", Sys.time()),
     paste("Status   :", result$status),
+    sprintf("Countries: %s", .safe_int(result$inputs$n_countries)),
+    "",
+    .m3_report_overview(data),
     "",
     .m3_report_production(data),
     "",
@@ -34,19 +37,73 @@ build_m3_report <- function(result, config = biblio_config()) {
     "",
     .m3_report_growth(data),
     "",
+    .m3_report_change_points(data),
+    "",
     .m3_report_profiles(data),
+    "",
+    .m3_report_spatial(data),
+    "",
+    .m3_report_regional(data),
+    "",
+    .m3_report_economic(data),
+    "",
+    .m3_report_temporal_dynamics(data),
+    "",
+    .m3_report_advanced_journal(data),
     "",
     .m3_report_experiments(data),
     "",
     .m3_report_caveats(data)
   )
 
+  tex <- c(
+    "\\section*{M3 Countries Module Summary}",
+    sprintf("\\textbf{Generated}: %s\\\\", format(Sys.time(), tz = "", usetz = FALSE)),
+    sprintf("\\textbf{Status}: %s\\\\", result$status),
+    sprintf("\\textbf{Countries analyzed}: %s\\\\", .safe_int(result$inputs$n_countries)),
+    "",
+    "\\subsection*{Executive Overview}",
+    paste(.m3_report_overview(data), collapse = "\\\\"),
+    "",
+    "\\subsection*{Production}",
+    paste(.m3_report_production(data), collapse = "\\\\"),
+    "",
+    "\\subsection*{Citations}",
+    paste(.m3_report_citations(data), collapse = "\\\\"),
+    "",
+    "\\subsection*{Collaboration}",
+    paste(.m3_report_scp_mcp(data), collapse = "\\\\"),
+    "",
+    "\\subsection*{Inequality}",
+    paste(.m3_report_inequality(data), collapse = "\\\\"),
+    "",
+    "\\subsection*{Growth and Change Points}",
+    paste(c(.m3_report_growth(data), .m3_report_change_points(data)), collapse = "\\\\"),
+    "",
+    "\\subsection*{Profiles, Spatial and Regional Structure}",
+    paste(c(.m3_report_profiles(data), .m3_report_spatial(data), .m3_report_regional(data)), collapse = "\\\\"),
+    "",
+    "\\subsection*{Economic Correlates}",
+    paste(.m3_report_economic(data), collapse = "\\\\"),
+    "",
+    "\\subsection*{Temporal Dynamics}",
+    paste(.m3_report_temporal_dynamics(data), collapse = "\\\\"),
+    "",
+    "\\subsection*{Advanced Journal Analytics}",
+    paste(.m3_report_advanced_journal(data), collapse = "\\\\"),
+    "",
+    "\\subsection*{Caveats}",
+    paste(.m3_report_caveats(data), collapse = "\\\\")
+  )
+
   list(
     status   = "success",
     title    = "M3 Countries Module Report",
-    sections = c("production", "citations", "scp_mcp", "inequality",
-                 "growth", "profiles", "experiments", "caveats"),
-    lines    = lines
+    sections = c("overview", "production", "citations", "scp_mcp", "inequality",
+                 "growth", "change_points", "profiles", "spatial",
+                 "regional", "economic", "temporal_dynamics", "advanced_journal", "experiments", "caveats"),
+    lines    = lines,
+    tex      = tex
   )
 }
 
@@ -54,17 +111,39 @@ build_m3_report <- function(result, config = biblio_config()) {
 # Section builders
 # ---------------------------------------------------------------------------
 
+.m3_report_overview <- function(data) {
+  top_prod <- .m3_extract_ranked_item(
+    data$production$top_countries_by_production,
+    value_candidates = c("value", "article_count", "n_articles")
+  )
+  top_cit <- .m3_extract_ranked_item(
+    data$citations$top_countries_by_citations,
+    value_candidates = c("value", "total_citations", "citations")
+  )
+
+  c(
+    "--- Executive Overview ---",
+    sprintf("  Leading producer  : %s", .m3_format_ranked_item(top_prod, digits = 0)),
+    sprintf("  Leading citer     : %s", .m3_format_ranked_item(top_cit, digits = 0))
+  )
+}
+
 .m3_report_production <- function(data) {
   if (!"production" %in% names(data) ||
       length(data$production$production_summary) == 0) {
     return("--- Production: Not available ---")
   }
   s <- data$production$production_summary
+  top_prod <- .m3_extract_ranked_item(
+    data$production$top_countries_by_production,
+    value_candidates = c("value", "article_count", "n_articles")
+  )
   c(
     "--- Production ---",
     sprintf("  Total articles   : %d", s$total_articles),
     sprintf("  Countries active : %d", s$total_countries),
-    sprintf("  Gini (articles)  : %.4f", .safe_num(s$gini_articles))
+    sprintf("  Gini (articles)  : %.4f", .safe_num(s$gini_articles)),
+    sprintf("  Top producer     : %s", .m3_format_ranked_item(top_prod, digits = 0))
   )
 }
 
@@ -74,11 +153,16 @@ build_m3_report <- function(result, config = biblio_config()) {
     return("--- Citations: Not available ---")
   }
   s <- data$citations$citation_summary
+  top_cit <- .m3_extract_ranked_item(
+    data$citations$top_countries_by_citations,
+    value_candidates = c("value", "total_citations", "citations")
+  )
   c(
     "--- Citations ---",
     sprintf("  Total citations  : %d", as.integer(s$total_citations)),
     sprintf("  Countries        : %d", s$total_countries),
-    sprintf("  Gini (citations) : %.4f", .safe_num(s$gini_citations))
+    sprintf("  Gini (citations) : %.4f", .safe_num(s$gini_citations)),
+    sprintf("  Top cited        : %s", .m3_format_ranked_item(top_cit, digits = 0))
   )
 }
 
@@ -88,11 +172,25 @@ build_m3_report <- function(result, config = biblio_config()) {
     return("--- SCP/MCP: Not available ---")
   }
   s <- data$scp_mcp$scp_mcp_summary
+  top_collab <- .m3_extract_ranked_item(
+    data$scp_mcp$top_collaborators,
+    label_candidates = c("country", "label"),
+    value_candidates = c("mcp_ratio", "value")
+  )
+  top_collab_value <- .safe_num(top_collab$value)
   c(
     "--- Collaboration (SCP/MCP) ---",
     sprintf("  Total SCP        : %d", as.integer(s$total_scp)),
     sprintf("  Total MCP        : %d", as.integer(s$total_mcp)),
-    sprintf("  Overall MCP ratio: %.1f%%", .safe_num(s$mcp_ratio))
+    sprintf("  Overall MCP ratio: %.1f%%", .safe_num(s$mcp_ratio)),
+    sprintf(
+      "  Top collaborator : %s",
+      if (!is.na(top_collab_value)) {
+        sprintf("%s (%.1f%% MCP)", top_collab$label, 100 * top_collab_value)
+      } else {
+        "N/A"
+      }
+    )
   )
 }
 
@@ -131,10 +229,33 @@ build_m3_report <- function(result, config = biblio_config()) {
     sprintf("  Years covered    : %d", gs$productivity$available_years),
     sprintf("  Median prod CAGR : %.2f%%",
             .safe_num(gs$productivity$median_cagr) * 100),
+    sprintf("  Median prod slope: %.3f", .safe_num(gs$productivity$median_slope)),
     if (!is.null(gs$citations) && gs$citations$available_years > 0)
       sprintf("  Median cit  CAGR : %.2f%%",
               .safe_num(gs$citations$median_cagr) * 100)
     else "  Citation CAGR    : N/A (no annual citation data)"
+  )
+}
+
+.m3_report_change_points <- function(data) {
+  if (!"change_points" %in% names(data) ||
+      is.null(data$change_points$change_point_summary)) {
+    return("--- Change Points: Not available ---")
+  }
+
+  cps <- data$change_points$change_point_summary
+  c(
+    "--- Structural Breaks ---",
+    sprintf("  Productivity CPs : %d", .safe_int(cps$productivity$n_change_points)),
+    sprintf("  Citation CPs     : %d", .safe_int(cps$citations$n_change_points)),
+    sprintf(
+      "  Interpretive note: %s",
+      if (.safe_int(cps$productivity$n_change_points, default = 0L) + .safe_int(cps$citations$n_change_points, default = 0L) == 0L) {
+        "no stable country-level breakpoints were retained under the current thresholds."
+      } else {
+        "detected breaks are exploratory and should be triangulated with M2 before strong causal interpretation."
+      }
+    )
   )
 }
 
@@ -151,6 +272,76 @@ build_m3_report <- function(result, config = biblio_config()) {
     if (isTRUE(ps$clustering_performed))
       sprintf("  Clusters (k)        : %d", .safe_int(ps$k_for_clustering))
     else character()
+  )
+}
+
+.m3_report_spatial <- function(data) {
+  spatial <- data$spatial
+  if (is.null(spatial) || !identical(spatial$status, "success")) {
+    return("--- Spatial Structure: Not available ---")
+  }
+
+  morans_i <- .safe_num(spatial$morans_i$statistic)
+  morans_p <- .safe_num(spatial$morans_i$p_value)
+  hotspots <- if (!is.null(spatial$getis_ord$hotspots)) nrow(spatial$getis_ord$hotspots) else 0L
+
+  c(
+    "--- Spatial Structure ---",
+    sprintf("  Moran's I        : %s", .m3_format_metric(morans_i, digits = 4)),
+    sprintf("  Moran p-value    : %s", .m3_format_metric(morans_p, digits = 4, fallback = "not estimable")),
+    sprintf("  Hotspots flagged : %d", hotspots),
+    sprintf(
+      "  Interpretive note: %s",
+      if (is.finite(morans_p)) {
+        if (morans_p <= 0.05) "spatial clustering is statistically supported." else "spatial clustering is weak under the current country sample."
+      } else {
+        "global spatial significance was not estimable under the current neighborhood structure."
+      }
+    )
+  )
+}
+
+.m3_report_regional <- function(data) {
+  regional <- data$regional
+  if (is.null(regional) || !identical(regional$status, "success")) {
+    return("--- Regional Structure: Not available ---")
+  }
+
+  continent_summary <- regional$by_continent$summary
+  lead_region <- .m3_extract_ranked_item(
+    continent_summary,
+    label_candidates = c("region"),
+    value_candidates = c("share", "total_production")
+  )
+  c(
+    "--- Regional Structure ---",
+    sprintf("  Leading region   : %s", .m3_format_ranked_item(lead_region, digits = 2))
+  )
+}
+
+.m3_report_economic <- function(data) {
+  economic <- data$economic
+  if (is.null(economic) || !identical(economic$status, "success")) {
+    return("--- Economic Correlates: Not available ---")
+  }
+
+  regression <- economic$regression
+  matched_n <- if (!is.null(economic$matched_data)) nrow(economic$matched_data) else 0L
+
+  c(
+    "--- Economic Correlates ---",
+    sprintf("  Matched countries: %d", matched_n),
+    sprintf("  Regression R2    : %s", .m3_format_metric(.safe_num(regression$R_squared), digits = 4)),
+    sprintf("  GDP beta         : %s", .m3_format_metric(.safe_num(regression$coefficients["gdp_usd"]), digits = 4, fallback = "not estimable")),
+    sprintf("  HDI beta         : %s", .m3_format_metric(.safe_num(regression$coefficients["hdi"]), digits = 4, fallback = "not estimable")),
+    sprintf(
+      "  Interpretive note: %s",
+      if (matched_n < 8 || !is.finite(.safe_num(regression$R_squared))) {
+        "economic relationships remain exploratory because the matched sample is limited."
+      } else {
+        "economic coefficients are directional associations and should not be interpreted causally."
+      }
+    )
   )
 }
 
@@ -173,14 +364,77 @@ build_m3_report <- function(result, config = biblio_config()) {
   lines
 }
 
+.m3_report_temporal_dynamics <- function(data) {
+  temporal <- data$temporal_dynamics
+  if (is.null(temporal) || !identical(temporal$status, "success")) {
+    return("--- Temporal Dynamics: Not available ---")
+  }
+
+  share_trends <- temporal$share_evolution$share_trends
+  lead_gainer <- if (is.data.frame(share_trends) && nrow(share_trends) > 0) {
+    share_trends[which.max(share_trends$change), , drop = FALSE]
+  } else {
+    NULL
+  }
+
+  lead_decliner <- if (is.data.frame(share_trends) && nrow(share_trends) > 0) {
+    share_trends[which.min(share_trends$change), , drop = FALSE]
+  } else {
+    NULL
+  }
+
+  mobility <- temporal$rank_mobility$volatility$overall %||% NA_real_
+  emergence_counts <- temporal$emergence$emergence_counts
+  peak_emergence <- if (!is.null(emergence_counts) && length(emergence_counts) > 0) {
+    idx <- which.max(as.numeric(emergence_counts))
+    sprintf("%s (%d new countries)", names(emergence_counts)[idx], as.integer(emergence_counts[idx]))
+  } else {
+    "N/A"
+  }
+
+  c(
+    "--- Temporal Dynamics ---",
+    sprintf("  Rank mobility    : %s", .m3_format_metric(.safe_num(mobility), digits = 2, fallback = "not estimable")),
+    sprintf(
+      "  Largest share gain: %s",
+      if (!is.null(lead_gainer) && nrow(lead_gainer) == 1) {
+        sprintf("%s (%.2f pp)", .m3_pretty_label(lead_gainer$country[1]), .safe_num(lead_gainer$change[1]))
+      } else {
+        "N/A"
+      }
+    ),
+    sprintf(
+      "  Largest share loss: %s",
+      if (!is.null(lead_decliner) && nrow(lead_decliner) == 1) {
+        sprintf("%s (%.2f pp)", .m3_pretty_label(lead_decliner$country[1]), .safe_num(lead_decliner$change[1]))
+      } else {
+        "N/A"
+      }
+    ),
+    sprintf("  Peak entry wave  : %s", peak_emergence),
+    sprintf(
+      "  Trajectory signal: %s",
+      if (!is.finite(.safe_num(mobility))) {
+        "rank redistribution was not estimable under the current time windows."
+      } else if (.safe_num(mobility) >= 3) {
+        "leadership is fluid, with substantial rank turnover across countries."
+      } else if (.safe_num(mobility) >= 1) {
+        "leadership changed moderately between the initial and final windows."
+      } else {
+        "leadership remained comparatively stable across the observation windows."
+      }
+    )
+  )
+}
+
 .m3_report_caveats <- function(data) {
   c(
     "--- Limitations & Caveats ---",
     "  - Country normalization applies a fixed rule set; edge cases may exist.",
-    "  - Multi-country documents are counted once per country (fractional",
-    "    counting is not implemented).",
-    "  - Change-point detection uses a simple mean-shift heuristic and is",
-    "    exploratory only.",
+    "  - Multi-country results should be interpreted alongside the selected",
+    "    counting mode and SCP/MCP breakdown.",
+    "  - Change-point detection in M3 is exploratory and should be confirmed",
+    "    with the richer breakpoint engine available in M2.",
     "  - Clustering uses k=2 by default; interpret with care for small samples.",
     "  - Shapiro-Wilk tests are informative only; p-values should not be",
     "    over-interpreted given non-random bibliometric samples."
@@ -197,4 +451,56 @@ build_m3_report <- function(result, config = biblio_config()) {
 
 .safe_int <- function(x, default = NA_integer_) {
   if (is.null(x) || length(x) == 0) default else as.integer(x[[1]])
+}
+
+.m3_extract_ranked_item <- function(df,
+                                    label_candidates = c("label", "country", "region"),
+                                    value_candidates = c("value", "article_count", "total_citations", "share")) {
+  if (is.null(df) || !is.data.frame(df) || nrow(df) == 0) {
+    return(list(label = "N/A", value = NA_real_))
+  }
+
+  label_col <- label_candidates[label_candidates %in% names(df)][1]
+  value_col <- value_candidates[value_candidates %in% names(df)][1]
+  if (is.na(label_col) || is.na(value_col)) {
+    return(list(label = "N/A", value = NA_real_))
+  }
+
+  values <- suppressWarnings(as.numeric(df[[value_col]]))
+  idx <- if (all(is.na(values))) 1L else which.max(values)[1]
+
+  list(
+    label = .m3_pretty_label(df[[label_col]][idx]),
+    value = values[idx],
+    value_name = value_col
+  )
+}
+
+.m3_format_ranked_item <- function(item, digits = 1) {
+  if (is.null(item) || is.na(item$value)) {
+    return("N/A")
+  }
+  value <- item$value
+  value_name <- item$value_name %||% ""
+  if (identical(value_name, "share")) {
+    pct <- if (is.finite(value) && abs(value) <= 1) 100 * value else value
+    return(sprintf("%s (%.1f%%)", item$label, pct))
+  }
+  sprintf("%s (%s)", item$label, format(round(value, digits), trim = TRUE, nsmall = digits))
+}
+
+.m3_pretty_label <- function(x) {
+  x <- trimws(as.character(x %||% "N/A"))
+  if (!nzchar(x) || identical(toupper(x), "NA")) {
+    return("N/A")
+  }
+  tools::toTitleCase(tolower(gsub("\\s+", " ", x)))
+}
+
+.m3_format_metric <- function(x, digits = 2, fallback = "N/A") {
+  value <- suppressWarnings(as.numeric(x[[1]]))
+  if (!length(value) || !is.finite(value)) {
+    return(fallback)
+  }
+  format(round(value, digits), trim = TRUE, nsmall = digits)
 }

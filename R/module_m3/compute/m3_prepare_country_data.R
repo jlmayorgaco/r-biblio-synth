@@ -22,95 +22,27 @@ prepare_m3_country_data <- function(input, config = biblio_config()) {
       status = "error: input is not a valid data frame or is empty"
     ))
   }
-  
-  # Extract country information
-  # We try AU_CO first, then fall back to C1 if AU_CO is missing or empty
-  country_vector <- character(0)
-  
-  if ("AU_CO" %in% names(input) && !all(is.na(input$AU_CO)) && any(input$AU_CO != "")) {
-    # AU_CO is present and has some non-empty values
-    country_vector <- input$AU_CO
-  } else if ("C1" %in% names(input) && !all(is.na(input$C1)) && any(input$C1 != "")) {
-    # Fall back to C1: we need to extract countries from C1 addresses
-    # This is a simplified extraction; in reality, C1 parsing is complex.
-    # We'll do a basic split by semicolon and then try to catch country patterns.
-    # For now, we note that this is a placeholder and we will improve if needed.
-    # We'll just return an empty vector and let the user know that C1 parsing is not implemented.
-    # However, for the sake of the task, we'll attempt a very basic extraction.
-    # We split by semicolon, then look for patterns that might be countries.
-    # This is not robust and is only for demonstration.
-    c1_list <- strsplit(as.character(input$C1), ";")
-    # We'll just take the last element of each split as a potential country (very naive)
-    country_vector <- sapply(c1_list, function(x) {
-      if (length(x) > 0) {
-        # Trim whitespace
-        country <- trimws(x[length(x)])
-        # If the country is empty or NA, return NA
-        if (is.na(country) || country == "") {
-          return(NA_character_)
-        }
-        return(country)
-      } else {
-        return(NA_character_)
-      }
-    })
-  } else {
-    # Neither AU_CO nor C1 is usable
-    country_vector <- rep(NA_character_, nrow(input))
-  }
-  
-  # Normalize country names
-  country_vector <- m3_normalize_country_names(country_vector)
-  
-  # Create a data frame with document index and country
-  # We allow multiple countries per document? In bibliometrix, AU_CO can have multiple countries separated by semicolon.
-  # We need to split AU_CO by semicolon if it contains multiple.
-  # We'll do: for each document, split the AU_CO string by semicolon, then normalize each.
-  # We'll create a long format: one row per document-country pair.
-  
-  # Let's redo the extraction to handle multiple countries per document properly.
-  
-  # We'll start over with a more robust approach.
+  input <- m3_ensure_bibliometrix_countries(input)
+  country_col <- m3_select_country_column(input)
   
   # Initialize an empty list to hold document-country pairs
   doc_country_pairs <- list()
   
   # We'll iterate over rows (for simplicity; in practice, we can vectorize)
   for (i in seq_len(nrow(input))) {
-    # Get the raw country string for this document
-    au_co_val <- if ("AU_CO" %in% names(input)) input$AU_CO[i] else NA
-    c1_val <- if ("C1" %in% names(input)) input$C1[i] else NA
-    
-    raw_country <- if (!is.na(au_co_val) && nzchar(as.character(au_co_val))) {
-      as.character(au_co_val)
-    } else if (!is.na(c1_val) && nzchar(as.character(c1_val))) {
-      as.character(c1_val)
-    } else {
-      NA_character_
-    }
-    
-    if (is.na(raw_country) || !nzchar(raw_country)) {
+    countries <- m3_extract_document_countries(input, i, country_col)
+
+    if (length(countries) == 0) {
       # No country information for this document
       doc_country_pairs[[i]] <- data.frame(doc_id = i, country = NA_character_, stringsAsFactors = FALSE)
     } else {
-      # Split by semicolon to get individual countries
-      countries <- strsplit(raw_country, ";", fixed = TRUE)[[1]]
-      # Trim whitespace and normalize
-      countries <- trimws(countries)
-      countries <- m3_normalize_country_names(countries)
-      countries <- unique(countries[!is.na(countries) & nzchar(countries)])
-      # Remove empty strings
-      if (length(countries) == 0) {
-        doc_country_pairs[[i]] <- data.frame(doc_id = i, country = NA_character_, stringsAsFactors = FALSE)
-      } else {
-        weight <- if (identical(config$counting_mode, "fractional")) 1 / length(countries) else 1
-        doc_country_pairs[[i]] <- data.frame(
-          doc_id = i,
-          country = countries,
-          weight = rep(weight, length(countries)),
-          stringsAsFactors = FALSE
-        )
-      }
+      weight <- if (identical(config$counting_mode, "fractional")) 1 / length(countries) else 1
+      doc_country_pairs[[i]] <- data.frame(
+        doc_id = i,
+        country = countries,
+        weight = rep(weight, length(countries)),
+        stringsAsFactors = FALSE
+      )
     }
   }
   
@@ -193,9 +125,10 @@ prepare_m3_country_data <- function(input, config = biblio_config()) {
       dplyr::mutate(total_citations = 0)
   }
 
+  total_country_articles <- sum(country_summary$article_count, na.rm = TRUE)
   country_summary <- country_summary %>%
     dplyr::mutate(
-      share = ifelse(sum(article_count, na.rm = TRUE) > 0, article_count / sum(article_count, na.rm = TRUE), 0),
+      share = if (total_country_articles > 0) article_count / total_country_articles else 0,
       rank = dplyr::row_number()
     )
   
@@ -209,6 +142,253 @@ prepare_m3_country_data <- function(input, config = biblio_config()) {
     year_column = if ("PY" %in% names(input)) "PY" else if ("year" %in% names(input)) "year" else NULL,
     status = "success"
   ))
+}
+
+#' Ensure bibliometrix country tags are available when possible
+#'
+#' @param input A bibliographic data frame.
+#' @return The input data frame, optionally enriched with AU_CO/AU1_CO.
+#' @keywords internal
+m3_ensure_bibliometrix_countries <- function(input) {
+  if (!is.data.frame(input) || nrow(input) == 0) {
+    return(input)
+  }
+
+  if (m3_has_usable_country_column(input)) {
+    return(input)
+  }
+
+  if (!"C1" %in% names(input) || !requireNamespace("bibliometrix", quietly = TRUE)) {
+    return(input)
+  }
+
+  tryCatch(
+    {
+      enriched <- suppressMessages(suppressWarnings(
+        bibliometrix::metaTagExtraction(input, Field = "AU_CO", sep = ";")
+      ))
+      if (is.data.frame(enriched) && m3_has_usable_country_column(enriched)) {
+        return(enriched)
+      }
+      input
+    },
+    error = function(e) input
+  )
+}
+
+m3_has_usable_country_column <- function(input) {
+  any(vapply(c("AU_CO", "AU1_CO"), function(col) {
+    col %in% names(input) &&
+      any(!is.na(input[[col]]) & nzchar(trimws(as.character(input[[col]]))))
+  }, logical(1)))
+}
+
+m3_select_country_column <- function(input) {
+  for (col in c("AU_CO", "AU1_CO", "M0_COUNTRIES", "countries", "COUNTRY", "Country")) {
+    if (col %in% names(input) &&
+        any(!is.na(input[[col]]) & nzchar(trimws(as.character(input[[col]]))))) {
+      return(col)
+    }
+  }
+  NULL
+}
+
+m3_extract_document_countries <- function(input, row_index, country_col = NULL) {
+  from_country_col <- character(0)
+  if (!is.null(country_col) && country_col %in% names(input)) {
+    from_country_col <- m3_filter_valid_countries(
+      m3_split_country_field(input[[country_col]][row_index])
+    )
+  }
+
+  if (length(from_country_col) > 0) {
+    return(from_country_col)
+  }
+
+  if ("C1" %in% names(input)) {
+    return(m3_extract_countries_from_affiliations(input$C1[row_index]))
+  }
+
+  character(0)
+}
+
+m3_split_country_field <- function(value) {
+  if (length(value) == 0 || is.na(value) || !nzchar(trimws(as.character(value)))) {
+    return(character(0))
+  }
+  parts <- unlist(strsplit(as.character(value), "\\s*;\\s*|\\s*\\|\\s*", perl = TRUE), use.names = FALSE)
+  trimws(parts)
+}
+
+m3_extract_countries_from_affiliations <- function(c1_value) {
+  if (length(c1_value) == 0 || is.na(c1_value) || !nzchar(trimws(as.character(c1_value)))) {
+    return(character(0))
+  }
+
+  chunks <- unlist(strsplit(as.character(c1_value), "\\s*;\\s*", perl = TRUE), use.names = FALSE)
+  tokens <- unlist(strsplit(chunks, "\\s*,\\s*", perl = TRUE), use.names = FALSE)
+  candidates <- c(tokens, m3_find_country_aliases_in_text(chunks))
+  m3_filter_valid_countries(candidates)
+}
+
+m3_filter_valid_countries <- function(countries) {
+  if (length(countries) == 0) {
+    return(character(0))
+  }
+
+  normalized <- m3_normalize_country_names(countries)
+  canonical <- m3_canonical_country_names(normalized)
+  canonical <- canonical[!is.na(canonical) & nzchar(canonical)]
+  unique(canonical)
+}
+
+m3_canonical_country_names <- function(countries) {
+  if (!is.character(countries)) {
+    countries <- as.character(countries)
+  }
+
+  cleaned <- toupper(trimws(countries))
+  cleaned <- gsub("^\\[[^]]+\\]\\s*", "", cleaned, perl = TRUE)
+  cleaned <- gsub("\\.$", "", cleaned)
+  cleaned <- gsub("\\s+", " ", cleaned)
+
+  alias_map <- m3_country_alias_map()
+  alias_idx <- cleaned %in% names(alias_map)
+  cleaned[alias_idx] <- alias_map[cleaned[alias_idx]]
+
+  canonical <- rep(NA_character_, length(cleaned))
+  empty_idx <- is.na(cleaned) | !nzchar(cleaned)
+  if (all(empty_idx)) {
+    return(canonical)
+  }
+
+  if (requireNamespace("countrycode", quietly = TRUE)) {
+    cc_name <- suppressWarnings(countrycode::countrycode(
+      cleaned,
+      origin = "country.name",
+      destination = "country.name",
+      warn = FALSE
+    ))
+    cc_iso2 <- suppressWarnings(countrycode::countrycode(
+      cleaned,
+      origin = "iso2c",
+      destination = "country.name",
+      warn = FALSE
+    ))
+    cc_iso3 <- suppressWarnings(countrycode::countrycode(
+      cleaned,
+      origin = "iso3c",
+      destination = "country.name",
+      warn = FALSE
+    ))
+    canonical <- ifelse(!is.na(cc_name), cc_name, ifelse(!is.na(cc_iso2), cc_iso2, cc_iso3))
+    canonical <- toupper(canonical)
+  }
+
+  reference <- m3_country_reference_set()
+  reference_idx <- is.na(canonical) & cleaned %in% reference
+  canonical[reference_idx] <- cleaned[reference_idx]
+
+  institution_idx <- m3_is_probable_affiliation(cleaned) & !(cleaned %in% reference)
+  canonical[institution_idx] <- NA_character_
+  canonical
+}
+
+m3_country_alias_map <- function() {
+  c(
+    "USA" = "UNITED STATES",
+    "U S A" = "UNITED STATES",
+    "U.S.A" = "UNITED STATES",
+    "U.S.A." = "UNITED STATES",
+    "US" = "UNITED STATES",
+    "U.S" = "UNITED STATES",
+    "U.S." = "UNITED STATES",
+    "UNITED STATES OF AMERICA" = "UNITED STATES",
+    "AMERICA" = "UNITED STATES",
+    "UK" = "UNITED KINGDOM",
+    "U.K" = "UNITED KINGDOM",
+    "U.K." = "UNITED KINGDOM",
+    "GB" = "UNITED KINGDOM",
+    "GBR" = "UNITED KINGDOM",
+    "ENGLAND" = "UNITED KINGDOM",
+    "SCOTLAND" = "UNITED KINGDOM",
+    "WALES" = "UNITED KINGDOM",
+    "NORTHERN IRELAND" = "UNITED KINGDOM",
+    "KOREA" = "SOUTH KOREA",
+    "REPUBLIC OF KOREA" = "SOUTH KOREA",
+    "KOREA SOUTH" = "SOUTH KOREA",
+    "SOUTH KOREA" = "SOUTH KOREA",
+    "RUSSIAN FEDERATION" = "RUSSIA",
+    "SYRIAN ARAB REPUBLIC" = "SYRIA",
+    "IRAN ISLAMIC REPUBLIC OF" = "IRAN",
+    "IRAN, ISLAMIC REPUBLIC OF" = "IRAN",
+    "VIET NAM" = "VIETNAM",
+    "UAE" = "UNITED ARAB EMIRATES",
+    "UNITED ARAB EMIRATES" = "UNITED ARAB EMIRATES",
+    "HONG KONG" = "HONG KONG",
+    "TAIWAN" = "TAIWAN",
+    "PEOPLES R CHINA" = "CHINA",
+    "PEOPLE'S R CHINA" = "CHINA",
+    "P R CHINA" = "CHINA",
+    "PR CHINA" = "CHINA"
+  )
+}
+
+m3_country_reference_set <- function() {
+  ref <- character(0)
+  if (requireNamespace("countrycode", quietly = TRUE)) {
+    ref <- toupper(unique(stats::na.omit(countrycode::codelist$country.name.en)))
+  }
+  ref <- unique(c(
+    ref,
+    unname(m3_country_alias_map()),
+    "HONG KONG",
+    "TAIWAN",
+    "KOSOVO",
+    "PALESTINE"
+  ))
+  ref[!is.na(ref) & nzchar(ref)]
+}
+
+m3_is_probable_affiliation <- function(x) {
+  grepl(
+    paste0(
+      "\\b(",
+      paste(
+        c(
+          "ACADEMY", "CENTER", "CENTRE", "COLLEGE", "COMPANY", "CORPORATION",
+          "DEPARTMENT", "DIGITAL", "DIVISION", "ELECTRIC", "ENGINEERING",
+          "FACULTY", "GROUP", "HOSPITAL", "IEEE", "INC", "INSTITUTE",
+          "LAB", "LABORATORY", "LTD", "POWER", "SCHOOL", "TECHNICAL",
+          "TECHNOLOGY", "UNIV", "UNIVERSITY"
+        ),
+        collapse = "|"
+      ),
+      ")\\b"
+    ),
+    x,
+    perl = TRUE
+  )
+}
+
+m3_find_country_aliases_in_text <- function(text) {
+  if (length(text) == 0) {
+    return(character(0))
+  }
+
+  aliases <- names(m3_country_alias_map())
+  aliases <- aliases[nchar(aliases) >= 3]
+  text_upper <- toupper(text)
+  found <- character(0)
+
+  for (alias in aliases) {
+    pattern <- paste0("(^|[^A-Z])", gsub("([.])", "\\\\\\1", alias), "([^A-Z]|$)")
+    if (any(grepl(pattern, text_upper, perl = TRUE))) {
+      found <- c(found, alias)
+    }
+  }
+
+  found
 }
 
 #' Normalize country names
@@ -231,13 +411,45 @@ m3_normalize_country_names <- function(countries) {
   norm_map <- c(
     "USA"                     = "UNITED STATES",
     "U.S.A."                  = "UNITED STATES",
+    "US"                      = "UNITED STATES",
+    "U.S."                    = "UNITED STATES",
     "UNITED STATES OF AMERICA" = "UNITED STATES",
     "UK"                      = "UNITED KINGDOM",
     "U.K."                    = "UNITED KINGDOM",
+    "GB"                      = "UNITED KINGDOM",
+    "GBR"                     = "UNITED KINGDOM",
     "ENGLAND"                 = "UNITED KINGDOM",
     "KOREA"                   = "SOUTH KOREA",
+    "KR"                      = "SOUTH KOREA",
+    "KOR"                     = "SOUTH KOREA",
     "RUSSIAN FEDERATION"      = "RUSSIA",
-    "RUS"                     = "RUSSIA"
+    "RU"                      = "RUSSIA",
+    "RUS"                     = "RUSSIA",
+    "CN"                      = "CHINA",
+    "CHN"                     = "CHINA",
+    "JP"                      = "JAPAN",
+    "JPN"                     = "JAPAN",
+    "FR"                      = "FRANCE",
+    "FRA"                     = "FRANCE",
+    "DE"                      = "GERMANY",
+    "DEU"                     = "GERMANY",
+    "GER"                     = "GERMANY",
+    "IT"                      = "ITALY",
+    "ITA"                     = "ITALY",
+    "ES"                      = "SPAIN",
+    "ESP"                     = "SPAIN",
+    "CA"                      = "CANADA",
+    "CAN"                     = "CANADA",
+    "AU"                      = "AUSTRALIA",
+    "AUS"                     = "AUSTRALIA",
+    "NL"                      = "NETHERLANDS",
+    "NLD"                     = "NETHERLANDS",
+    "IR"                      = "IRAN",
+    "IRN"                     = "IRAN",
+    "PL"                      = "POLAND",
+    "POL"                     = "POLAND",
+    "SE"                      = "SWEDEN",
+    "SWE"                     = "SWEDEN"
   )
 
   # Apply replacements only when the trimmed, uppercased string matches exactly.

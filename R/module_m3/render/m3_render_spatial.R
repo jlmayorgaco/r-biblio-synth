@@ -62,22 +62,68 @@ create_morans_i_plot <- function(morans_data, config) {
 #' @keywords internal
 create_lisa_plot <- function(lisa_data, config) {
   if (!requireNamespace("ggplot2", quietly = TRUE)) return(NULL)
-  
-  clusters <- lisa_data$clusters
-  if (is.null(clusters) || nrow(clusters) == 0) return(NULL)
-  
-  ggplot2::ggplot(clusters, ggplot2::aes(x = reorder(country, n_countries), y = n_countries, fill = cluster_type)) +
-    ggplot2::geom_col() +
-    ggplot2::coord_flip() +
-    ggplot2::scale_fill_manual(values = c("HH" = "#B2182B", "LL" = "#2166AC", 
-                                           "HL" = "#EF8A62", "LH" = "#67A9CF",
-                                           "Not significant" = "gray70")) +
+
+  palette <- c(
+    "HH" = "#B2182B",
+    "LL" = "#2166AC",
+    "HL" = "#EF8A62",
+    "LH" = "#67A9CF",
+    "Not significant" = "gray70"
+  )
+
+  values_df <- lisa_data$lisa_values %||% data.frame()
+  if (is.data.frame(values_df) &&
+      nrow(values_df) > 0 &&
+      all(c("country", "value", "cluster_type") %in% names(values_df))) {
+    values_df <- values_df[is.finite(suppressWarnings(as.numeric(values_df$value))), , drop = FALSE]
+    if (nrow(values_df) == 0) return(NULL)
+
+    top_n <- config$top_n_countries %||% min(20L, nrow(values_df))
+    values_df <- values_df[order(-abs(suppressWarnings(as.numeric(values_df$value)))), , drop = FALSE]
+    values_df <- utils::head(values_df, top_n)
+    if ("significant" %in% names(values_df)) {
+      sig <- as.logical(values_df$significant)
+      sig[is.na(sig)] <- FALSE
+      values_df$cluster_type <- ifelse(sig, as.character(values_df$cluster_type), "Not significant")
+    }
+    values_df$cluster_type <- factor(values_df$cluster_type, levels = names(palette))
+
+    return(
+      ggplot2::ggplot(values_df, ggplot2::aes(x = stats::reorder(country, value), y = value, fill = cluster_type)) +
+        ggplot2::geom_col(color = "white", linewidth = 0.15) +
+        ggplot2::coord_flip() +
+        ggplot2::scale_fill_manual(values = palette, drop = FALSE) +
+        ggplot2::labs(
+          title = "LISA Spatial Clusters by Country",
+          subtitle = "Bars show country production values colored by local spatial cluster type.",
+          x = "Country",
+          y = "Production",
+          fill = "Cluster Type"
+        ) + ieee_theme_bar() +
+        ggplot2::theme(legend.position = "bottom")
+    )
+  }
+
+  clusters <- lisa_data$clusters %||% data.frame()
+  if (!is.data.frame(clusters) || nrow(clusters) == 0 || !all(c("type", "count") %in% names(clusters))) {
+    return(NULL)
+  }
+
+  clusters <- clusters[is.finite(suppressWarnings(as.numeric(clusters$count))), , drop = FALSE]
+  if (nrow(clusters) == 0) return(NULL)
+  clusters$type <- factor(as.character(clusters$type), levels = names(palette))
+
+  ggplot2::ggplot(clusters, ggplot2::aes(x = type, y = count, fill = type)) +
+    ggplot2::geom_col(color = "white", linewidth = 0.15, width = 0.7) +
+    ggplot2::scale_fill_manual(values = palette, drop = FALSE) +
     ggplot2::labs(
-      title = "LISA Cluster Types by Country",
-      x = "Country",
-      y = "Count",
+      title = "LISA Cluster Summary",
+      subtitle = "Counts of countries assigned to each local spatial association type.",
+      x = "Cluster Type",
+      y = "Number of Countries",
       fill = "Cluster Type"
-    ) +ieee_theme()
+    ) + ieee_theme_bar() +
+    ggplot2::theme(legend.position = "none")
 }
 
 #' Create hotspot (Getis-Ord) plot

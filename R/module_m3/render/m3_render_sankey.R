@@ -148,7 +148,7 @@ create_alluvial_sankey <- function(flow_data, type, config) {
   )) +
     ggalluvial::geom_alluvium(ggplot2::aes(fill = source), width = 1/12) +
     ggalluvial::geom_stratum(width = 1/12, fill = "grey50", color = "white") +
-    ggplot2::geom_text(stat = "stratum", ggplot2::aes(label = after_stat(ggplot2::stratum)), size = 3) +
+    ggplot2::geom_text(stat = "stratum", ggplot2::aes(label = after_stat(stratum)), size = 3) +
     ggplot2::scale_x_discrete(limits = c("Source", "Target"), expand = c(0.05, 0.05)) +
     ggplot2::scale_fill_manual(values = palette, guide = "none") +
     ggplot2::labs(
@@ -173,11 +173,11 @@ create_segment_sankey <- function(flow_data, type, config) {
     yend = target
   )) +
     ggplot2::geom_curve(
-      ggplot2::aes(size = value, color = source),
+      ggplot2::aes(linewidth = value, color = source),
       curvature = -0.2,
       alpha = 0.6
     ) +
-    ggplot2::scale_size_continuous(range = c(0.5, 3), guide = "none") +
+    ggplot2::scale_linewidth_continuous(range = c(0.5, 3), guide = "none") +
     ggplot2::scale_color_manual(values = palette, guide = "none") +
     ggplot2::labs(
       title = "International Collaboration Network",
@@ -237,7 +237,7 @@ render_m3_temporal_sankey <- function(data, config = biblio_config()) {
   ) +
     ggalluvial::geom_alluvium(alpha = 0.7) +
     ggalluvial::geom_stratum(alpha = 0.9, color = "white") +
-    ggplot2::geom_text(stat = "stratum", ggplot2::aes(label = after_stat(ggplot2::stratum)), size = 2.5) +
+    ggplot2::geom_text(stat = "stratum", ggplot2::aes(label = after_stat(stratum)), size = 2.5) +
     ggplot2::scale_fill_manual(values = palette, guide = "none") +
     ggplot2::labs(
       title = "Country Share Evolution Over Time",

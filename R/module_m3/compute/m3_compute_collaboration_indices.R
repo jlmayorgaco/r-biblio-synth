@@ -71,9 +71,19 @@ compute_m3_collaboration_indices <- function(prepared_data, config = biblio_conf
     mean_salton = mean(salton_matrix[upper.tri(salton_matrix)], na.rm = TRUE),
     mean_jaccard = mean(jaccard_matrix[upper.tri(jaccard_matrix)], na.rm = TRUE),
     mean_affinity = mean(affinity_matrix[upper.tri(affinity_matrix)], na.rm = TRUE),
-    top_collaborators = head(bilateral_collabs[order(-bilateral_collabs$salton), ], 10),
-    collaboration_density = sum(collab_matrix[upper.tri(collab_matrix)] > 0) / 
-                             (nrow(collab_matrix) * (nrow(collab_matrix) - 1) / 2)
+    top_collaborators = if (is.data.frame(bilateral_collabs) && nrow(bilateral_collabs) > 0 && "salton" %in% names(bilateral_collabs)) {
+      head(bilateral_collabs[order(-bilateral_collabs$salton), , drop = FALSE], 10)
+    } else {
+      data.frame()
+    },
+    collaboration_density = {
+      possible_pairs <- nrow(collab_matrix) * (nrow(collab_matrix) - 1) / 2
+      if (is.finite(possible_pairs) && possible_pairs > 0) {
+        sum(collab_matrix[upper.tri(collab_matrix)] > 0) / possible_pairs
+      } else {
+        0
+      }
+    }
   )
   
   list(
@@ -263,6 +273,10 @@ compute_collaboration_intensity <- function(collab_matrix, country_totals) {
 extract_bilateral_collaborations <- function(salton, jaccard, affinity, country_totals) {
   n <- nrow(salton)
   countries <- rownames(salton)
+
+  if (is.null(n) || n < 2) {
+    return(data.frame())
+  }
   
   pairs <- expand.grid(i = 1:n, j = 1:n)
   pairs <- pairs[pairs$i < pairs$j, ]
@@ -308,27 +322,31 @@ compile_country_indices <- function(salton, jaccard, affinity, country_totals) {
       0
     }
     
-    top_salton_partner_idx <- which.max(salton[i, -i])
+    peers_salton <- salton[i, -i]
+    peers_jaccard <- jaccard[i, -i]
+    peers_affinity <- affinity[i, -i]
+
+    top_salton_partner_idx <- if (length(peers_salton) > 0 && any(is.finite(peers_salton))) which.max(peers_salton) else integer(0)
     top_salton_partner <- if (length(top_salton_partner_idx) > 0) {
       countries[-i][top_salton_partner_idx]
     } else {
       NA_character_
     }
     
-    top_jaccard_partner_idx <- which.max(jaccard[i, -i])
+    top_jaccard_partner_idx <- if (length(peers_jaccard) > 0 && any(is.finite(peers_jaccard))) which.max(peers_jaccard) else integer(0)
     top_jaccard_partner <- if (length(top_jaccard_partner_idx) > 0) {
       countries[-i][top_jaccard_partner_idx]
     } else {
       NA_character_
     }
     
-    avg_salton <- mean(salton[i, -i], na.rm = TRUE)
-    avg_jaccard <- mean(jaccard[i, -i], na.rm = TRUE)
-    avg_affinity <- mean(affinity[i, -i], na.rm = TRUE)
+    avg_salton <- if (length(peers_salton) > 0) mean(peers_salton, na.rm = TRUE) else NA_real_
+    avg_jaccard <- if (length(peers_jaccard) > 0) mean(peers_jaccard, na.rm = TRUE) else NA_real_
+    avg_affinity <- if (length(peers_affinity) > 0) mean(peers_affinity, na.rm = TRUE) else NA_real_
     
-    max_salton <- max(salton[i, -i], na.rm = TRUE)
-    max_jaccard <- max(jaccard[i, -i], na.rm = TRUE)
-    max_affinity <- max(affinity[i, -i], na.rm = TRUE)
+    max_salton <- if (length(peers_salton) > 0 && any(is.finite(peers_salton))) max(peers_salton, na.rm = TRUE) else NA_real_
+    max_jaccard <- if (length(peers_jaccard) > 0 && any(is.finite(peers_jaccard))) max(peers_jaccard, na.rm = TRUE) else NA_real_
+    max_affinity <- if (length(peers_affinity) > 0 && any(is.finite(peers_affinity))) max(peers_affinity, na.rm = TRUE) else NA_real_
     
     data.frame(
       country = country,
@@ -341,7 +359,7 @@ compile_country_indices <- function(salton, jaccard, affinity, country_totals) {
       top_jaccard_partner = top_jaccard_partner,
       avg_affinity_index = avg_affinity,
       max_affinity_index = max_affinity,
-      collaboration_centrality = sum(salton[i, ], na.rm = TRUE) / (n_countries - 1)
+      collaboration_centrality = if (n_countries > 1) sum(salton[i, ], na.rm = TRUE) / (n_countries - 1) else 0
     )
   })
   

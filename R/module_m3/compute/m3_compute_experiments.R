@@ -39,7 +39,7 @@ m3_compute_experiments <- function(prepared_data, config = biblio_config()) {
   notes <- character()
 
   # --- E1. Productivity-Impact Quadrant ---
-  # Requires article_count and total_citations.
+  # Uses productivity (article volume) vs citation impact per article.
   quadrant <- tibble::tibble()
   quadrant_performed <- FALSE
 
@@ -47,21 +47,40 @@ m3_compute_experiments <- function(prepared_data, config = biblio_config()) {
       "total_citations" %in% names(country_summary) &&
       nrow(country_summary) >= 2) {
 
-    prod_med   <- stats::median(country_summary$article_count,   na.rm = TRUE)
-    impact_med <- stats::median(country_summary$total_citations, na.rm = TRUE)
-
-    quadrant <- country_summary %>%
+    summary_df <- country_summary %>%
       dplyr::mutate(
-        avg_citations = ifelse(article_count > 0,
-                               total_citations / article_count, 0),
+        avg_citations = dplyr::if_else(
+          is.finite(article_count) & article_count > 0,
+          total_citations / article_count,
+          NA_real_
+        )
+      )
+
+    prod_med   <- stats::median(summary_df$article_count, na.rm = TRUE)
+    impact_med <- stats::median(summary_df$avg_citations, na.rm = TRUE)
+
+    quadrant <- summary_df %>%
+      dplyr::mutate(
         quadrant = dplyr::case_when(
-          article_count >= prod_med & total_citations >= impact_med ~ "High-Output / High-Impact",
-          article_count >= prod_med & total_citations <  impact_med ~ "High-Output / Low-Impact",
-          article_count <  prod_med & total_citations >= impact_med ~ "Low-Output  / High-Impact",
-          TRUE                                                       ~ "Low-Output  / Low-Impact"
+          article_count >= prod_med & avg_citations >= impact_med ~ "High-Output / High-Impact",
+          article_count >= prod_med & avg_citations <  impact_med ~ "High-Output / Low-Impact",
+          article_count <  prod_med & avg_citations >= impact_med ~ "Low-Output / High-Impact",
+          TRUE                                                    ~ "Low-Output / Low-Impact"
         )
       ) %>%
-      dplyr::select(country, article_count, total_citations, avg_citations, quadrant)
+      dplyr::mutate(
+        output_median = prod_med,
+        impact_median = impact_med
+      ) %>%
+      dplyr::select(
+        country,
+        article_count,
+        total_citations,
+        avg_citations,
+        output_median,
+        impact_median,
+        quadrant
+      )
 
     quadrant_performed <- TRUE
   } else {
