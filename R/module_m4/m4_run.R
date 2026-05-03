@@ -88,6 +88,7 @@ m4_compute_all <- function(prepared, config) {
     keywords = m4_compute_source_keywords(prepared, config)
   )
   data$clusters <- m4_compute_source_clusters(data, config)
+  data$advanced_analytics <- m4_compute_advanced_analytics(data, config)
   data$narrative <- m4_compute_narrative(data, config)
   data
 }
@@ -98,6 +99,7 @@ m4_render_all <- function(result, data, config) {
     bradford = render_m4_bradford(data$bradford, data$impact, config),
     growth = render_m4_growth(data$growth, data$impact, config),
     clusters = render_m4_clusters(data$clusters, data$impact, config),
+    advanced_analytics = render_m4_advanced_analytics(data$advanced_analytics, config),
     narrative = render_m4_narrative(data$narrative, config)
   )
   result$artifacts$plots <- m4_fill_plot_placeholders(result$artifacts$plots)
@@ -110,6 +112,7 @@ m4_fill_plot_placeholders <- function(plot_sections) {
     bradford = list(title = "Bradford source zones unavailable", message = "The source distribution was too sparse for Bradford zoning.", layout = "full"),
     growth = list(title = "Source growth unavailable", message = "Source-year data were insufficient for growth and emergence plots.", layout = "full"),
     clusters = list(title = "Source clustering unavailable", message = "K-means source clusters could not be estimated from productivity, impact, and growth features.", layout = "full"),
+    advanced_analytics = list(title = "Advanced source analytics unavailable", message = "ML, anomaly, archetype, or regression evidence could not be estimated from the source feature table.", layout = "full"),
     narrative = list(title = "Source narrative evidence unavailable", message = "Source evidence metrics could not be normalized into a narrative dashboard.", layout = "full")
   )
 
@@ -136,6 +139,7 @@ m4_build_tables <- function(result, data, config) {
     concentration = build_m4_concentration_table(data$concentration, config),
     keywords = build_m4_keywords_table(data$keywords, config),
     clusters = build_m4_clusters_table(data$clusters, config),
+    advanced_analytics = build_m4_advanced_analytics_table(data$advanced_analytics, config),
     narrative = build_m4_narrative_table(data$narrative, config)
   )
   result

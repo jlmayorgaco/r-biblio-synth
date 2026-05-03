@@ -38,6 +38,21 @@ build_m4_clusters_table <- function(result, config = biblio_config()) {
   list(status = result$status %||% "stub", table = tibble::as_tibble(result$clusters %||% tibble::tibble()))
 }
 
+build_m4_advanced_analytics_table <- function(result, config = biblio_config()) {
+  list(
+    status = result$status %||% "stub",
+    table = tibble::as_tibble(result$features %||% tibble::tibble()),
+    tables = list(
+      features = tibble::as_tibble(result$features %||% tibble::tibble()),
+      outliers = tibble::as_tibble(result$outliers %||% tibble::tibble()),
+      regression_coefficients = tibble::as_tibble(result$regression$coefficients %||% tibble::tibble()),
+      regression_fitted = tibble::as_tibble(result$regression$fitted %||% tibble::tibble()),
+      ml_predictions = tibble::as_tibble(result$svm$predictions %||% tibble::tibble()),
+      silhouette = tibble::as_tibble(result$silhouette$table %||% tibble::tibble())
+    )
+  )
+}
+
 build_m4_narrative_table <- function(result, config = biblio_config()) {
   list(status = result$status %||% "stub", table = tibble::as_tibble(result$metrics %||% tibble::tibble()))
 }

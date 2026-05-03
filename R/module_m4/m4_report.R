@@ -23,6 +23,8 @@ build_m4_report <- function(result, config = biblio_config()) {
     "",
     .m4_report_growth(data),
     "",
+    .m4_report_advanced_analytics(data),
+    "",
     .m4_report_clusters(data)
   )
   tex <- c(
@@ -32,7 +34,7 @@ build_m4_report <- function(result, config = biblio_config()) {
   list(
     status = "success",
     title = "M4 Sources / Journals & Venues Report",
-    sections = c("narrative", "overview", "bradford", "growth", "clusters"),
+    sections = c("narrative", "overview", "bradford", "growth", "advanced_analytics", "clusters"),
     lines = lines,
     tex = tex
   )
@@ -76,6 +78,28 @@ build_m4_report <- function(result, config = biblio_config()) {
   c(
     "--- Source Growth ---",
     paste0("  ", seq_len(nrow(top)), ". ", top$source, " - TP slope ", round(top$tp_slope, 3), "/year; CPP ", round(top$cpp, 2))
+  )
+}
+
+.m4_report_advanced_analytics <- function(data) {
+  advanced <- data$advanced_analytics %||% list()
+  if (!is.list(advanced) || !identical(advanced$status %||% "", "success")) {
+    return(c(
+      "--- Advanced Analytics / ML ---",
+      sprintf("  Status: %s", advanced$status %||% "unavailable"),
+      sprintf("  Reason: %s", advanced$reason %||% "Advanced source analytics were not available.")
+    ))
+  }
+  patterns <- advanced$patterns %||% character()
+  svm <- advanced$svm %||% list()
+  regression <- advanced$regression %||% list()
+  silhouette <- advanced$silhouette %||% list()
+  c(
+    "--- Advanced Analytics / ML ---",
+    paste0("  ", patterns),
+    sprintf("  Classifier model: %s (%s).", svm$model %||% "unavailable", svm$status %||% "unknown"),
+    sprintf("  Impact regression R-squared: %.3f.", ieee_safe_num(regression$r_squared)),
+    sprintf("  Cluster silhouette: %.3f.", ieee_safe_num(silhouette$mean_silhouette))
   )
 }
 
