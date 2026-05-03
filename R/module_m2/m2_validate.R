@@ -12,11 +12,12 @@ validate_m2_input <- function(input, config = biblio_config()) {
     return(list(ok = FALSE, missing_columns = character(), n_rows = 0, n_cols = 0, error = "Not a data frame"))
   }
 
-  col_check <- validate_required_columns(input, c("Year", "Articles"))
+  normalized <- m2_normalize_input(input)
+  col_check <- validate_required_columns(normalized, c("Year", "Articles"))
   list(
     ok = col_check$ok,
     missing_columns = col_check$missing_columns,
-    n_rows = nrow(input),
-    n_cols = ncol(input)
+    n_rows = nrow(normalized),
+    n_cols = ncol(normalized)
   )
 }

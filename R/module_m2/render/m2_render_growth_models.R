@@ -235,16 +235,18 @@ create_all_growth_models_plot <- function(data, config) {
 #' @export
 build_m2_growth_models_table <- function(data, config = biblio_config()) {
   if (is.null(data) || data$status != "success") {
-    return(data.frame(
-      model = character(),
-      AIC = numeric(),
-      BIC = numeric(),
-      R_squared = numeric(),
-      stringsAsFactors = FALSE
+    return(list(
+      status = "stub",
+      table = tibble::tibble(
+        model = character(),
+        AIC = numeric(),
+        BIC = numeric(),
+        R_squared = numeric()
+      )
     ))
   }
   
-  data$comparison
+  list(status = "success", table = tibble::as_tibble(data$comparison))
 }
 
 `%||%` <- function(a, b) if (!is.null(a)) a else b

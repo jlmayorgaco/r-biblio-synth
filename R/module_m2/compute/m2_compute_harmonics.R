@@ -16,7 +16,7 @@
 compute_m2_harmonics <- function(input, regression_result = NULL, config = biblio_config()) {
   if (!is.data.frame(input) || nrow(input) < 10) {
     return(list(
-      status = "error: insufficient data",
+      status = "error",
       data_harmonics = list(),
       residual_harmonics = list()
     ))
@@ -54,6 +54,7 @@ compute_m2_harmonics <- function(input, regression_result = NULL, config = bibli
   # 3. Cross-Analysis: Compare Data vs Residual Harmonics
   # =========================================
   cross_analysis <- compare_harmonics(data_harmonics, residual_harmonics)
+  r_squared_table <- m2_build_harmonic_r2_table(data_harmonics$harmonic_models)
   
   # =========================================
   # 4. Wavelet Analysis
@@ -126,9 +127,41 @@ compute_m2_harmonics <- function(input, regression_result = NULL, config = bibli
     data_harmonics = data_harmonics,
     residual_harmonics = residual_harmonics,
     cross_analysis = cross_analysis,
+    r_squared_table = r_squared_table,
     wavelet = wavelet_serialized,
     lomb = lomb_serialized,
     summary = summary
+  )
+}
+
+#' Perform FFT and return spectral components
+#' @export
+m2_perform_fft <- function(y, dt = 1) {
+  y <- suppressWarnings(as.numeric(y))
+  y <- y[is.finite(y)]
+
+  if (length(y) == 0) {
+    return(list(
+      frequencies = numeric(),
+      magnitude = numeric(),
+      power = numeric(),
+      phase = numeric(),
+      status = "error: no valid data"
+    ))
+  }
+
+  n <- length(y)
+  fft_result <- fft(y)
+  frequencies <- (0:(floor(n / 2))) / (n * dt)
+  magnitude <- Mod(fft_result[seq_along(frequencies)])
+  phase <- Arg(fft_result[seq_along(frequencies)])
+
+  list(
+    frequencies = frequencies,
+    magnitude = magnitude,
+    power = magnitude^2,
+    phase = phase,
+    status = "success"
   )
 }
 
@@ -166,7 +199,8 @@ analyze_data_harmonics <- function(years, articles, dt) {
     period = ifelse(frequencies > 0, 1 / frequencies, Inf),
     magnitude = magnitude,
     power = power,
-    normalized_power = power / sum(power)
+    normalized_power = power / sum(power),
+    variance_explained = power / sum(power)
   )
   
   # Top periods
@@ -241,7 +275,8 @@ analyze_residual_harmonics <- function(years, residuals, dt) {
     period = ifelse(frequencies > 0, 1 / frequencies, Inf),
     magnitude = magnitude,
     power = power,
-    normalized_power = power / sum(power)
+    normalized_power = power / sum(power),
+    variance_explained = power / sum(power)
   )
   
   # Top periods in residuals
@@ -310,7 +345,6 @@ fit_harmonic_models <- function(years, articles, frequencies) {
       models[[as.character(round(freq, 6))]] <- list(
         frequency = freq,
         period = 1 / freq,
-        fit = fit,
         r2 = r2,
         coefficients = coef(fit),
         amplitude = sqrt(coef(fit)[2]^2 + coef(fit)[3]^2),
@@ -384,17 +418,17 @@ compare_harmonics <- function(data_harmonics, residual_harmonics) {
     ))
   }
   
-  data_period <- data_harmonics$dominant_period
-  residual_period <- residual_harmonics$dominant_period
+  data_period <- m2_scalar_or_na(data_harmonics$dominant_period)
+  residual_period <- m2_scalar_or_na(residual_harmonics$dominant_period)
   
   # Check if residual periodicity overlaps with data periodicity
   period_overlap <- FALSE
-  if (!is.na(data_period) && !is.na(residual_period)) {
+  if (is.finite(data_period) && is.finite(residual_period) && data_period > 0) {
     period_overlap <- abs(data_period - residual_period) / data_period < 0.2
   }
   
-  data_var <- data_harmonics$variance_explained %||% NA
-  residual_var <- residual_harmonics$variance_explained %||% NA
+  data_var <- m2_scalar_or_na(data_harmonics$variance_explained %||% NA_real_)
+  residual_var <- m2_scalar_or_na(residual_harmonics$variance_explained %||% NA_real_)
   
   list(
     data_dominant_period = data_period,
@@ -441,11 +475,11 @@ find_dominant_wavelet_period <- function(wavelet_result) {
 # ============================================================================
 
 interpret_harmonic_results <- function(data_harmonics, residual_harmonics) {
-  data_period <- data_harmonics$dominant_period
-  residual_period <- residual_harmonics$dominant_period
-  residual_var <- residual_harmonics$variance_explained %||% 0
+  data_period <- m2_scalar_or_na(data_harmonics$dominant_period)
+  residual_period <- m2_scalar_or_na(residual_harmonics$dominant_period)
+  residual_var <- m2_scalar_or_na(residual_harmonics$variance_explained %||% 0)
   
-  if (is.na(data_period)) {
+  if (!is.finite(data_period)) {
     return("Could not identify dominant period in data.")
   }
   
@@ -467,6 +501,40 @@ interpret_harmonic_results <- function(data_harmonics, residual_harmonics) {
     "Data has %.1f-year dominant cycle. No significant periodicity in residuals. Model adequately captures cyclical structure.",
     data_period
   )
+}
+
+#' Build a harmonic regression R-squared table
+#' @keywords internal
+m2_build_harmonic_r2_table <- function(harmonic_models) {
+  if (!is.list(harmonic_models) || length(harmonic_models) == 0) {
+    return(data.frame(Frequency = numeric(), Period = numeric(), R2 = numeric()))
+  }
+
+  rows <- lapply(harmonic_models, function(model) {
+    data.frame(
+      Frequency = m2_scalar_or_na(model$frequency),
+      Period = m2_scalar_or_na(model$period),
+      R2 = max(0, min(1, m2_scalar_or_na(model$r2))),
+      stringsAsFactors = FALSE
+    )
+  })
+
+  do.call(rbind, rows)
+}
+
+#' Coerce candidate scalar values to numeric NA-safe form
+#' @keywords internal
+m2_scalar_or_na <- function(x) {
+  if (length(x) != 1L) {
+    return(NA_real_)
+  }
+
+  value <- suppressWarnings(as.numeric(x))
+  if (length(value) != 1L || !is.finite(value)) {
+    return(NA_real_)
+  }
+
+  value
 }
 
 `%||%` <- function(a, b) if (!is.null(a)) a else b

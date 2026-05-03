@@ -47,11 +47,14 @@ compute_m2_changepoint <- function(data, config = biblio_config()) {
   cusum_result <- detect_changepoints_cusum(year, articles)
   
   binseg_result <- detect_changepoints_binseg(year, articles)
+
+  pettitt_result <- detect_changepoints_pettitt(year, articles)
   
   consensus_cps <- find_consensus_changepoints(
     pelt_result$changepoints,
     cusum_result$changepoints,
     binseg_result$changepoints,
+    pettitt_result$changepoints,
     tolerance = 2
   )
   
@@ -69,6 +72,7 @@ compute_m2_changepoint <- function(data, config = biblio_config()) {
     pelt_changepoints = length(pelt_result$changepoints),
     cusum_changepoints = length(cusum_result$changepoints),
     binseg_changepoints = length(binseg_result$changepoints),
+    pettitt_changepoints = length(pettitt_result$changepoints),
     agreement_rate = consensus_cps$agreement_rate
   )
   
@@ -77,12 +81,14 @@ compute_m2_changepoint <- function(data, config = biblio_config()) {
       consensus = if (n_cp > 0) year[consensus_cps$changepoints] else integer(0),
       pelt = if (length(pelt_result$changepoints) > 0) year[pelt_result$changepoints] else integer(0),
       cusum = if (length(cusum_result$changepoints) > 0) year[cusum_result$changepoints] else integer(0),
-      binseg = if (length(binseg_result$changepoints) > 0) year[binseg_result$changepoints] else integer(0)
+      binseg = if (length(binseg_result$changepoints) > 0) year[binseg_result$changepoints] else integer(0),
+      pettitt = if (length(pettitt_result$changepoints) > 0) year[pettitt_result$changepoints] else integer(0)
     ),
     segments = segments,
     pelt_result = pelt_result,
     cusum_result = cusum_result,
     binseg_result = binseg_result,
+    pettitt_result = pettitt_result,
     summary = summary_stats,
     status = "success"
   )
@@ -307,8 +313,8 @@ detect_changepoints_binseg <- function(year, data, min_segment = 5, max_cp = 5) 
 
 #' Find consensus change-points
 #' @keywords internal
-find_consensus_changepoints <- function(pelt_cp, cusum_cp, binseg_cp, tolerance = 2) {
-  all_cps <- sort(unique(c(pelt_cp, cusum_cp, binseg_cp)))
+find_consensus_changepoints <- function(pelt_cp, cusum_cp, binseg_cp, pettitt_cp = integer(0), tolerance = 2) {
+  all_cps <- sort(unique(c(pelt_cp, cusum_cp, binseg_cp, pettitt_cp)))
   
   if (length(all_cps) == 0) {
     return(list(changepoints = integer(0), agreement_rate = 1))
@@ -320,8 +326,9 @@ find_consensus_changepoints <- function(pelt_cp, cusum_cp, binseg_cp, tolerance 
     nearby_pelt <- any(abs(pelt_cp - cp) <= tolerance)
     nearby_cusum <- any(abs(cusum_cp - cp) <= tolerance)
     nearby_binseg <- any(abs(binseg_cp - cp) <= tolerance)
+    nearby_pettitt <- any(abs(pettitt_cp - cp) <= tolerance)
     
-    n_methods <- sum(c(nearby_pelt, nearby_cusum, nearby_binseg))
+    n_methods <- sum(c(nearby_pelt, nearby_cusum, nearby_binseg, nearby_pettitt))
     
     if (n_methods >= 2) {
       consensus <- c(consensus, cp)
@@ -330,7 +337,7 @@ find_consensus_changepoints <- function(pelt_cp, cusum_cp, binseg_cp, tolerance 
   
   consensus <- sort(unique(consensus))
   
-  total_detected <- length(unique(c(pelt_cp, cusum_cp, binseg_cp)))
+  total_detected <- length(unique(c(pelt_cp, cusum_cp, binseg_cp, pettitt_cp)))
   agreement_rate <- if (total_detected > 0) {
     length(consensus) / total_detected
   } else {
@@ -340,6 +347,38 @@ find_consensus_changepoints <- function(pelt_cp, cusum_cp, binseg_cp, tolerance 
   list(
     changepoints = consensus,
     agreement_rate = agreement_rate
+  )
+}
+
+#' Pettitt single changepoint test
+#' @keywords internal
+detect_changepoints_pettitt <- function(year, data) {
+  n <- length(data)
+  if (n < 8) {
+    return(list(changepoints = integer(0), statistic = NA_real_, p_value = NA_real_, method = "Pettitt"))
+  }
+
+  u_t <- numeric(n)
+  for (t in seq_len(n)) {
+    left <- data[seq_len(t)]
+    right <- data[seq.int(t + 1, n)]
+    if (length(right) == 0) {
+      u_t[t] <- 0
+    } else {
+      u_t[t] <- sum(outer(left, right, FUN = function(a, b) sign(a - b)), na.rm = TRUE)
+    }
+  }
+
+  k <- which.max(abs(u_t))
+  statistic <- abs(u_t[k])
+  p_value <- 2 * exp((-6 * statistic^2) / (n^3 + n^2))
+  changepoints <- if (is.finite(p_value) && p_value < 0.05 && k < n) k else integer(0)
+
+  list(
+    changepoints = changepoints,
+    statistic = statistic,
+    p_value = p_value,
+    method = "Pettitt"
   )
 }
 
@@ -357,7 +396,9 @@ characterize_segments <- function(year, data, changepoints) {
       mean = mean(data, na.rm = TRUE),
       sd = sd(data, na.rm = TRUE),
       trend = compute_trend(year, data)$slope,
-      growth_rate = compute_trend(year, data)$slope / mean(data, na.rm = TRUE) * 100
+      trend_r2 = compute_trend(year, data)$r2,
+      growth_rate = compute_trend(year, data)$slope / mean(data, na.rm = TRUE) * 100,
+      phase = classify_segment_phase(compute_trend(year, data)$slope, data)
     ))
   }
   
@@ -383,11 +424,13 @@ characterize_segments <- function(year, data, changepoints) {
       mean = mean(segment_data, na.rm = TRUE),
       sd = sd(segment_data, na.rm = TRUE),
       trend = trend_result$slope,
+      trend_r2 = trend_result$r2,
       growth_rate = if (mean(segment_data, na.rm = TRUE) > 0) {
         trend_result$slope / mean(segment_data, na.rm = TRUE) * 100
       } else {
         NA_real_
-      }
+      },
+      phase = classify_segment_phase(trend_result$slope, segment_data)
     )
   })
   
@@ -408,4 +451,29 @@ compute_trend <- function(x, y) {
     intercept = coef(model)[1],
     r2 = summary(model)$r.squared
   )
+}
+
+#' Classify segment growth phase
+#' @keywords internal
+classify_segment_phase <- function(slope, values) {
+  mean_value <- mean(values, na.rm = TRUE)
+  norm_slope <- if (is.finite(mean_value) && abs(mean_value) > .Machine$double.eps) {
+    slope / mean_value
+  } else {
+    slope
+  }
+
+  if (!is.finite(norm_slope)) {
+    return("unknown")
+  }
+  if (norm_slope > 0.10) {
+    return("rapid_growth")
+  }
+  if (norm_slope > 0.03) {
+    return("growth")
+  }
+  if (norm_slope < -0.03) {
+    return("decline")
+  }
+  "stagnation"
 }

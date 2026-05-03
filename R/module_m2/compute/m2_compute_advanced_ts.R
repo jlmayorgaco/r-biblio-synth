@@ -41,10 +41,11 @@ compute_m2_advanced_ts <- function(input, config = biblio_config()) {
   results$comparison <- compare_ts_models(results)
   
   # 7. Best model
-  best_model <- names(which.min(sapply(results, function(x) {
-    if (is.list(x) && !is.null(x$AIC)) x$AIC else Inf
-  })))
-  results$best_model <- best_model
+  results$best_model <- if (is.data.frame(results$comparison) && nrow(results$comparison) > 0) {
+    results$comparison$model[which.min(results$comparison$AIC)][1]
+  } else {
+    NA_character_
+  }
   
   results$status <- "success"
   results

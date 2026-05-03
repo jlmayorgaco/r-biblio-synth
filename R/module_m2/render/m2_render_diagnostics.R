@@ -18,7 +18,7 @@ render_m2_diagnostics <- function(diagnostics, config = biblio_config()) {
   
   # Model comparison plot
   if (!is.null(diagnostics$comparison) && nrow(diagnostics$comparison) > 0) {
-    plots$model_comparison <- create_model_comparison_plot(diagnostics$comparison)
+    plots$model_comparison <- create_diagnostics_model_comparison_plot(diagnostics$comparison)
   }
   
   # CV results plot
@@ -31,6 +31,17 @@ render_m2_diagnostics <- function(diagnostics, config = biblio_config()) {
   # Forecast accuracy comparison
   if (!is.null(diagnostics$accuracy) && nrow(diagnostics$accuracy) > 0) {
     plots$accuracy_comparison <- create_accuracy_comparison_plot(diagnostics$accuracy)
+  }
+
+  if (!is.null(diagnostics$changepoint_profile$years) &&
+      length(diagnostics$changepoint_profile$years) > 0 &&
+      is.data.frame(diagnostics$series)) {
+    plots$breakpoints <- create_breakpoint_timeline(
+      years = diagnostics$series$Year,
+      articles = diagnostics$series$Articles,
+      breakpoints = diagnostics$changepoint_profile$years,
+      config = config
+    )
   }
   
   # Residual ACF/PACF plots
@@ -48,26 +59,36 @@ render_m2_diagnostics <- function(diagnostics, config = biblio_config()) {
 
 #' Create model comparison plot
 #' @keywords internal
-create_model_comparison_plot <- function(comparison) {
+create_diagnostics_model_comparison_plot <- function(comparison) {
   # Reshape for plotting
-  models <- comparison$model
+  models <- if ("model" %in% names(comparison)) comparison$model else comparison$Model
+  aic_values <- if ("AIC" %in% names(comparison)) comparison$AIC else rep(NA_real_, length(models))
+  bic_values <- if ("BIC" %in% names(comparison)) comparison$BIC else rep(NA_real_, length(models))
+  composite_values <- if ("CompositeScore" %in% names(comparison)) comparison$CompositeScore else rep(NA_real_, length(models))
   n_models <- length(models)
   
   # AIC comparison
   df_aic <- data.frame(
     model = factor(models, levels = models),
-    value = comparison$AIC,
+    value = aic_values,
     metric = "AIC"
   )
   
   # BIC comparison
   df_bic <- data.frame(
     model = factor(models, levels = models),
-    value = comparison$BIC,
+    value = bic_values,
     metric = "BIC"
   )
   
   df <- rbind(df_aic, df_bic)
+  if (any(is.finite(composite_values))) {
+    df <- rbind(df, data.frame(
+      model = factor(models, levels = models),
+      value = composite_values,
+      metric = "Composite"
+    ))
+  }
   
   # Normalize within metric
   df$value_norm <- ave(df$value, df$metric, FUN = function(x) (x - min(x)) / (max(x) - min(x) + 0.001))
@@ -75,7 +96,7 @@ create_model_comparison_plot <- function(comparison) {
   p <- ggplot2::ggplot(df, ggplot2::aes(x = model, y = value_norm, fill = metric)) +
     ggplot2::geom_col(position = ggplot2::position_dodge(width = 0.7),
                        width = 0.6, color = "black", linewidth = 0.2) +
-    ggplot2::scale_fill_manual(values = c("AIC" = "#0072BD", "BIC" = "#D95319")) +
+    ggplot2::scale_fill_manual(values = c("AIC" = "#0072BD", "BIC" = "#D95319", "Composite" = "#77AC30")) +
     ggplot2::coord_flip() +
     ieee_theme_bar() +
     ggplot2::labs(
@@ -85,7 +106,7 @@ create_model_comparison_plot <- function(comparison) {
     ) +
     ggplot2::theme(legend.position = "bottom")
   
-  p
+  ieee_mark_plot_layout(p, "full")
 }
 
 #' Create CV accuracy plot
@@ -94,6 +115,9 @@ create_cv_accuracy_plot <- function(cv_results) {
   df <- cv_results$cv_results
   
   if (is.null(df) || nrow(df) == 0) return(NULL)
+  if (!"MAE" %in% names(df) && "mae" %in% names(df)) df$MAE <- df$mae
+  if (!"model" %in% names(df) && "Model" %in% names(df)) df$model <- df$Model
+  if (!"fold" %in% names(df) && "Fold" %in% names(df)) df$fold <- df$Fold
   
   # Plot MAE across folds
   p <- ggplot2::ggplot(df, ggplot2::aes(x = factor(fold), y = MAE, color = model, group = model)) +
@@ -106,16 +130,20 @@ create_cv_accuracy_plot <- function(cv_results) {
     ggplot2::labs(title = "Cross-Validation Performance") +
     ggplot2::theme(legend.position = "right")
   
-  p
+  ieee_mark_plot_layout(p, "full")
 }
 
 #' Create accuracy comparison plot
 #' @keywords internal
 create_accuracy_comparison_plot <- function(accuracy) {
   if (is.null(accuracy) || nrow(accuracy) == 0) return(NULL)
+
+  if (!"model" %in% names(accuracy) && "Model" %in% names(accuracy)) {
+    accuracy$model <- accuracy$Model
+  }
   
   # Select metrics to plot
-  metrics <- c("MAE", "RMSE", "MAPE", "MASE")
+  metrics <- c("MAE", "RMSE", "MAPE", "SMAPE", "MASE", "TheilU", "Stability")
   available <- intersect(metrics, names(accuracy))
   
   if (length(available) == 0) return(NULL)
@@ -136,7 +164,15 @@ create_accuracy_comparison_plot <- function(accuracy) {
     (x - min(x, na.rm = TRUE)) / (max(x, na.rm = TRUE) - min(x, na.rm = TRUE) + 0.001)
   })
   
-  colors <- c("MAE" = "#0072BD", "RMSE" = "#D95319", "MAPE" = "#77AC30", "MASE" = "#A2142F")
+  colors <- c(
+    "MAE" = "#0072BD",
+    "RMSE" = "#D95319",
+    "MAPE" = "#77AC30",
+    "SMAPE" = "#A2142F",
+    "MASE" = "#4DBBD5",
+    "TheilU" = "#E64B35",
+    "Stability" = "#3C5488"
+  )
   
   p <- ggplot2::ggplot(df, ggplot2::aes(x = model, y = value_norm, fill = metric)) +
     ggplot2::geom_col(position = ggplot2::position_dodge(width = 0.7),
@@ -151,7 +187,7 @@ create_accuracy_comparison_plot <- function(accuracy) {
     ) +
     ggplot2::theme(legend.position = "bottom")
   
-  p
+  ieee_mark_plot_layout(p, "full")
 }
 
 #' Create residual diagnostics plot
@@ -178,16 +214,18 @@ create_residual_diagnostics_plot <- function(residuals) {
       
       ci <- qnorm(0.975) / sqrt(length(res$acf$values))
       
+      acf_limit <- max(0.3, max(abs(c(df_acf$acf, ci)), na.rm = TRUE) * 1.15)
       p_acf <- ggplot2::ggplot(df_acf, ggplot2::aes(x = lag, y = acf)) +
-        ggplot2::geom_segment(ggplot2::aes(xend = lag, yend = 0)) +
-        ggplot2::geom_hline(yintercept = c(ci, -ci), linetype = "dashed", color = "gray50") +
-        ggplot2::geom_hline(yintercept = 0) +
+        ggplot2::geom_segment(ggplot2::aes(xend = lag, yend = 0), color = "black", linewidth = 0.8) +
+        ggplot2::geom_point(color = "black", size = 1.5) +
+        ggplot2::geom_hline(yintercept = c(ci, -ci), linetype = "22", color = "#2F55D4", linewidth = 0.55) +
+        ggplot2::geom_hline(yintercept = 0, color = "black", linewidth = 0.35) +
         ggplot2::scale_x_continuous(name = "Lag") +
-        ggplot2::scale_y_continuous(name = "ACF") +
+        ggplot2::scale_y_continuous(name = "ACF", limits = c(-acf_limit, acf_limit)) +
         ieee_theme() +
         ggplot2::labs(title = paste("Residual ACF -", first_model))
       
-      plots$acf <- p_acf
+      plots$acf <- ieee_mark_plot_layout(p_acf, "single")
     }
     
     # PACF plot
@@ -199,16 +237,18 @@ create_residual_diagnostics_plot <- function(residuals) {
       
       ci <- qnorm(0.975) / sqrt(length(res$pacf$values))
       
+      pacf_limit <- max(0.3, max(abs(c(df_pacf$pacf, ci)), na.rm = TRUE) * 1.15)
       p_pacf <- ggplot2::ggplot(df_pacf, ggplot2::aes(x = lag, y = pacf)) +
-        ggplot2::geom_segment(ggplot2::aes(xend = lag, yend = 0)) +
-        ggplot2::geom_hline(yintercept = c(ci, -ci), linetype = "dashed", color = "gray50") +
-        ggplot2::geom_hline(yintercept = 0) +
+        ggplot2::geom_segment(ggplot2::aes(xend = lag, yend = 0), color = "black", linewidth = 0.8) +
+        ggplot2::geom_point(color = "black", size = 1.5) +
+        ggplot2::geom_hline(yintercept = c(ci, -ci), linetype = "22", color = "#2F55D4", linewidth = 0.55) +
+        ggplot2::geom_hline(yintercept = 0, color = "black", linewidth = 0.35) +
         ggplot2::scale_x_continuous(name = "Lag") +
-        ggplot2::scale_y_continuous(name = "PACF") +
+        ggplot2::scale_y_continuous(name = "PACF", limits = c(-pacf_limit, pacf_limit)) +
         ieee_theme() +
         ggplot2::labs(title = paste("Residual PACF -", first_model))
       
-      plots$pacf <- p_pacf
+      plots$pacf <- ieee_mark_plot_layout(p_pacf, "single")
     }
   }
   
@@ -238,7 +278,7 @@ create_model_weights_plot <- function(weights) {
     ieee_theme_bar() +
     ggplot2::labs(title = "Model Weights (AIC-based)", x = NULL)
   
-  p
+  ieee_mark_plot_layout(p, "single")
 }
 
 #' Create structural break timeline plot
@@ -282,7 +322,7 @@ create_breakpoint_timeline <- function(years, articles, breakpoints, config = bi
       subtitle = sprintf("%d breakpoints detected", length(breakpoints))
     )
   
-  p
+  ieee_mark_plot_layout(p, "full")
 }
 
 #' Create growth phase diagram
@@ -335,7 +375,7 @@ create_growth_phase_diagram <- function(years, articles, phases = NULL, config =
     ggplot2::labs(title = "Growth Phase Diagram") +
     ggplot2::theme(legend.position = "bottom")
   
-  p
+  ieee_mark_plot_layout(p, "full")
 }
 
 `%||%` <- function(a, b) if (!is.null(a)) a else b

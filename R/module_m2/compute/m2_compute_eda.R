@@ -25,6 +25,21 @@ compute_m2_eda <- function(input, config = biblio_config()) {
     sd_articles = round(sd(articles, na.rm = TRUE), 2),
     total_articles = sum(articles, na.rm = TRUE)
   )
+  metrics <- list(
+    mean = summary_stats$mean_articles,
+    median = summary_stats$median_articles,
+    sd = summary_stats$sd_articles,
+    min = summary_stats$min_articles,
+    max = summary_stats$peak_articles,
+    total = summary_stats$total_articles
+  )
+
+  growth_rate <- NA_real_
+  if (length(articles) >= 2 && is.finite(articles[1]) && is.finite(articles[length(articles)]) &&
+      articles[1] > 0 && years[length(years)] > years[1]) {
+    growth_rate <- ((articles[length(articles)] / articles[1]) ^
+      (1 / (years[length(years)] - years[1])) - 1) * 100
+  }
 
   # Anomaly detection (z-score > 3)
   mean_val <- mean(articles, na.rm = TRUE)
@@ -61,9 +76,20 @@ compute_m2_eda <- function(input, config = biblio_config()) {
 
   list(
     status = "success",
+    metrics = metrics,
     summary = summary_stats,
+    summary_stats = c(
+      summary_stats,
+      list(growth_rate = growth_rate)
+    ),
     anomalies = anomalies,
     outliers = outliers,
-    moving_averages = moving_averages
+    outlier_sets = list(
+      zscore = anomalies,
+      iqr = outliers
+    ),
+    moving_averages = moving_averages,
+    annual_production = data.frame(Year = years, Articles = articles),
+    raw_data = data.frame(Year = years, Articles = articles)
   )
 }

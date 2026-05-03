@@ -555,20 +555,45 @@ compare_forecast_models <- function(arima_result, ets_result, naive_result, cv_r
       cv_agg$rmse[cv_agg$model == "ETS"][1],
       cv_agg$rmse[cv_agg$model == "Naive"][1]
     )
+    comparison$CV_MAPE <- c(
+      cv_agg$mape[cv_agg$model == "ARIMA"][1],
+      cv_agg$mape[cv_agg$model == "ETS"][1],
+      cv_agg$mape[cv_agg$model == "Naive"][1]
+    )
   }
   
-  # Best model
+  # Composite model ranking
   comparison$rank_AIC <- rank(comparison$AIC)
+  comparison$rank_BIC <- rank(comparison$BIC)
   if ("CV_MAE" %in% names(comparison)) {
     comparison$rank_CV <- rank(comparison$CV_MAE)
   }
-  
-  best_model <- comparison$model[which.min(comparison$AIC)]
+
+  comparison$AIC_score <- m2_normalize_metric(comparison$AIC, higher_is_better = FALSE)
+  comparison$BIC_score <- m2_normalize_metric(comparison$BIC, higher_is_better = FALSE)
+  if ("CV_MAE" %in% names(comparison)) {
+    comparison$CV_MAE_score <- m2_normalize_metric(comparison$CV_MAE, higher_is_better = FALSE)
+  }
+  if ("CV_RMSE" %in% names(comparison)) {
+    comparison$CV_RMSE_score <- m2_normalize_metric(comparison$CV_RMSE, higher_is_better = FALSE)
+  }
+  if ("CV_MAPE" %in% names(comparison)) {
+    comparison$CV_MAPE_score <- m2_normalize_metric(comparison$CV_MAPE, higher_is_better = FALSE)
+  }
+
+  score_cols <- intersect(
+    c("AIC_score", "BIC_score", "CV_MAE_score", "CV_RMSE_score", "CV_MAPE_score"),
+    names(comparison)
+  )
+  comparison$CompositeScore <- rowMeans(comparison[, score_cols, drop = FALSE], na.rm = TRUE)
+  comparison$CompositeRank <- rank(-comparison$CompositeScore, ties.method = "first")
+
+  best_model <- comparison$model[which.max(comparison$CompositeScore)]
   
   list(
     comparison = comparison,
     best_model = best_model,
-    recommendation = sprintf("Recommended model: %s (lowest AIC)", best_model)
+    recommendation = sprintf("Recommended model: %s (best composite score across information criteria and temporal CV)", best_model)
   )
 }
 

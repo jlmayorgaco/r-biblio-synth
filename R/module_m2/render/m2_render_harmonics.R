@@ -71,11 +71,11 @@ create_data_spectrum_plot <- function(data_harmonics, config) {
   spec <- spec[spec$frequency > 0 & spec$period < 50, ]
   
   p <- ggplot2::ggplot(spec, ggplot2::aes(x = period, y = normalized_power)) +
-    ggplot2::geom_line(color = "#0072BD", linewidth = 0.8) +
-    ggplot2::geom_point(color = "#0072BD", size = 1) +
-    ggplot2::geom_vline(xintercept = data_harmonics$dominant_period, 
-                       color = "#D95319", linetype = "dashed", linewidth = 0.5) +
-    ggplot2::scale_x_log10(name = "Period (years, log scale)") +
+    ggplot2::geom_line(color = "black", linewidth = 0.55) +
+    ggplot2::geom_point(color = "black", fill = "white", shape = 21, size = 1.1, stroke = 0.3) +
+    ggplot2::geom_vline(xintercept = data_harmonics$dominant_period,
+                       color = "#E15759", linetype = "22", linewidth = 0.55) +
+    ggplot2::scale_x_log10(name = "Period (years)", breaks = c(1, 2, 5, 10, 20, 50)) +
     ggplot2::scale_y_continuous(name = "Normalized Power", expand = ggplot2::expansion(mult = c(0, 0.1))) +
     ieee_theme() +
     ggplot2::labs(
@@ -91,11 +91,11 @@ create_data_spectrum_plot <- function(data_harmonics, config) {
     for (i in seq_len(nrow(top3))) {
       p <- p + ggplot2::annotate("text", x = top3$period[i], y = top3$normalized_power[i],
                                 label = sprintf("%.1f", top3$period[i]), 
-                                size = 2, vjust = -1, color = "#7E2F8E")
+                                size = 2.2, vjust = -0.8, color = "#E15759")
     }
   }
   
-  p
+  ieee_mark_plot_layout(p, "single")
 }
 
 #' Create top periods plot
@@ -126,7 +126,7 @@ create_top_periods_plot <- function(harmonics, config, title_suffix = "") {
       x = "Period"
     )
   
-  p
+  ieee_mark_plot_layout(p, "single")
 }
 
 #' Create R-squared versus frequency plot
@@ -141,18 +141,21 @@ create_r2_frequency_plot <- function(r_squared_table, config) {
   best_freq <- df$Frequency[best_idx]
   best_r2 <- df$R2[best_idx]
 
-  ggplot2::ggplot(df, ggplot2::aes(x = Frequency, y = R2)) +
+  p <- ggplot2::ggplot(df, ggplot2::aes(x = Frequency, y = R2)) +
     ggplot2::geom_line(color = "black", linewidth = 0.7) +
-    ggplot2::geom_point(color = "#A2142F", size = 1.8) +
-    ggplot2::geom_vline(xintercept = best_freq, color = "#D95319", linetype = "dashed", linewidth = 0.5) +
+    ggplot2::geom_point(color = "black", fill = "white", shape = 21, size = 1.7, stroke = 0.35) +
+    ggplot2::geom_vline(xintercept = best_freq, color = "#E15759", linetype = "22", linewidth = 0.55) +
     ggplot2::annotate(
-      "text",
+      "label",
       x = best_freq,
       y = min(1, best_r2 + 0.08),
       label = sprintf("Best: %.3f Hz\nR2 = %.3f", best_freq, best_r2),
       hjust = 0,
-      size = 2.7,
-      color = "#D95319"
+      size = 2.6,
+      color = "#E15759",
+      linewidth = 0.2,
+      fill = scales::alpha("white", 0.9),
+      label.padding = grid::unit(0.12, "lines")
     ) +
     ggplot2::scale_x_continuous(name = "Frequency") +
     ggplot2::scale_y_continuous(name = "R2", limits = c(0, 1), expand = ggplot2::expansion(mult = c(0, 0.05))) +
@@ -161,6 +164,8 @@ create_r2_frequency_plot <- function(r_squared_table, config) {
       title = "Harmonic Regression Fit by Frequency",
       subtitle = "Recovered from legacy M2 harmonic regression workflow"
     )
+
+  ieee_mark_plot_layout(p, "single")
 }
 
 #' Create residual spectrum plot
@@ -174,9 +179,9 @@ create_residual_spectrum_plot <- function(residual_harmonics, config) {
   color <- if (residual_harmonics$has_periodicity) "#A2142F" else "#77AC30"
   
   p <- ggplot2::ggplot(spec, ggplot2::aes(x = period, y = normalized_power)) +
-    ggplot2::geom_line(color = color, linewidth = 0.8) +
-    ggplot2::geom_point(color = color, size = 1) +
-    ggplot2::scale_x_log10(name = "Period (years, log scale)") +
+    ggplot2::geom_line(color = "black", linewidth = 0.55) +
+    ggplot2::geom_point(color = "black", fill = "white", shape = 21, size = 1.1, stroke = 0.3) +
+    ggplot2::scale_x_log10(name = "Period (years)", breaks = c(1, 2, 5, 10, 20, 50)) +
     ggplot2::scale_y_continuous(name = "Normalized Power", expand = ggplot2::expansion(mult = c(0, 0.1))) +
     ieee_theme() +
     ggplot2::labs(
@@ -188,10 +193,10 @@ create_residual_spectrum_plot <- function(residual_harmonics, config) {
   
   if (residual_harmonics$has_periodicity && !is.na(residual_harmonics$dominant_period)) {
     p <- p + ggplot2::geom_vline(xintercept = residual_harmonics$dominant_period,
-                                 color = "#D95319", linetype = "dashed", linewidth = 0.5)
+                                 color = color, linetype = "22", linewidth = 0.55)
   }
   
-  p
+  ieee_mark_plot_layout(p, "single")
 }
 
 #' Create residual warning plot
@@ -218,7 +223,7 @@ create_residual_warning_plot <- function(residual_harmonics, config) {
     ggplot2::theme_void() +
     ggplot2::labs(title = "Residual Periodicity Test")
   
-  p
+  ieee_mark_plot_layout(p, "single")
 }
 
 #' Create Lomb-Scargle periodogram
@@ -236,10 +241,10 @@ create_lomb_periodogram_plot <- function(lomb, config) {
   df <- df[df$period > 0 & df$period < 50, ]
   
   p <- ggplot2::ggplot(df, ggplot2::aes(x = period, y = power)) +
-    ggplot2::geom_line(color = "#0072BD", linewidth = 0.6) +
+    ggplot2::geom_line(color = "black", linewidth = 0.55) +
     ggplot2::geom_vline(xintercept = lomb$peak_period, 
-                       color = "#D95319", linetype = "dashed", linewidth = 0.4) +
-    ggplot2::scale_x_log10(name = "Period (years, log scale)") +
+                       color = "#E15759", linetype = "22", linewidth = 0.5) +
+    ggplot2::scale_x_log10(name = "Period (years)", breaks = c(1, 2, 5, 10, 20, 50)) +
     ggplot2::scale_y_continuous(name = "Power") +
     ieee_theme() +
     ggplot2::labs(
@@ -247,7 +252,7 @@ create_lomb_periodogram_plot <- function(lomb, config) {
       subtitle = sprintf("Peak period: %.1f years", lomb$peak_period %||% NA)
     )
   
-  p
+  ieee_mark_plot_layout(p, "single")
 }
 
 #' Create wavelet plot
@@ -272,7 +277,7 @@ create_wavelet_plot <- function(wavelet, config) {
       title = "Wavelet Power Spectrum"
     )
   
-  p
+  ieee_mark_plot_layout(p, "full")
 }
 
 #' Create harmonic comparison plot
@@ -309,7 +314,7 @@ create_harmonic_comparison_plot <- function(cross_analysis, config) {
       subtitle = cross_analysis$interpretation %||% ""
     )
   
-  p
+  ieee_mark_plot_layout(p, "single")
 }
 
 #' Create harmonic summary plot
@@ -347,7 +352,7 @@ create_harmonic_summary_plot <- function(summary, config) {
     ) +
     ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
   
-  p
+  ieee_mark_plot_layout(p, "single")
 }
 
 `%||%` <- function(a, b) if (!is.null(a)) a else b

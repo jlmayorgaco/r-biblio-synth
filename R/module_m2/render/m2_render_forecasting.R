@@ -24,7 +24,7 @@ render_m2_forecasting <- function(data, config = biblio_config()) {
   
   # Model comparison plot
   if (!is.null(data$model_comparison)) {
-    plots$model_comparison <- create_model_comparison_plot(data, config)
+    plots$model_comparison <- create_forecast_model_comparison_plot(data, config)
   }
   
   # Cross-validation results
@@ -109,44 +109,41 @@ create_forecast_plot <- function(data, config) {
   # Plot
   p <- ggplot2::ggplot() +
     ggplot2::geom_line(data = df_obs, 
-                       ggplot2::aes(x = Year, y = Articles, color = Type),
-                       linewidth = 0.8) +
+                       ggplot2::aes(x = Year, y = Articles),
+                       color = "black", linewidth = 0.85) +
     ggplot2::geom_point(data = df_obs,
                         ggplot2::aes(x = Year, y = Articles),
-                        color = "#0072BD", size = 1.5) +
+                        color = "black", size = 1.6) +
     ggplot2::geom_line(data = df_arima,
-                       ggplot2::aes(x = Year, y = Articles, color = Type),
-                       linetype = "dashed", linewidth = 0.6) +
-    ggplot2::geom_line(data = df_fc_arima,
-                       ggplot2::aes(x = Year, y = Articles, color = Type),
-                       linetype = "dotted", linewidth = 0.8) +
+                       ggplot2::aes(x = Year, y = Articles),
+                       color = "#9E9E9E", linetype = "22", linewidth = 0.55) +
+    ggplot2::geom_line(data = df_ets,
+                       ggplot2::aes(x = Year, y = Articles),
+                       color = "#C5C5C5", linetype = "42", linewidth = 0.55) +
+    ggplot2::geom_vline(xintercept = last_year, color = "#E15759", linetype = "22", linewidth = 0.65) +
     ggplot2::geom_line(data = df_fc_ensemble,
                        ggplot2::aes(x = Year, y = Articles),
-                       color = "#D95319", linewidth = 1) +
-    ggplot2::scale_color_manual(
-      values = c("Observed" = "#0072BD", 
-                 "ARIMA Fitted" = "#77AC30",
-                 "ETS Fitted" = "#A2142F",
-                 "ARIMA Forecast" = "#77AC30",
-                 "ETS Forecast" = "#A2142F"),
-      name = "Series"
-    ) +
+                       color = "#E15759", linewidth = 1) +
+    ggplot2::geom_point(data = df_fc_ensemble,
+                        ggplot2::aes(x = Year, y = Articles),
+                        color = "#E15759", size = 1.8) +
     ggplot2::scale_x_continuous(name = "Year") +
     ggplot2::scale_y_continuous(name = "Articles") +
     ieee_theme_timeseries() +
     ggplot2::labs(
       title = "Time Series Forecast",
-      subtitle = sprintf("ARIMA(%s) vs ETS vs Ensemble", 
-                        paste(data$arima$order, collapse = ","))
+      subtitle = sprintf("Observed series, fitted baselines, and ensemble forecast | ARIMA(%s)",
+                        paste(data$arima$order, collapse = ",")),
+      caption = "Red dashed line marks the forecast origin."
     ) +
-    ggplot2::theme(legend.position = "bottom")
+    ggplot2::theme(legend.position = "none")
   
-  p
+  ieee_mark_plot_layout(p, "full")
 }
 
 #' Create model comparison plot
 #' @keywords internal
-create_model_comparison_plot <- function(data, config) {
+create_forecast_model_comparison_plot <- function(data, config) {
   comparison <- data$model_comparison$comparison
   
   if (is.null(comparison) || nrow(comparison) == 0) return(NULL)
@@ -187,7 +184,7 @@ create_model_comparison_plot <- function(data, config) {
     ) +
     ggplot2::theme(legend.position = "right")
   
-  p
+  ieee_mark_plot_layout(p, "full")
 }
 
 #' Create cross-validation error plot
@@ -214,7 +211,7 @@ create_cv_error_plot <- function(data, config) {
     ) +
     ggplot2::theme(legend.position = "bottom")
   
-  p
+  ieee_mark_plot_layout(p, "single")
 }
 
 #' Create prediction interval plot
@@ -250,10 +247,10 @@ create_prediction_interval_plot <- function(data, config) {
   p <- ggplot2::ggplot() +
     ggplot2::geom_line(data = df_obs,
                        ggplot2::aes(x = Year, y = Articles),
-                       color = "#0072BD", linewidth = 0.8) +
+                       color = "black", linewidth = 0.85) +
     ggplot2::geom_point(data = df_obs,
                         ggplot2::aes(x = Year, y = Articles),
-                        color = "#0072BD", size = 1.5) +
+                        color = "black", size = 1.6) +
     ggplot2::geom_ribbon(
       data = data.frame(
         Year = forecast_years,
@@ -261,14 +258,15 @@ create_prediction_interval_plot <- function(data, config) {
         ymax = pi$arima$upper_95
       ),
       ggplot2::aes(x = Year, ymin = ymin, ymax = ymax),
-      fill = "#0072BD", alpha = 0.2
+      fill = "#BDBDBD", alpha = 0.3
     ) +
     ggplot2::geom_line(data = data.frame(Year = forecast_years, Forecast = ensemble_fc),
                        ggplot2::aes(x = Year, y = Forecast),
-                       color = "#D95319", linewidth = 1) +
+                       color = "#E15759", linewidth = 1) +
     ggplot2::geom_point(data = data.frame(Year = forecast_years, Forecast = ensemble_fc),
                         ggplot2::aes(x = Year, y = Forecast),
-                        color = "#D95319", size = 2) +
+                        color = "#E15759", size = 1.8) +
+    ggplot2::geom_vline(xintercept = last_year, color = "#E15759", linetype = "22", linewidth = 0.65) +
     ggplot2::scale_x_continuous(name = "Year") +
     ggplot2::scale_y_continuous(name = "Articles") +
     ieee_theme_timeseries() +
@@ -277,7 +275,7 @@ create_prediction_interval_plot <- function(data, config) {
       subtitle = sprintf("%d-step ahead forecast", horizon)
     )
   
-  p
+  ieee_mark_plot_layout(p, "full")
 }
 
 #' Create ensemble weights plot
@@ -306,7 +304,7 @@ create_ensemble_weights_plot <- function(data, config) {
     ) +
     ggplot2::theme(legend.position = "none")
   
-  p
+  ieee_mark_plot_layout(p, "single")
 }
 
 #' Generate forecast values from model result

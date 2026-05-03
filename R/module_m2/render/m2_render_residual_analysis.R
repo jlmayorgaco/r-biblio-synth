@@ -54,10 +54,10 @@ create_residual_series_plot <- function(data, config) {
   )
 
   p <- ggplot2::ggplot(df, ggplot2::aes(x = Year, y = Residual)) +
-    ggplot2::geom_hline(yintercept = 0, linetype = "dashed", color = "gray50", linewidth = 0.3) +
-    ggplot2::geom_line(color = "#0072BD", linewidth = 0.5) +
-    ggplot2::geom_point(color = "#0072BD", size = 1.5) +
-    ggplot2::geom_smooth(method = "loess", se = FALSE, color = "#D95319", linetype = "dashed", linewidth = 0.5) +
+    ggplot2::geom_hline(yintercept = 0, linetype = "22", color = "gray50", linewidth = 0.35) +
+    ggplot2::geom_line(color = "black", linewidth = 0.45) +
+    ggplot2::geom_point(color = "black", fill = "white", shape = 21, size = 1.5, stroke = 0.35) +
+    ggplot2::geom_smooth(method = "loess", se = FALSE, color = "#4E79A7", linetype = "22", linewidth = 0.5) +
     ggplot2::scale_x_continuous(name = "Year") +
     ggplot2::scale_y_continuous(name = "Residual") +
     ieee_theme_timeseries() +
@@ -77,7 +77,7 @@ create_residual_series_plot <- function(data, config) {
     }
   }
 
-  p
+  ieee_mark_plot_layout(p, "full")
 }
 
 #' Create normality histogram plot
@@ -97,30 +97,33 @@ create_normality_histogram_plot <- function(data, config) {
     data$normality$kurtosis %||% NA_real_
   )
 
-  ggplot2::ggplot(df, ggplot2::aes(x = Residual)) +
+  p <- ggplot2::ggplot(df, ggplot2::aes(x = Residual)) +
     ggplot2::geom_histogram(
       ggplot2::aes(y = ggplot2::after_stat(density)),
       bins = 20,
-      fill = "#0072BD",
+      fill = "#D9D9D9",
       color = "black",
       linewidth = 0.2,
-      alpha = 0.75
+      alpha = 0.9
     ) +
-    ggplot2::geom_density(color = "#D95319", linewidth = 0.8) +
+    ggplot2::geom_density(color = "black", linewidth = 0.8) +
     ggplot2::stat_function(
       fun = stats::dnorm,
       args = list(mean = residual_mean, sd = residual_sd),
-      color = "#77AC30",
-      linetype = "dashed",
+      color = "#4E79A7",
+      linetype = "22",
       linewidth = 0.6
     ) +
     ggplot2::annotate(
-      "text",
+      "label",
       x = Inf, y = Inf,
       label = annotation,
-      hjust = 1.05, vjust = 1.1,
+      hjust = 1.02, vjust = 1.05,
       size = 2.7,
-      fontface = "plain"
+      fontface = "plain",
+      linewidth = 0.2,
+      fill = scales::alpha("white", 0.9),
+      label.padding = grid::unit(0.12, "lines")
     ) +
     ggplot2::scale_x_continuous(name = "Residual") +
     ggplot2::scale_y_continuous(name = "Density") +
@@ -129,6 +132,8 @@ create_normality_histogram_plot <- function(data, config) {
       title = "Residual Distribution",
       subtitle = data$normality$interpretation %||% ""
     )
+
+  ieee_mark_plot_layout(p, "single")
 }
 
 #' Create Q-Q plot
@@ -137,13 +142,15 @@ create_normality_qq_plot <- function(data, config) {
   qq <- stats::qqnorm(data$residuals, plot.it = FALSE)
   df <- data.frame(theoretical = qq$x, sample = qq$y)
 
-  ggplot2::ggplot(df, ggplot2::aes(x = theoretical, y = sample)) +
-    ggplot2::geom_point(color = "#0072BD", size = 1.8, alpha = 0.8) +
-    ggplot2::geom_abline(slope = 1, intercept = 0, color = "#D95319", linetype = "dashed", linewidth = 0.6) +
+  p <- ggplot2::ggplot(df, ggplot2::aes(x = theoretical, y = sample)) +
+    ggplot2::geom_point(color = "black", fill = "white", shape = 21, size = 1.8, stroke = 0.4, alpha = 0.9) +
+    ggplot2::geom_abline(slope = 1, intercept = 0, color = "black", linewidth = 0.7) +
     ggplot2::scale_x_continuous(name = "Theoretical Quantiles") +
     ggplot2::scale_y_continuous(name = "Sample Quantiles") +
     ieee_theme() +
     ggplot2::labs(title = "Q-Q Plot of Residuals")
+
+  ieee_mark_plot_layout(p, "single")
 }
 
 #' Create breakpoint detection plot
@@ -190,22 +197,24 @@ create_residual_spectrum_plot <- function(data, config) {
     return(NULL)
   }
 
-  ggplot2::ggplot(spec, ggplot2::aes(x = period, y = normalized_power)) +
-    ggplot2::geom_line(color = "#0072BD", linewidth = 0.8) +
-    ggplot2::geom_point(color = "#0072BD", size = 1.4) +
+  p <- ggplot2::ggplot(spec, ggplot2::aes(x = period, y = normalized_power)) +
+    ggplot2::geom_line(color = "black", linewidth = 0.55) +
+    ggplot2::geom_point(color = "black", fill = "white", shape = 21, size = 1.3, stroke = 0.35) +
     ggplot2::geom_vline(
       xintercept = data$harmonics$dominant_period,
-      color = "#D95319",
-      linetype = "dashed",
-      linewidth = 0.5
+      color = "#E15759",
+      linetype = "22",
+      linewidth = 0.55
     ) +
-    ggplot2::scale_x_log10(name = "Period (years, log scale)") +
+    ggplot2::scale_x_log10(name = "Period (years)", breaks = c(1, 2, 5, 10, 20, 50)) +
     ggplot2::scale_y_continuous(name = "Normalized Power") +
     ieee_theme() +
     ggplot2::labs(
       title = "Residual Harmonic Spectrum",
       subtitle = data$harmonics$interpretation %||% ""
     )
+
+  ieee_mark_plot_layout(p, "single")
 }
 
 #' Create FFT residual plot
@@ -235,14 +244,14 @@ create_residual_fft_plot <- function(data, config) {
   p <- ggplot2::ggplot(fft_data, ggplot2::aes(x = period, y = normalized_power)) +
     ggplot2::geom_line(color = "black", linewidth = 0.45) +
     ggplot2::geom_point(color = "black", size = 1.2, shape = 21, fill = "white", stroke = 0.4) +
-    ggplot2::geom_vline(xintercept = dominant_period, color = "#D95319", linetype = "dashed", linewidth = 0.4) +
+    ggplot2::geom_vline(xintercept = dominant_period, color = "#E15759", linetype = "22", linewidth = 0.5) +
     ggplot2::annotate(
       "text",
       x = dominant_period * 1.1,
       y = label_y,
       label = sprintf("Dominant: %.1f yr", dominant_period),
       hjust = 0,
-      color = "#D95319",
+      color = "#E15759",
       size = 2.8
     ) +
     ggplot2::scale_x_log10(name = "Period (years)", breaks = c(1, 2, 5, 10, 20, 50)) +
@@ -263,7 +272,7 @@ create_residual_fft_plot <- function(data, config) {
       )
   }
 
-  p
+  ieee_mark_plot_layout(p, "single")
 }
 
 #' Create residual ACF plot
@@ -277,16 +286,19 @@ create_residual_acf_plot <- function(data, config) {
 
   df <- data.frame(Lag = acf_lags, ACF = acf_values)
   conf_bound <- 1.96 / sqrt(length(data$residuals))
+  y_limit <- max(0.3, max(abs(c(df$ACF, conf_bound)), na.rm = TRUE) * 1.15)
 
-  ggplot2::ggplot(df, ggplot2::aes(x = Lag, y = ACF)) +
-    ggplot2::geom_hline(yintercept = 0, color = "gray50", linewidth = 0.3) +
-    ggplot2::geom_hline(yintercept = c(-conf_bound, conf_bound), color = "#D95319", linetype = "dashed", linewidth = 0.5) +
-    ggplot2::geom_segment(ggplot2::aes(xend = Lag, yend = 0), color = "#0072BD", linewidth = 0.9) +
-    ggplot2::geom_point(color = "#0072BD", size = 1.8) +
-    ggplot2::scale_x_continuous(name = "Lag") +
-    ggplot2::scale_y_continuous(name = "Autocorrelation", limits = c(-1, 1)) +
+  p <- ggplot2::ggplot(df, ggplot2::aes(x = Lag, y = ACF)) +
+    ggplot2::geom_hline(yintercept = 0, color = "black", linewidth = 0.35) +
+    ggplot2::geom_hline(yintercept = c(-conf_bound, conf_bound), color = "#2F55D4", linetype = "22", linewidth = 0.55) +
+    ggplot2::geom_segment(ggplot2::aes(xend = Lag, yend = 0), color = "black", linewidth = 0.8) +
+    ggplot2::geom_point(color = "black", size = 1.5) +
+    ggplot2::scale_x_continuous(name = "Lag", breaks = seq_len(max(df$Lag))) +
+    ggplot2::scale_y_continuous(name = "Autocorrelation", limits = c(-y_limit, y_limit)) +
     ieee_theme() +
     ggplot2::labs(title = "ACF of Residuals", subtitle = "Dashed lines show 95% confidence bounds")
+
+  ieee_mark_plot_layout(p, "single")
 }
 
 #' Create residual PACF plot
@@ -300,16 +312,19 @@ create_residual_pacf_plot <- function(data, config) {
 
   df <- data.frame(Lag = pacf_lags, PACF = pacf_values)
   conf_bound <- 1.96 / sqrt(length(data$residuals))
+  y_limit <- max(0.3, max(abs(c(df$PACF, conf_bound)), na.rm = TRUE) * 1.15)
 
-  ggplot2::ggplot(df, ggplot2::aes(x = Lag, y = PACF)) +
-    ggplot2::geom_hline(yintercept = 0, color = "gray50", linewidth = 0.3) +
-    ggplot2::geom_hline(yintercept = c(-conf_bound, conf_bound), color = "#D95319", linetype = "dashed", linewidth = 0.5) +
-    ggplot2::geom_segment(ggplot2::aes(xend = Lag, yend = 0), color = "#0072BD", linewidth = 0.9) +
-    ggplot2::geom_point(color = "#0072BD", size = 1.8) +
-    ggplot2::scale_x_continuous(name = "Lag") +
-    ggplot2::scale_y_continuous(name = "Partial Autocorrelation", limits = c(-1, 1)) +
+  p <- ggplot2::ggplot(df, ggplot2::aes(x = Lag, y = PACF)) +
+    ggplot2::geom_hline(yintercept = 0, color = "black", linewidth = 0.35) +
+    ggplot2::geom_hline(yintercept = c(-conf_bound, conf_bound), color = "#2F55D4", linetype = "22", linewidth = 0.55) +
+    ggplot2::geom_segment(ggplot2::aes(xend = Lag, yend = 0), color = "black", linewidth = 0.8) +
+    ggplot2::geom_point(color = "black", size = 1.5) +
+    ggplot2::scale_x_continuous(name = "Lag", breaks = seq_len(max(df$Lag))) +
+    ggplot2::scale_y_continuous(name = "Partial Autocorrelation", limits = c(-y_limit, y_limit)) +
     ieee_theme() +
-    ggplot2::labs(title = "PACF of Residuals", subtitle = "Legacy diagnostic recovered in flat exportable form")
+    ggplot2::labs(title = "PACF of Residuals", subtitle = "Dashed lines show 95% confidence bounds")
+
+  ieee_mark_plot_layout(p, "single")
 }
 
 #' Create Durbin-Watson diagnostic plot
@@ -318,7 +333,7 @@ create_durbin_watson_plot <- function(data, config) {
   df <- data.frame(Year = data$years, Residual = data$residuals)
   max_abs <- max(abs(df$Residual), na.rm = TRUE)
 
-  ggplot2::ggplot(df, ggplot2::aes(x = Year, y = Residual)) +
+  p <- ggplot2::ggplot(df, ggplot2::aes(x = Year, y = Residual)) +
     ggplot2::geom_hline(yintercept = 0, color = "gray50", linewidth = 0.3) +
     ggplot2::geom_line(color = "black", linewidth = 0.45) +
     ggplot2::geom_point(color = "black", size = 1.4, shape = 21, fill = "white", stroke = 0.4) +
@@ -334,6 +349,8 @@ create_durbin_watson_plot <- function(data, config) {
         data$autocorrelation$lb_p_value %||% NA_real_
       )
     )
+
+  ieee_mark_plot_layout(p, "full")
 }
 
 #' Create heteroscedasticity plot
@@ -348,7 +365,7 @@ create_heteroscedasticity_plot <- function(data, config) {
     ResidualSq = data$squared_residuals
   )
 
-  ggplot2::ggplot(df, ggplot2::aes(x = Year, y = ResidualSq)) +
+  p <- ggplot2::ggplot(df, ggplot2::aes(x = Year, y = ResidualSq)) +
     ggplot2::geom_point(color = "black", size = 1.4, shape = 21, fill = "white", stroke = 0.4) +
     ggplot2::geom_smooth(method = "lm", color = "#D95319", linetype = "dashed", linewidth = 0.5, se = FALSE) +
     ggplot2::scale_x_continuous(name = "Year") +
@@ -362,6 +379,8 @@ create_heteroscedasticity_plot <- function(data, config) {
         data$heteroscedasticity$slope_p_value %||% NA_real_
       )
     )
+
+  ieee_mark_plot_layout(p, "full")
 }
 
 #' Create standardized residual plot
@@ -372,7 +391,7 @@ create_standardized_residuals_plot <- function(data, config) {
     StdResidual = data$standardized_residuals
   )
 
-  ggplot2::ggplot(df, ggplot2::aes(x = Year, y = StdResidual)) +
+  p <- ggplot2::ggplot(df, ggplot2::aes(x = Year, y = StdResidual)) +
     ggplot2::geom_hline(yintercept = 0, color = "gray50", linewidth = 0.3) +
     ggplot2::geom_hline(yintercept = c(-2, 2), color = "#A2142F", linetype = "dashed", linewidth = 0.5) +
     ggplot2::geom_point(color = "black", size = 1.5, shape = 21, fill = "white", stroke = 0.4) +
@@ -381,6 +400,8 @@ create_standardized_residuals_plot <- function(data, config) {
     ggplot2::scale_y_continuous(name = "Standardized Residual") +
     ieee_theme_timeseries() +
     ggplot2::labs(title = "Standardized Residuals")
+
+  ieee_mark_plot_layout(p, "full")
 }
 
 #' Create residuals squared plot
@@ -391,13 +412,15 @@ create_residuals_squared_plot <- function(data, config) {
     ResidualSq = data$squared_residuals
   )
 
-  ggplot2::ggplot(df, ggplot2::aes(x = Year, y = ResidualSq)) +
+  p <- ggplot2::ggplot(df, ggplot2::aes(x = Year, y = ResidualSq)) +
     ggplot2::geom_point(color = "black", size = 1.4, shape = 21, fill = "white", stroke = 0.4) +
     ggplot2::geom_smooth(method = "loess", color = "#0072BD", linetype = "dashed", linewidth = 0.5, se = FALSE) +
     ggplot2::scale_x_continuous(name = "Year") +
     ggplot2::scale_y_continuous(name = "Residual Squared") +
     ieee_theme_timeseries() +
     ggplot2::labs(title = "Residuals Squared Over Time")
+
+  ieee_mark_plot_layout(p, "full")
 }
 
 #' Create residual variance model fit plot
@@ -413,7 +436,7 @@ create_residuals_squared_model_fit_plot <- function(data, config) {
     ResidualSq = data$squared_residuals
   )
 
-  ggplot2::ggplot() +
+  p <- ggplot2::ggplot() +
     ggplot2::geom_point(
       data = observed_df,
       ggplot2::aes(x = Year, y = ResidualSq),
@@ -441,6 +464,8 @@ create_residuals_squared_model_fit_plot <- function(data, config) {
         variance_model$best_r_squared %||% NA_real_
       )
     )
+
+  ieee_mark_plot_layout(p, "full")
 }
 
 #' Create model adequacy summary plot
@@ -471,7 +496,7 @@ create_model_adequacy_plot <- function(data, config) {
   )
   metrics_long$Metric <- factor(metrics_long$Metric, levels = metrics$Metric)
 
-  ggplot2::ggplot(metrics_long, ggplot2::aes(x = Metric, y = Value, fill = Type)) +
+  p <- ggplot2::ggplot(metrics_long, ggplot2::aes(x = Metric, y = Value, fill = Type)) +
     ggplot2::geom_col(
       position = ggplot2::position_dodge(width = 0.8),
       width = 0.65,
@@ -486,6 +511,8 @@ create_model_adequacy_plot <- function(data, config) {
       subtitle = if (isTRUE(ma$model_adequate)) "Model classified as adequate" else "Model may require refinement"
     ) +
     ggplot2::theme(legend.position = "bottom")
+
+  ieee_mark_plot_layout(p, "single")
 }
 
 #' Detect local spectral peaks

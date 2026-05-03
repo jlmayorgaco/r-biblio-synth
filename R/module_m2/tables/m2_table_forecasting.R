@@ -54,9 +54,21 @@ create_model_comparison_table <- function(data) {
   if ("CV_RMSE" %in% names(comparison)) {
     df$CV_RMSE <- comparison$CV_RMSE
   }
+
+  if ("CV_MAPE" %in% names(comparison)) {
+    df$CV_MAPE <- comparison$CV_MAPE
+  }
   
   if ("rank_AIC" %in% names(comparison)) {
     df$Rank_AIC <- comparison$rank_AIC
+  }
+
+  if ("CompositeScore" %in% names(comparison)) {
+    df$CompositeScore <- comparison$CompositeScore
+  }
+
+  if ("CompositeRank" %in% names(comparison)) {
+    df$CompositeRank <- comparison$CompositeRank
   }
   
   colnames(df) <- gsub("_", " ", colnames(df))

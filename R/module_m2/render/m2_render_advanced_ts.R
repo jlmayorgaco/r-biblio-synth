@@ -95,13 +95,26 @@ create_prophet_plot <- function(prophet_data, config) {
   if (!requireNamespace("ggplot2", quietly = TRUE)) return(NULL)
   if (is.null(prophet_data) || prophet_data$status != "success") return(NULL)
   
-  years <- prophet_data$years
   trend <- prophet_data$trend
-  forecast <- prophet_data$forecast
-  
+  years <- prophet_data$years %||% seq_along(trend)
+  forecast_years <- prophet_data$forecast_years %||% numeric()
+  forecast <- prophet_data$forecast$point %||% numeric()
+
+  if (length(trend) == 0 || length(years) != length(trend)) {
+    return(NULL)
+  }
+
   df_trend <- data.frame(year = years, value = trend, component = "Trend")
-  df_forecast <- data.frame(year = years, value = forecast, component = "Forecast")
+  df_forecast <- if (length(forecast) > 0 && length(forecast_years) == length(forecast)) {
+    data.frame(year = forecast_years, value = forecast, component = "Forecast")
+  } else {
+    data.frame(year = numeric(), value = numeric(), component = character(), stringsAsFactors = FALSE)
+  }
   df <- rbind(df_trend, df_forecast)
+
+  if (nrow(df) == 0) {
+    return(NULL)
+  }
   
   ggplot2::ggplot(df, ggplot2::aes(x = year, y = value, color = component)) +
     ggplot2::geom_line(linewidth = 1) +

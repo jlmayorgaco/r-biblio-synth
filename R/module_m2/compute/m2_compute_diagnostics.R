@@ -10,39 +10,325 @@
 #' @param config Configuration list
 #' @return List with diagnostics
 #' @export
-compute_m2_diagnostics <- function(input, models, config = biblio_config()) {
+compute_m2_diagnostics <- function(input,
+                                   models,
+                                   config = biblio_config(),
+                                   changepoint_result = NULL,
+                                   forecasting_result = NULL) {
   year_col <- if ("Year" %in% names(input)) "Year" else names(input)[1]
   articles_col <- if ("Articles" %in% names(input)) "Articles" else names(input)[2]
   
-  years <- input[[year_col]]
-  articles <- input[[articles_col]]
-  n <- length(articles)
-  
-  diagnostics <- list()
-  
-  # 1. AIC/BIC comparison
-  diagnostics$comparison <- compare_models_aic_bic(models)
-  
-  # 2. Cross-validation
-  diagnostics$cv_results <- cross_validate_models(years, articles, models)
-  
-  # 3. Forecast accuracy measures
-  diagnostics$accuracy <- compute_forecast_accuracy(years, articles, models)
-  
-  # 4. Residual diagnostics
-  diagnostics$residuals <- compute_residual_diagnostics(models)
-  
-  # 5. Model averaging weights
-  diagnostics$weights <- compute_model_weights(diagnostics$comparison)
-  
-  # 6. Ensemble forecast
-  diagnostics$ensemble <- ensemble_forecast(models, diagnostics$weights)
-  
-  # 7. Best model
-  diagnostics$best_model <- select_best_model(diagnostics)
-  
+  years <- m2_num_vec(input[[year_col]])
+  articles <- m2_num_vec(input[[articles_col]])
+
+  annual_models <- if (is.list(models) && "annual" %in% names(models)) models$annual else models
+  cumulative_models <- if (is.list(models) && "cumulative" %in% names(models)) models$cumulative else list()
+
+  diagnostics <- list(
+    series = data.frame(Year = years, Articles = articles),
+    comparison = m2_build_registry_comparison(annual_models, config),
+    growth_comparison = m2_build_registry_comparison(cumulative_models, config),
+    cv_results = if (!is.null(forecasting_result$cv_results)) forecasting_result$cv_results else list(),
+    accuracy = m2_build_accuracy_table(annual_models),
+    forecast_comparison = if (!is.null(forecasting_result$model_comparison$comparison)) {
+      forecasting_result$model_comparison$comparison
+    } else {
+      data.frame()
+    },
+    residuals = m2_collect_card_residuals(annual_models),
+    trend_statistics = m2_compute_trend_statistics(years, articles, changepoint_result),
+    changepoint_profile = m2_summarize_changepoint_profile(changepoint_result)
+  )
+
+  diagnostics$weights <- m2_compute_card_weights(diagnostics$comparison)
+  diagnostics$ensemble <- m2_ensemble_from_cards(annual_models, diagnostics$weights)
+  diagnostics$best_model <- m2_select_diagnostics_best_model(diagnostics$comparison)
   diagnostics$status <- "success"
   diagnostics
+}
+
+#' Comparison table builder for canonical registries
+#' @keywords internal
+m2_build_registry_comparison <- function(cards, config = biblio_config()) {
+  if (!is.list(cards) || length(cards) == 0) {
+    return(data.frame())
+  }
+
+  rows <- lapply(cards, m2_model_card_to_row)
+  rows <- Filter(Negate(is.null), rows)
+  if (length(rows) == 0) {
+    return(data.frame())
+  }
+
+  comparison <- do.call(rbind, rows)
+  m2_score_model_table(comparison, weights = config[["m2_selection_weights"]])
+}
+
+#' Accuracy table for canonical cards
+#' @keywords internal
+m2_build_accuracy_table <- function(cards) {
+  if (!is.list(cards) || length(cards) == 0) {
+    return(data.frame())
+  }
+
+  do.call(rbind, lapply(cards, function(card) {
+    data.frame(
+      model = card$name,
+      family = card$family,
+      source = card$source,
+      RMSE = round(card$metrics$rmse, 4),
+      MAE = round(card$metrics$mae, 4),
+      MAPE = round(card$metrics$mape, 2),
+      SMAPE = round(card$metrics$smape, 2),
+      TheilU = round(card$metrics$theil_u, 4),
+      Stability = round(card$diagnostics$stability_score, 4),
+      stringsAsFactors = FALSE
+    )
+  }))
+}
+
+#' Residual payload collector
+#' @keywords internal
+m2_collect_card_residuals <- function(cards) {
+  if (!is.list(cards) || length(cards) == 0) {
+    return(list())
+  }
+
+  payloads <- lapply(cards, m2_card_residual_payload)
+  payloads[!vapply(payloads, is.null, logical(1))]
+}
+
+#' Weight computation for canonical comparison tables
+#' @keywords internal
+m2_compute_card_weights <- function(comparison) {
+  if (!is.data.frame(comparison) || nrow(comparison) == 0) {
+    return(list())
+  }
+
+  weights <- list()
+
+  if ("AIC" %in% names(comparison) && any(is.finite(comparison$AIC))) {
+    delta_aic <- comparison$AIC - min(comparison$AIC, na.rm = TRUE)
+    w_aic <- exp(-0.5 * delta_aic)
+    weights$aic <- setNames(w_aic / sum(w_aic, na.rm = TRUE), comparison$Model)
+  }
+
+  if ("CompositeScore" %in% names(comparison) && any(is.finite(comparison$CompositeScore))) {
+    comp <- pmax(comparison$CompositeScore, 0)
+    if (sum(comp, na.rm = TRUE) > 0) {
+      weights$composite <- setNames(comp / sum(comp, na.rm = TRUE), comparison$Model)
+    }
+  }
+
+  weights
+}
+
+#' Simple forecast ensemble from annual cards
+#' @keywords internal
+m2_ensemble_from_cards <- function(cards, weights) {
+  if (!is.list(cards) || length(cards) == 0) {
+    return(list())
+  }
+
+  selected_weights <- if (!is.null(weights$composite)) weights$composite else if (!is.null(weights$aic)) weights$aic else NULL
+  if (is.null(selected_weights)) {
+    return(list())
+  }
+
+  forecast_models <- Filter(function(card) {
+    is.list(card) && length(card$forecast$point) > 0 && identical(card$target, "annual")
+  }, cards)
+  if (length(forecast_models) == 0) {
+    return(list())
+  }
+
+  horizon <- min(vapply(forecast_models, function(card) length(card$forecast$point), integer(1)))
+  if (horizon == 0) {
+    return(list())
+  }
+
+  model_names <- intersect(names(forecast_models), names(selected_weights))
+  if (length(model_names) == 0) {
+    return(list())
+  }
+
+  norm_weights <- selected_weights[model_names]
+  norm_weights <- norm_weights / sum(norm_weights, na.rm = TRUE)
+  years <- forecast_models[[model_names[1]]]$forecast$years[seq_len(horizon)]
+  point <- rep(0, horizon)
+
+  for (nm in model_names) {
+    point <- point + norm_weights[[nm]] * forecast_models[[nm]]$forecast$point[seq_len(horizon)]
+  }
+
+  list(
+    years = years,
+    point = point,
+    weights = norm_weights,
+    method = if (!is.null(weights$composite)) "composite" else "aic"
+  )
+}
+
+#' Pick best diagnostics model from comparison table
+#' @keywords internal
+m2_select_diagnostics_best_model <- function(comparison) {
+  if (!is.data.frame(comparison) || nrow(comparison) == 0) {
+    return(list(best_by_composite = NA_character_))
+  }
+
+  best_row <- comparison[order(comparison$Rank, -comparison$CompositeScore, comparison$RMSE), , drop = FALSE][1, , drop = FALSE]
+  list(
+    best_by_composite = as.character(best_row$Model[1]),
+    composite_score = m2_scalar_num(best_row$CompositeScore[1]),
+    rank = m2_scalar_num(best_row$Rank[1]),
+    source = as.character(best_row$Source[1]),
+    family = as.character(best_row$Family[1])
+  )
+}
+
+#' Trend statistics for M2
+#' @keywords internal
+m2_compute_trend_statistics <- function(years, articles, changepoint_result = NULL) {
+  years <- m2_num_vec(years)
+  articles <- m2_num_vec(articles)
+  keep <- is.finite(years) & is.finite(articles)
+  years <- years[keep]
+  articles <- articles[keep]
+  n <- length(articles)
+
+  if (n < 3) {
+    return(list(status = "insufficient_data"))
+  }
+
+  linear_fit <- stats::lm(articles ~ years)
+  slope <- m2_scalar_num(stats::coef(linear_fit)[2])
+  intercept <- m2_scalar_num(stats::coef(linear_fit)[1])
+  acceleration <- mean(diff(diff(articles)), na.rm = TRUE)
+  growth_rates <- diff(articles) / pmax(abs(articles[-n]), .Machine$double.eps)
+  cagr <- if (n >= 2 && articles[1] > 0) {
+    (articles[n] / articles[1])^(1 / (n - 1)) - 1
+  } else {
+    NA_real_
+  }
+  recent_window <- min(5L, n)
+  recent_cagr <- if (recent_window >= 2 && articles[n - recent_window + 1] > 0) {
+    (articles[n] / articles[n - recent_window + 1])^(1 / (recent_window - 1)) - 1
+  } else {
+    NA_real_
+  }
+
+  mk <- m2_mann_kendall_test(articles)
+  sen <- m2_sen_slope(years, articles)
+  hurst <- m2_hurst_exponent(articles)
+
+  list(
+    slope = slope,
+    intercept = intercept,
+    r_squared = summary(linear_fit)$r.squared,
+    cagr = cagr,
+    recent_cagr = recent_cagr,
+    mean_growth_rate = mean(growth_rates, na.rm = TRUE),
+    median_growth_rate = stats::median(growth_rates, na.rm = TRUE),
+    acceleration = acceleration,
+    volatility = stats::sd(growth_rates, na.rm = TRUE),
+    coefficient_of_variation = stats::sd(articles, na.rm = TRUE) / pmax(mean(articles, na.rm = TRUE), .Machine$double.eps),
+    mann_kendall = mk,
+    sen_slope = sen,
+    hurst_exponent = hurst,
+    breakpoint_years = if (!is.null(changepoint_result$summary$changepoint_years)) changepoint_result$summary$changepoint_years else numeric(0),
+    n_breakpoints = if (!is.null(changepoint_result$summary$n_changepoints)) changepoint_result$summary$n_changepoints else 0L,
+    status = "success"
+  )
+}
+
+#' Summarize changepoint profile
+#' @keywords internal
+m2_summarize_changepoint_profile <- function(changepoint_result) {
+  if (is.null(changepoint_result) || !identical(changepoint_result$status, "success")) {
+    return(list())
+  }
+
+  list(
+    years = changepoint_result$summary$changepoint_years,
+    n_changepoints = changepoint_result$summary$n_changepoints,
+    agreement_rate = changepoint_result$summary$agreement_rate,
+    n_segments = changepoint_result$summary$n_segments,
+    segments = changepoint_result$segments
+  )
+}
+
+#' Mann-Kendall trend test
+#' @keywords internal
+m2_mann_kendall_test <- function(x) {
+  x <- m2_num_vec(x)
+  n <- length(x)
+  if (n < 3) {
+    return(list(statistic = NA_real_, z = NA_real_, p_value = NA_real_))
+  }
+
+  s <- 0
+  for (i in seq_len(n - 1)) {
+    s <- s + sum(sign(x[(i + 1):n] - x[i]), na.rm = TRUE)
+  }
+
+  tie_lengths <- table(x)
+  var_s <- n * (n - 1) * (2 * n + 5)
+  if (length(tie_lengths) > 0) {
+    var_s <- var_s - sum(tie_lengths * (tie_lengths - 1) * (2 * tie_lengths + 5))
+  }
+  var_s <- var_s / 18
+
+  z <- if (s > 0) {
+    (s - 1) / sqrt(var_s)
+  } else if (s < 0) {
+    (s + 1) / sqrt(var_s)
+  } else {
+    0
+  }
+
+  list(
+    statistic = s,
+    z = z,
+    p_value = 2 * (1 - stats::pnorm(abs(z)))
+  )
+}
+
+#' Sen slope estimator
+#' @keywords internal
+m2_sen_slope <- function(years, values) {
+  years <- m2_num_vec(years)
+  values <- m2_num_vec(values)
+  n <- length(values)
+  if (n < 2) {
+    return(NA_real_)
+  }
+
+  slopes <- numeric(0)
+  for (i in seq_len(n - 1)) {
+    denom <- years[(i + 1):n] - years[i]
+    valid <- abs(denom) > .Machine$double.eps
+    slopes <- c(slopes, (values[(i + 1):n][valid] - values[i]) / denom[valid])
+  }
+  stats::median(slopes, na.rm = TRUE)
+}
+
+#' Approximate Hurst exponent via rescaled range
+#' @keywords internal
+m2_hurst_exponent <- function(x) {
+  x <- m2_num_vec(x)
+  n <- length(x)
+  if (n < 8) {
+    return(NA_real_)
+  }
+
+  centered <- x - mean(x, na.rm = TRUE)
+  cumulative <- cumsum(centered)
+  r <- max(cumulative, na.rm = TRUE) - min(cumulative, na.rm = TRUE)
+  s <- stats::sd(x, na.rm = TRUE)
+  if (!is.finite(r) || !is.finite(s) || s <= .Machine$double.eps) {
+    return(NA_real_)
+  }
+  log(r / s) / log(n)
 }
 
 #' Compare models by AIC and BIC
@@ -249,8 +535,37 @@ get_forecast_from_model <- function(model, train_years, test_years) {
 #' @keywords internal
 compute_forecast_accuracy <- function(years, articles, models) {
   n <- length(articles)
+  if (n < 6) {
+    return(data.frame(
+      model = character(0),
+      ME = numeric(0),
+      RMSE = numeric(0),
+      MAE = numeric(0),
+      MPE = numeric(0),
+      MAPE = numeric(0),
+      MASE = numeric(0),
+      TheilU = numeric(0),
+      stringsAsFactors = FALSE
+    ))
+  }
   holdout <- max(5, floor(n * 0.2))  # 20% holdout
+  if (holdout >= n) {
+    holdout <- max(1, n - 2)
+  }
   train_n <- n - holdout
+  if (train_n < 2) {
+    return(data.frame(
+      model = character(0),
+      ME = numeric(0),
+      RMSE = numeric(0),
+      MAE = numeric(0),
+      MPE = numeric(0),
+      MAPE = numeric(0),
+      MASE = numeric(0),
+      TheilU = numeric(0),
+      stringsAsFactors = FALSE
+    ))
+  }
   
   accuracy <- data.frame(
     model = character(0),
@@ -264,14 +579,14 @@ compute_forecast_accuracy <- function(years, articles, models) {
     stringsAsFactors = FALSE
   )
   
-  actual <- articles[(train_n + 1):n]
+  actual <- articles[seq.int(train_n + 1, n)]
   
   for (name in names(models)) {
     model <- models[[name]]
     
     if (is.null(model) || !is.list(model)) next
     
-    fc <- get_forecast_from_model(model, years[1:train_n], years[(train_n + 1):n])
+    fc <- get_forecast_from_model(model, years[seq_len(train_n)], years[seq.int(train_n + 1, n)])
     predicted <- fc$point
     
     if (length(predicted) != length(actual)) next
@@ -453,10 +768,13 @@ compute_model_weights <- function(comparison) {
 ensemble_forecast <- function(models, weights) {
   if (is.null(weights) || length(weights) == 0) {
     # Equal weights
-    model_names <- names(models)
-    n_models <- sum(sapply(models, function(m) !is.null(m) && is.list(m)))
+    valid_model_names <- names(Filter(function(m) !is.null(m) && is.list(m), models))
+    n_models <- length(valid_model_names)
+    if (n_models == 0) {
+      return(list())
+    }
     equal_weight <- 1 / n_models
-    weights <- list(equal = setNames(rep(equal_weight, n_models), model_names))
+    weights <- list(equal = setNames(rep(equal_weight, n_models), valid_model_names))
   }
   
   ensemble <- list()
@@ -475,7 +793,7 @@ ensemble_forecast <- function(models, weights) {
     if (length(forecasts) == 0) next
     
     # Align forecasts
-    n_fc <- max(sapply(forecasts, function(f) length(f$point)))
+    n_fc <- max(vapply(forecasts, function(f) length(f$point), integer(1)))
     
     point_ensemble <- numeric(n_fc)
     lower_ensemble <- numeric(n_fc)

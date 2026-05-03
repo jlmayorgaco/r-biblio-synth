@@ -406,6 +406,18 @@ fit_mmf_model <- function(years, articles) {
 #' @return List with all model fits and comparison
 #' @export
 compare_growth_models <- function(years, articles) {
+  if (is.list(years) && missing(articles)) {
+    models <- years
+    comparison <- data.frame(
+      model = names(models),
+      AIC = vapply(models, function(m) if (is.list(m)) m$AIC %||% NA_real_ else NA_real_, numeric(1)),
+      BIC = vapply(models, function(m) if (is.list(m)) m$BIC %||% NA_real_ else NA_real_, numeric(1)),
+      R_squared = vapply(models, function(m) if (is.list(m)) m$R_squared %||% NA_real_ else NA_real_, numeric(1)),
+      stringsAsFactors = FALSE
+    )
+    return(comparison[!is.na(comparison$AIC), , drop = FALSE])
+  }
+
   n <- length(articles)
   if (n < 5) {
     return(list(status = "error: insufficient data"))
