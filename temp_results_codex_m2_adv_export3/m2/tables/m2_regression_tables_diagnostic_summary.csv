@@ -1,7 +1,0 @@
-"diagnostic","value","pass","interpretation"
-"shapiro_p",0.4262,TRUE,"Residual normality"
-"durbin_watson",1.081,FALSE,"Low first-order autocorrelation"
-"ljung_box_p",0.004,FALSE,"No strong residual autocorrelation"
-"breusch_pagan_p",0.9924,TRUE,"Approximate homoscedasticity"
-"stability_score",0.6907,TRUE,"Overall residual stability"
-"breakpoint_count",0,TRUE,"Parsimonious change-point narrative"
