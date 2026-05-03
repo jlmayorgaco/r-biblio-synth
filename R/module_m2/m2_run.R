@@ -47,6 +47,7 @@ run_m2 <- function(input, config = biblio_config(), export = TRUE) {
     forecasting_result = data$forecasting
   )
   data$advanced_journal <- compute_m2_advanced_journal(input, data, config)
+  data$narrative <- compute_m2_narrative(input, data, config)
 
   # 3. Build result
   result <- new_module_result(
@@ -69,7 +70,8 @@ run_m2 <- function(input, config = biblio_config(), export = TRUE) {
     advanced_ts = render_m2_advanced_ts(data$advanced_ts, config),
     growth_models = render_m2_growth_models(data$growth_models, config),
     diagnostics = render_m2_diagnostics(data$diagnostics, config),
-    advanced_journal = render_m2_advanced_journal(data$advanced_journal, config)
+    advanced_journal = render_m2_advanced_journal(data$advanced_journal, config),
+    narrative = render_m2_narrative(data$narrative, config)
   )
   result$artifacts$plots <- m2_fill_core_plot_placeholders(plots)
 
@@ -81,7 +83,8 @@ run_m2 <- function(input, config = biblio_config(), export = TRUE) {
     growth_models = build_m2_growth_models_table(data$growth_models, config),
     hypotheses = build_m2_hypotheses_table(data$hypotheses, config),
     diagnostics = build_m2_diagnostics_table(data$diagnostics, config),
-    advanced_journal = build_m2_advanced_journal_table(data$advanced_journal, config)
+    advanced_journal = build_m2_advanced_journal_table(data$advanced_journal, config),
+    narrative = build_m2_narrative_table(data$narrative, config)
   )
   result$artifacts$tables <- tables
 
@@ -139,6 +142,11 @@ m2_fill_core_plot_placeholders <- function(plot_sections) {
     advanced_journal = list(
       title = "Advanced temporal journal analytics unavailable",
       message = "The optional advanced M2 layer did not have enough evidence to render model uncertainty, regime, forecast-validation, or changepoint-consensus plots.",
+      layout = "full"
+    ),
+    narrative = list(
+      title = "Temporal narrative evidence unavailable",
+      message = "Growth, model, trend-test, dynamic, and structural-change metrics could not be normalized into a narrative dashboard.",
       layout = "full"
     )
   )
@@ -482,6 +490,8 @@ build_m2_report <- function(data, config = biblio_config()) {
   lines <- c(
     "M2 Annual Production Analysis",
     "",
+    m2_report_narrative(data$narrative %||% list()),
+    "",
     sprintf("Selected interpretable regression model: %s", best_name),
     if (!is.null(benchmark_name) && !identical(benchmark_name, best_name)) {
       sprintf("Flexible benchmark winner: %s", benchmark_name)
@@ -510,6 +520,9 @@ build_m2_report <- function(data, config = biblio_config()) {
 
   tex <- c(
     "\\section*{M2 Annual Production Summary}",
+    "\\subsection*{Narrative Evidence}",
+    paste(m2_report_narrative(data$narrative %||% list()), collapse = "\\\\"),
+    "",
     sprintf("\\textbf{Selected interpretable regression model}: %s\\\\", best_name),
     if (!is.null(benchmark_name) && !identical(benchmark_name, best_name)) {
       sprintf("\\textbf{Flexible benchmark winner}: %s\\\\", benchmark_name)
@@ -532,4 +545,15 @@ build_m2_report <- function(data, config = biblio_config()) {
   )
 
   list(lines = lines, tex = tex)
+}
+
+m2_report_narrative <- function(narrative) {
+  metrics <- narrative$metrics %||% data.frame()
+  if (!is.data.frame(metrics) || nrow(metrics) == 0) {
+    return("Narrative evidence: not available.")
+  }
+  c(
+    "Narrative evidence:",
+    ieee_narrative_lines(metrics, max_lines = 8)
+  )
 }

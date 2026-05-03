@@ -117,6 +117,7 @@ run_m2 <- function(input, config = biblio_config(), export = TRUE) {
     forecasting_result = data$forecasting
   )
   data$advanced_journal <- compute_m2_advanced_journal(input, data, config)
+  data$narrative <- compute_m2_narrative(input, data, config)
   data$hypotheses <- suppressWarnings(compute_m2_hypotheses(
     input,
     config,
@@ -155,7 +156,8 @@ run_m2 <- function(input, config = biblio_config(), export = TRUE) {
     advanced_ts = render_m2_advanced_ts(data$advanced_ts, config),
     growth_models = render_m2_growth_models(data$growth_models, config),
     diagnostics = render_m2_diagnostics(data$diagnostics, config),
-    advanced_journal = render_m2_advanced_journal(data$advanced_journal, config)
+    advanced_journal = render_m2_advanced_journal(data$advanced_journal, config),
+    narrative = render_m2_narrative(data$narrative, config)
   )
   result$artifacts$plots <- m2_fill_core_plot_placeholders(plots)
 
@@ -166,7 +168,8 @@ run_m2 <- function(input, config = biblio_config(), export = TRUE) {
     growth_models = build_m2_growth_models_table(data$growth_models, config),
     hypotheses = build_m2_hypotheses_table(data$hypotheses, config),
     diagnostics = build_m2_diagnostics_table(data$diagnostics, config),
-    advanced_journal = build_m2_advanced_journal_table(data$advanced_journal, config)
+    advanced_journal = build_m2_advanced_journal_table(data$advanced_journal, config),
+    narrative = build_m2_narrative_table(data$narrative, config)
   )
   result$artifacts$tables <- tables
 
@@ -2786,6 +2789,9 @@ build_m2_report <- function(data, config = biblio_config()) {
       m2_scalar_num(hypothesis_summary$n_main_text_inconclusive, default = 0)
     ),
     "",
+    "Narrative Evidence",
+    paste0("  ", m2_report_narrative(data$narrative %||% list())),
+    "",
     "Trend and Growth",
     sprintf("  CAGR: %.2f%%", 100 * m2_scalar_num(trend_stats$cagr)),
     sprintf("  Recent CAGR: %.2f%%", 100 * m2_scalar_num(trend_stats$recent_cagr)),
@@ -2863,6 +2869,8 @@ build_m2_report <- function(data, config = biblio_config()) {
     ),
     paste0("\\textbf{Composite score}: ", sprintf("%.4f", m2_scalar_num(best_reg$composite_score)), "\\\\"),
     paste0("\\textbf{Best forecasting model}: ", best_forecast, "\\\\"),
+    "\\subsection*{Narrative Evidence}",
+    paste(m0_escape_latex(m2_report_narrative(data$narrative %||% list())), collapse = "\\\\"),
     paste0(
       "\\textbf{Main-text hypothesis set}: ",
       sprintf(
