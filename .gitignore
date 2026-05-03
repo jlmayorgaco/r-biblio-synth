@@ -7,6 +7,8 @@
 # Generated output (not source)
 results/
 archived/
+examples/**/results*/
+examples/**/cache/
 
 # Package build artifacts
 *.tar.gz
@@ -15,6 +17,10 @@ src-x64/
 src-i386/
 /doc/
 /Meta/
+*.Rcheck/
+.Rcheck/
+..Rcheck/
+RBiblioSynth.Rcheck/
 
 # OS artifacts
 .DS_Store
@@ -23,3 +29,13 @@ Thumbs.db
 # Temp files
 *~
 *.swp
+*.Rout
+*.log
+Rplots.pdf
+temp*/
+temp_*
+tmp_*
+tmp*.R
+out*.txt
+out*.log
+error_log.txt
