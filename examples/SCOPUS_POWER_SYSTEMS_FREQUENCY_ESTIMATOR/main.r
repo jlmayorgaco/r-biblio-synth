@@ -79,15 +79,30 @@ if (is.null(file_path)) {
   stop("Cannot find scopus.bib in any expected location")
 }
 
-# Load data
+# Load and merge Scopus with all Web of Science plaintext exports
 bib_data <- tryCatch({
-  sources <- list(scopus = list(file = file_path, db = "scopus", format = "bibtex"))
-  load_config <- biblio_config(verbose = FALSE)
-  raw_list <- m0_load_all_sources(sources, config = load_config)
-  if (length(raw_list) == 0 || is.null(raw_list$scopus)) {
-    stop("No records loaded")
+  data_dir <- dirname(file_path)
+  wos_files <- sort(Sys.glob(file.path(data_dir, "wos_*.txt")))
+  if (length(wos_files) == 0L) {
+    stop("Cannot find Web of Science files matching wos_*.txt in ", data_dir)
   }
-  raw_list$scopus
+
+  sources <- list(
+    scopus = list(file = file_path, db = "scopus", format = "bibtex"),
+    wos = list(files = wos_files, db = "wos", format = "plaintext")
+  )
+  load_config <- biblio_config(
+    output_dir = config$output_dir,
+    verbose = FALSE,
+    export_plots = FALSE,
+    export_json = FALSE,
+    export_reports = FALSE
+  )
+  m0_result <- run_m0(sources, config = load_config, export = FALSE)
+  if (m0_result$status == "error") {
+    stop("M0 returned error status")
+  }
+  m0_get_bib_data(m0_result)
 }, error = function(e) {
   stop("Failed to load data: ", e$message)
 })
