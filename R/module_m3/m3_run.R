@@ -83,6 +83,7 @@ m3_compute_all <- function(prepared_data, config) {
     temporal_dynamics     = m3_compute_temporal_dynamics(prepared_data$country_annual, config)
   )
   data$advanced_journal <- m3_compute_advanced_journal(prepared_data, data, config)
+  data$narrative <- m3_compute_narrative(data, prepared_data, config)
   data
 }
 
@@ -127,7 +128,8 @@ m3_render_all <- function(result, data, config) {
     economic               = render_m3_economic(data$economic, config),
     temporal_dynamics      = render_m3_temporal_dynamics(data$temporal_dynamics, config),
     network                = render_m3_collaboration_network(data$collaboration_indices, config),
-    advanced_journal       = render_m3_advanced_journal(data$advanced_journal, config)
+    advanced_journal       = render_m3_advanced_journal(data$advanced_journal, config),
+    narrative              = render_m3_narrative(data$narrative, config)
   )
   result$artifacts$plots <- m3_fill_core_plot_placeholders(result$artifacts$plots, data, config)
   result
@@ -178,6 +180,10 @@ m3_fill_core_plot_placeholders <- function(plot_sections, data, config) {
     advanced_journal = list(
       title = "Advanced geographic journal analytics unavailable",
       message = "The optional advanced M3 layer did not have enough country, citation, collaboration, or temporal evidence to render premium, mobility, trajectory, concentration, and regional plots."
+    ),
+    narrative = list(
+      title = "Geographic narrative evidence unavailable",
+      message = "Coverage, concentration, impact, collaboration, and growth metrics could not be normalized into a narrative dashboard."
     )
   )
 
@@ -229,7 +235,8 @@ m3_build_tables <- function(result, data, config) {
     regional                = build_m3_regional_table(data$regional, config),
     economic                = build_m3_economic_table(data$economic, config),
     temporal_dynamics       = m3_table_temporal_dynamics(data$temporal_dynamics, config),
-    advanced_journal        = m3_table_advanced_journal(data$advanced_journal, config)
+    advanced_journal        = m3_table_advanced_journal(data$advanced_journal, config),
+    narrative               = m3_table_narrative(data$narrative, config)
   )
   result
 }

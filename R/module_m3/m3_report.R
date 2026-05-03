@@ -25,6 +25,8 @@ build_m3_report <- function(result, config = biblio_config()) {
     paste("Status   :", result$status),
     sprintf("Countries: %s", .safe_int(result$inputs$n_countries)),
     "",
+    .m3_report_narrative(data),
+    "",
     .m3_report_overview(data),
     "",
     .m3_report_production(data),
@@ -61,6 +63,9 @@ build_m3_report <- function(result, config = biblio_config()) {
     sprintf("\\textbf{Generated}: %s\\\\", format(Sys.time(), tz = "", usetz = FALSE)),
     sprintf("\\textbf{Status}: %s\\\\", result$status),
     sprintf("\\textbf{Countries analyzed}: %s\\\\", .safe_int(result$inputs$n_countries)),
+    "",
+    "\\subsection*{Narrative Evidence}",
+    paste(.m3_report_narrative(data), collapse = "\\\\"),
     "",
     "\\subsection*{Executive Overview}",
     paste(.m3_report_overview(data), collapse = "\\\\"),
@@ -99,7 +104,7 @@ build_m3_report <- function(result, config = biblio_config()) {
   list(
     status   = "success",
     title    = "M3 Countries Module Report",
-    sections = c("overview", "production", "citations", "scp_mcp", "inequality",
+    sections = c("narrative", "overview", "production", "citations", "scp_mcp", "inequality",
                  "growth", "change_points", "profiles", "spatial",
                  "regional", "economic", "temporal_dynamics", "advanced_journal", "experiments", "caveats"),
     lines    = lines,
@@ -125,6 +130,21 @@ build_m3_report <- function(result, config = biblio_config()) {
     "--- Executive Overview ---",
     sprintf("  Leading producer  : %s", .m3_format_ranked_item(top_prod, digits = 0)),
     sprintf("  Leading citer     : %s", .m3_format_ranked_item(top_cit, digits = 0))
+  )
+}
+
+.m3_report_narrative <- function(data) {
+  narrative <- data$narrative %||% list()
+  metrics <- narrative$metrics %||% data.frame()
+  if (!is.data.frame(metrics) || nrow(metrics) == 0) {
+    return(c(
+      "--- Narrative Evidence ---",
+      "  Not available: geographic evidence metrics could not be normalized."
+    ))
+  }
+  c(
+    "--- Narrative Evidence ---",
+    paste0("  ", ieee_narrative_lines(metrics, max_lines = 8))
   )
 }
 
