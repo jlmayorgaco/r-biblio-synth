@@ -435,11 +435,13 @@ ieee_resolve_figure_type <- function(plot = NULL,
 ieee_figure_spec <- function(figure_type = "single", config = biblio_config()) {
   config <- merge_biblio_config(config)
   normalized_type <- if (figure_type %in% c("double", "wide", "map", "tall", "full")) "full" else "single"
+  dpi <- suppressWarnings(as.integer(config$dpi %||% 600L))
+  if (!length(dpi) || !is.finite(dpi) || dpi < 600L) dpi <- 600L
   spec <- switch(
     normalized_type,
-    single = list(width = ieee_dim_single$width, height = ieee_dim_single$height, dpi = config$dpi),
-    full = list(width = ieee_dim_full$width, height = ieee_dim_full$height, dpi = config$dpi),
-    list(width = ieee_dim_single$width, height = ieee_dim_single$height, dpi = config$dpi)
+    single = list(width = ieee_dim_single$width, height = ieee_dim_single$height, dpi = dpi),
+    full = list(width = ieee_dim_full$width, height = ieee_dim_full$height, dpi = dpi),
+    list(width = ieee_dim_single$width, height = ieee_dim_single$height, dpi = dpi)
   )
   spec$figure_type <- normalized_type
   spec
