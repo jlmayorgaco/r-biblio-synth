@@ -187,6 +187,112 @@ m4_compute_source_keywords <- function(prepared, config = biblio_config()) {
   list(status = "success", source_keywords = source_keywords)
 }
 
+m4_compute_source_similarity <- function(prepared, config = biblio_config()) {
+  records <- prepared$records %||% tibble::tibble()
+  if (!is.data.frame(records) || nrow(records) == 0 || !"keywords" %in% names(records)) {
+    return(list(status = "empty", source_keyword_matrix = tibble::tibble(), pairwise = tibble::tibble()))
+  }
+
+  rows <- lapply(seq_len(nrow(records)), function(i) {
+    terms <- trimws(unlist(strsplit(as.character(records$keywords[i] %||% ""), ";|,", perl = TRUE)))
+    terms <- tolower(terms[nzchar(terms)])
+    if (length(terms) == 0) return(NULL)
+    tibble::tibble(source = records$source[i], keyword = terms)
+  })
+  long <- dplyr::bind_rows(rows)
+  if (!is.data.frame(long) || nrow(long) == 0) {
+    return(list(status = "empty", source_keyword_matrix = tibble::tibble(), pairwise = tibble::tibble()))
+  }
+
+  freq <- long |> dplyr::count(.data$source, .data$keyword, name = "n")
+  wide <- freq |> tidyr::pivot_wider(names_from = "keyword", values_from = "n", values_fill = 0)
+  sources <- wide$source
+  mat <- as.matrix(wide[, setdiff(names(wide), "source"), drop = FALSE])
+  rownames(mat) <- sources
+  if (nrow(mat) < 2 || ncol(mat) < 1) {
+    return(list(status = "empty", source_keyword_matrix = tibble::as_tibble(wide), pairwise = tibble::tibble()))
+  }
+
+  sim <- m4_cosine_similarity_matrix(mat)
+  pairwise <- m4_similarity_pairs(sim)
+  list(
+    status = "success",
+    source_keyword_matrix = tibble::as_tibble(wide),
+    similarity_matrix = sim,
+    pairwise = pairwise,
+    network = pairwise |> dplyr::filter(.data$similarity >= (config$m4_similarity_threshold %||% 0.25))
+  )
+}
+
+m4_compute_source_specialization <- function(prepared, similarity, config = biblio_config()) {
+  matrix_tbl <- similarity$source_keyword_matrix %||% tibble::tibble()
+  summary <- prepared$source_summary %||% tibble::tibble()
+  if (!is.data.frame(matrix_tbl) || nrow(matrix_tbl) == 0) {
+    return(list(status = "empty", specialization = tibble::tibble()))
+  }
+  keyword_cols <- setdiff(names(matrix_tbl), "source")
+  if (length(keyword_cols) == 0) return(list(status = "empty", specialization = tibble::tibble()))
+  rows <- lapply(seq_len(nrow(matrix_tbl)), function(i) {
+    values <- suppressWarnings(as.numeric(matrix_tbl[i, keyword_cols, drop = TRUE]))
+    values[!is.finite(values)] <- 0
+    total <- sum(values)
+    p <- if (total > 0) values / total else rep(0, length(values))
+    entropy <- -sum(p[p > 0] * log(p[p > 0]))
+    max_entropy <- log(max(1, length(p[p > 0])))
+    normalized_entropy <- if (max_entropy > 0) entropy / max_entropy else 0
+    top_keyword <- if (total > 0) keyword_cols[which.max(values)] else NA_character_
+    tibble::tibble(
+      source = matrix_tbl$source[i],
+      keyword_entropy = entropy,
+      normalized_entropy = normalized_entropy,
+      specialization_score = 1 - normalized_entropy,
+      top_keyword = top_keyword,
+      n_keywords = sum(values > 0)
+    )
+  })
+  specialization <- dplyr::bind_rows(rows) |>
+    dplyr::left_join(summary |> dplyr::select("source", "tp", "tc", "cpp"), by = "source") |>
+    dplyr::mutate(
+      venue_scope = dplyr::case_when(
+        .data$specialization_score >= 0.66 ~ "Specialist",
+        .data$specialization_score <= 0.33 ~ "Generalist",
+        TRUE ~ "Mixed scope"
+      )
+    ) |>
+    dplyr::arrange(dplyr::desc(.data$specialization_score), dplyr::desc(.data$tc))
+  list(status = "success", specialization = specialization)
+}
+
+m4_compute_source_lifecycle <- function(prepared, growth, config = biblio_config()) {
+  annual <- prepared$source_annual %||% tibble::tibble()
+  summary <- prepared$source_summary %||% tibble::tibble()
+  growth_tbl <- growth$growth %||% tibble::tibble()
+  if (!is.data.frame(summary) || nrow(summary) == 0) {
+    return(list(status = "empty", lifecycle = tibble::tibble()))
+  }
+  max_year <- suppressWarnings(max(annual$year, na.rm = TRUE))
+  lifecycle <- summary |>
+    dplyr::left_join(growth_tbl |> dplyr::select("source", "tp_slope", "tc_slope", "cagr", "recent_tp"), by = "source") |>
+    dplyr::mutate(
+      tp_slope = dplyr::coalesce(.data$tp_slope, 0),
+      tc_slope = dplyr::coalesce(.data$tc_slope, 0),
+      cagr = dplyr::coalesce(.data$cagr, 0),
+      recency_gap = ifelse(is.finite(max_year) & is.finite(.data$last_year), max_year - .data$last_year, NA_real_),
+      lifecycle_stage = dplyr::case_when(
+        .data$recency_gap > 2 ~ "Dormant/declining",
+        .data$tp_slope > 0 & .data$cagr > 0.10 ~ "Emerging",
+        .data$tp_slope > 0 & .data$tp >= stats::median(.data$tp, na.rm = TRUE) ~ "Expanding core",
+        abs(.data$tp_slope) <= 0.05 ~ "Stable",
+        .data$tp_slope < 0 ~ "Declining",
+        TRUE ~ "Niche"
+      ),
+      tp_forecast = pmax(0, .data$tp + (config$m4_forecast_horizon %||% 3L) * .data$tp_slope),
+      tc_forecast = pmax(0, .data$tc + (config$m4_forecast_horizon %||% 3L) * .data$tc_slope)
+    ) |>
+    dplyr::arrange(dplyr::desc(.data$tp_slope), dplyr::desc(.data$tc))
+  list(status = "success", lifecycle = lifecycle, horizon = config$m4_forecast_horizon %||% 3L)
+}
+
 m4_compute_source_clusters <- function(data, config = biblio_config()) {
   impact <- data$impact$impact %||% tibble::tibble()
   growth <- data$growth$growth %||% tibble::tibble()
@@ -298,4 +404,26 @@ m4_gini <- function(x) {
   x <- sort(x)
   n <- length(x)
   (2 * sum(seq_len(n) * x) / (n * sum(x))) - (n + 1) / n
+}
+
+m4_cosine_similarity_matrix <- function(mat) {
+  mat <- as.matrix(mat)
+  mat[!is.finite(mat)] <- 0
+  norm <- sqrt(rowSums(mat^2))
+  denom <- outer(norm, norm)
+  sim <- (mat %*% t(mat)) / pmax(denom, .Machine$double.eps)
+  sim[!is.finite(sim)] <- 0
+  diag(sim) <- 1
+  sim
+}
+
+m4_similarity_pairs <- function(sim) {
+  if (!is.matrix(sim) || nrow(sim) < 2) return(tibble::tibble())
+  idx <- which(upper.tri(sim), arr.ind = TRUE)
+  tibble::tibble(
+    source_a = rownames(sim)[idx[, 1]],
+    source_b = colnames(sim)[idx[, 2]],
+    similarity = as.numeric(sim[idx])
+  ) |>
+    dplyr::arrange(dplyr::desc(.data$similarity))
 }

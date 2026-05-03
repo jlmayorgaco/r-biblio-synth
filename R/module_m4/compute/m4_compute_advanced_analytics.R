@@ -12,8 +12,9 @@ m4_compute_advanced_analytics <- function(data, config = biblio_config()) {
   outliers <- m4_advanced_outliers(features)
   regression <- m4_advanced_regression(features)
   svm <- m4_advanced_svm_classifier(features, config)
+  ml_cv <- m4_advanced_ml_cross_validation(features, config)
   silhouette <- m4_advanced_cluster_separation(data$clusters$clusters %||% tibble::tibble())
-  patterns <- m4_advanced_pattern_story(features, outliers, regression, svm, silhouette)
+  patterns <- m4_advanced_pattern_story(features, outliers, regression, svm, silhouette, ml_cv)
 
   list(
     status = "success",
@@ -21,6 +22,7 @@ m4_compute_advanced_analytics <- function(data, config = biblio_config()) {
     outliers = outliers,
     regression = regression,
     svm = svm,
+    ml_cv = ml_cv,
     silhouette = silhouette,
     patterns = patterns
   )
@@ -198,6 +200,104 @@ m4_advanced_logistic_classifier <- function(df) {
   )
 }
 
+m4_advanced_ml_cross_validation <- function(features, config = biblio_config()) {
+  if (!is.data.frame(features) || nrow(features) < 8 || length(unique(features$high_impact)) < 2) {
+    return(list(status = "insufficient_data", folds = tibble::tibble(), summary = tibble::tibble()))
+  }
+  df <- features |>
+    dplyr::transmute(
+      source = .data$source,
+      high_impact = factor(ifelse(.data$high_impact, "high_impact", "lower_impact")),
+      log_tp = log1p(.data$tp),
+      log_cpp = log1p(.data$cpp),
+      h_index = log1p(.data$h_index),
+      tp_slope = .data$tp_slope,
+      tc_slope = .data$tc_slope
+    )
+  predictor_cols <- c("log_tp", "log_cpp", "h_index", "tp_slope", "tc_slope")
+  variable_cols <- predictor_cols[vapply(df[predictor_cols], function(x) stats::sd(x, na.rm = TRUE) > 0, logical(1))]
+  if (length(variable_cols) < 2) return(list(status = "insufficient_features", folds = tibble::tibble(), summary = tibble::tibble()))
+  k <- min(as.integer(config$m4_ml_cv_folds %||% 5L), nrow(df))
+  set.seed(as.integer(config$seed %||% 1234L))
+  folds <- sample(rep(seq_len(k), length.out = nrow(df)))
+  models <- c("logistic", if (requireNamespace("e1071", quietly = TRUE)) "svm_radial" else character())
+  results <- dplyr::bind_rows(lapply(models, function(model_name) {
+    dplyr::bind_rows(lapply(seq_len(k), function(fold_id) {
+      train <- df[folds != fold_id, , drop = FALSE]
+      test <- df[folds == fold_id, , drop = FALSE]
+      pred <- m4_predict_cv_model(train, test, variable_cols, model_name)
+      m4_classification_metrics(test$high_impact, pred$class, pred$prob, model_name, fold_id)
+    }))
+  }))
+  summary <- results |>
+    dplyr::group_by(.data$model) |>
+    dplyr::summarise(
+      accuracy = mean(.data$accuracy, na.rm = TRUE),
+      balanced_accuracy = mean(.data$balanced_accuracy, na.rm = TRUE),
+      f1 = mean(.data$f1, na.rm = TRUE),
+      auc = mean(.data$auc, na.rm = TRUE),
+      .groups = "drop"
+    ) |>
+    dplyr::arrange(dplyr::desc(.data$balanced_accuracy), dplyr::desc(.data$f1))
+  list(status = "success", folds = results, summary = summary, k = k)
+}
+
+m4_predict_cv_model <- function(train, test, variable_cols, model_name) {
+  formula <- stats::as.formula(paste("high_impact ~", paste(variable_cols, collapse = " + ")))
+  if (identical(model_name, "svm_radial") && requireNamespace("e1071", quietly = TRUE)) {
+    fit <- tryCatch(e1071::svm(formula, data = train, kernel = "radial", probability = TRUE, scale = TRUE), error = function(e) NULL)
+    if (!is.null(fit)) {
+      pred <- stats::predict(fit, test, probability = TRUE)
+      probs <- attr(pred, "probabilities")
+      prob <- if (is.matrix(probs) && "high_impact" %in% colnames(probs)) probs[, "high_impact"] else as.numeric(pred == "high_impact")
+      return(list(class = factor(as.character(pred), levels = levels(train$high_impact)), prob = prob))
+    }
+  }
+  fit <- tryCatch(suppressWarnings(stats::glm(formula, data = train, family = stats::binomial())), error = function(e) NULL)
+  if (is.null(fit)) {
+    majority <- names(sort(table(train$high_impact), decreasing = TRUE))[1]
+    return(list(class = factor(rep(majority, nrow(test)), levels = levels(train$high_impact)), prob = rep(mean(train$high_impact == "high_impact"), nrow(test))))
+  }
+  prob <- suppressWarnings(as.numeric(stats::predict(fit, newdata = test, type = "response")))
+  class <- factor(ifelse(prob >= 0.5, "high_impact", "lower_impact"), levels = levels(train$high_impact))
+  list(class = class, prob = prob)
+}
+
+m4_classification_metrics <- function(observed, predicted, prob, model_name, fold_id) {
+  observed <- factor(as.character(observed), levels = c("lower_impact", "high_impact"))
+  predicted <- factor(as.character(predicted), levels = levels(observed))
+  tp <- sum(observed == "high_impact" & predicted == "high_impact", na.rm = TRUE)
+  tn <- sum(observed == "lower_impact" & predicted == "lower_impact", na.rm = TRUE)
+  fp <- sum(observed == "lower_impact" & predicted == "high_impact", na.rm = TRUE)
+  fn <- sum(observed == "high_impact" & predicted == "lower_impact", na.rm = TRUE)
+  precision <- tp / pmax(tp + fp, .Machine$double.eps)
+  recall <- tp / pmax(tp + fn, .Machine$double.eps)
+  specificity <- tn / pmax(tn + fp, .Machine$double.eps)
+  tibble::tibble(
+    model = model_name,
+    fold = fold_id,
+    accuracy = (tp + tn) / pmax(tp + tn + fp + fn, .Machine$double.eps),
+    balanced_accuracy = mean(c(recall, specificity), na.rm = TRUE),
+    precision = precision,
+    recall = recall,
+    f1 = 2 * precision * recall / pmax(precision + recall, .Machine$double.eps),
+    auc = m4_binary_auc(observed == "high_impact", prob)
+  )
+}
+
+m4_binary_auc <- function(labels, scores) {
+  labels <- as.logical(labels)
+  scores <- suppressWarnings(as.numeric(scores))
+  keep <- !is.na(labels) & is.finite(scores)
+  labels <- labels[keep]
+  scores <- scores[keep]
+  if (length(unique(labels)) < 2) return(NA_real_)
+  ranks <- rank(scores, ties.method = "average")
+  n_pos <- sum(labels)
+  n_neg <- sum(!labels)
+  (sum(ranks[labels]) - n_pos * (n_pos + 1) / 2) / (n_pos * n_neg)
+}
+
 m4_advanced_cluster_separation <- function(clusters) {
   if (!is.data.frame(clusters) || nrow(clusters) < 4 || !"cluster" %in% names(clusters)) {
     return(list(status = "empty", mean_silhouette = NA_real_, table = tibble::tibble()))
@@ -219,7 +319,7 @@ m4_advanced_cluster_separation <- function(clusters) {
   list(status = "success", mean_silhouette = mean(table$silhouette_width, na.rm = TRUE), table = table)
 }
 
-m4_advanced_pattern_story <- function(features, outliers, regression, svm, silhouette) {
+m4_advanced_pattern_story <- function(features, outliers, regression, svm, silhouette, ml_cv = list()) {
   lines <- character()
   if (is.data.frame(features) && nrow(features) > 0) {
     archetype_counts <- as.data.frame(table(features$archetype), stringsAsFactors = FALSE)
@@ -236,6 +336,10 @@ m4_advanced_pattern_story <- function(features, outliers, regression, svm, silho
   }
   if (is.list(svm) && svm$status %in% c("success", "fallback")) {
     lines <- c(lines, sprintf("%s classifier in-sample accuracy for high-impact source labels: %.1f%%.", svm$model, 100 * svm$accuracy))
+  }
+  if (is.list(ml_cv) && identical(ml_cv$status, "success") && is.data.frame(ml_cv$summary) && nrow(ml_cv$summary) > 0) {
+    best <- ml_cv$summary[1, , drop = FALSE]
+    lines <- c(lines, sprintf("Cross-validated best classifier: %s (balanced accuracy %.1f%%, F1 %.1f%%).", best$model, 100 * best$balanced_accuracy, 100 * best$f1))
   }
   if (is.list(silhouette) && identical(silhouette$status, "success")) {
     lines <- c(lines, sprintf("Mean cluster silhouette: %.3f.", silhouette$mean_silhouette))

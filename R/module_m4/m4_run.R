@@ -87,6 +87,9 @@ m4_compute_all <- function(prepared, config) {
     concentration = m4_compute_source_concentration(prepared, config),
     keywords = m4_compute_source_keywords(prepared, config)
   )
+  data$similarity <- m4_compute_source_similarity(prepared, config)
+  data$specialization <- m4_compute_source_specialization(prepared, data$similarity, config)
+  data$lifecycle <- m4_compute_source_lifecycle(prepared, data$growth, config)
   data$clusters <- m4_compute_source_clusters(data, config)
   data$advanced_analytics <- m4_compute_advanced_analytics(data, config)
   data$narrative <- m4_compute_narrative(data, config)
@@ -98,6 +101,9 @@ m4_render_all <- function(result, data, config) {
     sources = render_m4_sources(data, config),
     bradford = render_m4_bradford(data$bradford, data$impact, config),
     growth = render_m4_growth(data$growth, data$impact, config),
+    similarity = render_m4_similarity(data$similarity, config),
+    specialization = render_m4_specialization(data$specialization, config),
+    lifecycle = render_m4_lifecycle(data$lifecycle, config),
     clusters = render_m4_clusters(data$clusters, data$impact, config),
     advanced_analytics = render_m4_advanced_analytics(data$advanced_analytics, config),
     narrative = render_m4_narrative(data$narrative, config)
@@ -111,6 +117,9 @@ m4_fill_plot_placeholders <- function(plot_sections) {
     sources = list(title = "Source productivity unavailable", message = "No valid journal or venue source data were available.", layout = "full"),
     bradford = list(title = "Bradford source zones unavailable", message = "The source distribution was too sparse for Bradford zoning.", layout = "full"),
     growth = list(title = "Source growth unavailable", message = "Source-year data were insufficient for growth and emergence plots.", layout = "full"),
+    similarity = list(title = "Source similarity unavailable", message = "Keyword similarity between sources could not be estimated.", layout = "full"),
+    specialization = list(title = "Source specialization unavailable", message = "Specialist-generalist source profiles could not be estimated.", layout = "full"),
+    lifecycle = list(title = "Source lifecycle unavailable", message = "Venue lifecycle stages and trajectory forecasts could not be estimated.", layout = "full"),
     clusters = list(title = "Source clustering unavailable", message = "K-means source clusters could not be estimated from productivity, impact, and growth features.", layout = "full"),
     advanced_analytics = list(title = "Advanced source analytics unavailable", message = "ML, anomaly, archetype, or regression evidence could not be estimated from the source feature table.", layout = "full"),
     narrative = list(title = "Source narrative evidence unavailable", message = "Source evidence metrics could not be normalized into a narrative dashboard.", layout = "full")
@@ -138,6 +147,9 @@ m4_build_tables <- function(result, data, config) {
     growth = build_m4_growth_table(data$growth, config),
     concentration = build_m4_concentration_table(data$concentration, config),
     keywords = build_m4_keywords_table(data$keywords, config),
+    similarity = build_m4_similarity_table(data$similarity, config),
+    specialization = build_m4_specialization_table(data$specialization, config),
+    lifecycle = build_m4_lifecycle_table(data$lifecycle, config),
     clusters = build_m4_clusters_table(data$clusters, config),
     advanced_analytics = build_m4_advanced_analytics_table(data$advanced_analytics, config),
     narrative = build_m4_narrative_table(data$narrative, config)

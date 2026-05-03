@@ -7,9 +7,24 @@ render_m4_advanced_analytics <- function(result, config = biblio_config()) {
     archetype_map = m4_plot_archetype_map(result$features %||% tibble::tibble()),
     anomaly_rank = m4_plot_anomaly_rank(result$outliers %||% tibble::tibble(), result$features %||% tibble::tibble()),
     ml_probability = m4_plot_ml_probability(result$svm %||% list(), result$features %||% tibble::tibble()),
+    ml_cv_comparison = m4_plot_ml_cv_comparison(result$ml_cv %||% list()),
     regression_fit = m4_plot_regression_fit(result$regression %||% list(), result$features %||% tibble::tibble()),
     silhouette = m4_plot_silhouette(result$silhouette %||% list())
   ))
+}
+
+m4_plot_ml_cv_comparison <- function(ml_cv) {
+  summary <- ml_cv$summary %||% tibble::tibble()
+  if (!is.data.frame(summary) || nrow(summary) == 0) return(NULL)
+  df <- summary |>
+    tidyr::pivot_longer(cols = c("accuracy", "balanced_accuracy", "f1", "auc"), names_to = "metric", values_to = "value")
+  ggplot2::ggplot(df, ggplot2::aes(x = model, y = value, fill = metric)) +
+    ggplot2::geom_col(position = ggplot2::position_dodge(width = 0.72), color = "#222222", linewidth = 0.16, width = 0.65) +
+    ggplot2::scale_y_continuous("Cross-validated score", limits = c(0, 1), labels = scales::label_percent(accuracy = 1)) +
+    ggplot2::scale_fill_manual(values = get_ieee_palette(length(unique(df$metric)), "primary"), name = "Metric") +
+    ggplot2::labs(title = "Cross-validated ML Model Comparison", subtitle = sprintf("%d-fold source-level validation for high-impact source classification.", ml_cv$k %||% NA_integer_), x = NULL) +
+    ieee_theme_wide(base_size = 8.5) +
+    ggplot2::theme(legend.position = "bottom")
 }
 
 m4_plot_archetype_map <- function(features) {
