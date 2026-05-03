@@ -28,7 +28,9 @@ attach_report_to_result <- function(result, report_payload = list()) {
   if (!inherits(result, "biblio_module_result")) {
     return(result)
   }
-  result$artifacts$reports <- c(result$artifacts$reports, list(report_payload))
+  slot_name <- report_payload$report_id %||% report_payload$name %||%
+    if (length(result$artifacts$reports) == 0) "report" else paste0("report_", length(result$artifacts$reports) + 1L)
+  result$artifacts$reports[[slot_name]] <- report_payload
   result
 }
 

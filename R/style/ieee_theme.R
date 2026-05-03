@@ -2,8 +2,8 @@
 # ieee_theme.R - IEEE publication theme and export sizing
 # ============================================================================
 # Export policy:
-# - Single column: 3.50 in x 2.80 in
-# - Full width:    7.16 in x 4.05 in
+# - Single column: 3.50 in x 2.95 in
+# - Full width:    7.16 in x 4.40 in
 # The package may still use different plot themes internally (map, polar,
 # timeseries), but export sizing is reduced to these two IEEE layouts.
 # ============================================================================
@@ -138,11 +138,11 @@ ieee_theme_bar <- function(base_size = 8) {
 
 #' IEEE figure dimensions for single column
 #' @export
-ieee_dim_single <- list(width = 3.5, height = 2.8, dpi = 600)
+ieee_dim_single <- list(width = 3.5, height = 2.95, dpi = 600)
 
 #' IEEE figure dimensions for full-width figures
 #' @export
-ieee_dim_full <- list(width = 7.16, height = 4.05, dpi = 600)
+ieee_dim_full <- list(width = 7.16, height = 4.4, dpi = 600)
 
 #' IEEE figure dimensions for double column
 #' @export
@@ -492,6 +492,7 @@ ieee_prepare_plot_for_export <- function(plot,
 
   theme_obj <- switch(
     figure_type,
+    full = ieee_theme_wide(base_size = 9),
     map = ieee_theme_map(base_size = 8),
     square = if (inherits(plot$coordinates, "CoordPolar")) ieee_theme_polar(base_size = 8) else ieee_theme(base_size = 8),
     tall = ieee_theme_tall(base_size = 8),
@@ -516,6 +517,46 @@ ieee_prepare_plot_for_export <- function(plot,
     figure_type = figure_type
   )
   plot
+}
+
+#' Create a publication-safe explicit no-data plot
+#' @keywords internal
+ieee_no_data_plot <- function(title,
+                              message,
+                              layout = c("single", "full"),
+                              caption = "No chart was rendered because the section lacked sufficient data after validation.") {
+  layout <- match.arg(layout)
+  wrapped_message <- paste(strwrap(message, width = if (layout == "full") 84 else 48), collapse = "\n")
+  base_size <- if (layout == "full") 9 else 8.2
+
+  p <- ggplot2::ggplot(data.frame(x = 0, y = 0), ggplot2::aes(x = x, y = y)) +
+    ggplot2::annotate(
+      "label",
+      x = 0,
+      y = 0,
+      label = wrapped_message,
+      size = if (layout == "full") 3.4 else 3,
+      label.padding = ggplot2::unit(0.45, "lines"),
+      fill = "#F7F7F7",
+      color = "#222222",
+      lineheight = 1.08
+    ) +
+    ggplot2::coord_cartesian(xlim = c(-1, 1), ylim = c(-1, 1), clip = "off") +
+    ggplot2::labs(
+      title = title,
+      subtitle = "Insufficient-data artifact exported intentionally.",
+      caption = caption
+    ) +
+    ggplot2::theme_void(base_size = base_size) +
+    ggplot2::theme(
+      plot.title = ggplot2::element_text(face = "bold", hjust = 0, size = base_size + 1),
+      plot.subtitle = ggplot2::element_text(hjust = 0, size = base_size - 0.8, color = "#333333"),
+      plot.caption = ggplot2::element_text(hjust = 0, size = base_size - 1.4, color = "#555555"),
+      panel.border = ggplot2::element_rect(color = "#333333", fill = NA, linewidth = 0.45),
+      plot.margin = ggplot2::margin(8, 10, 8, 10)
+    )
+
+  ieee_mark_plot_layout(p, layout)
 }
 
 #' Get export dimensions for a plot using attached IEEE metadata when available

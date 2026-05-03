@@ -50,6 +50,10 @@ json_sanitize_artifact <- function(x) {
     return(as.data.frame(x, stringsAsFactors = FALSE))
   }
 
+  if (inherits(x, "dist")) {
+    return(json_sanitize_artifact(as.matrix(x)))
+  }
+
   if (is.matrix(x)) {
     out <- as.data.frame(x, stringsAsFactors = FALSE)
     row_id <- rownames(x)
@@ -74,6 +78,10 @@ json_sanitize_artifact <- function(x) {
 
   if (is.factor(x)) {
     return(as.character(x))
+  }
+
+  if (is.language(x) || inherits(x, "call")) {
+    return(paste(deparse(x), collapse = " "))
   }
 
   x

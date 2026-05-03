@@ -24,7 +24,8 @@
 #'   \item \code{PN}: Page count
 #'   \item \code{DB}: Source database
 #' }
-
+#' @keywords datasets
+#' @export
 "biblio_sample"
 
 # ============================================================================
@@ -181,6 +182,19 @@ generate_biblio_sample <- function() {
 # Generate dataset in memory
 biblio_sample <- generate_biblio_sample()
 
+#' @title Sample Annual Production Dataset
+#' @description Aggregated annual production series derived from \code{biblio_sample}.
+#' @format A data frame with yearly publication counts and cumulative growth metrics:
+#' \itemize{
+#'   \item \code{Year}: Publication year
+#'   \item \code{Articles}: Number of publications
+#'   \item \code{Cumulative}: Cumulative publications
+#'   \item \code{Growth}: Year-over-year growth percentage
+#' }
+#' @keywords datasets
+#' @export
+"annual_sample"
+
 # Also create annual production data
 annual_sample <- aggregate(TC ~ PY, data = biblio_sample, FUN = length)
 names(annual_sample) <- c("Year", "Articles")
@@ -196,6 +210,8 @@ annual_sample$Growth <- c(NA, diff(annual_sample$Articles) / head(annual_sample$
 
 #' @title Sample Country-Level Dataset for M3 Module
 #' @description Aggregated country-level publication data derived from biblio_sample.
+#' @keywords datasets
+#' @export
 "country_sample"
 
 generate_country_sample <- function(bib_data) {
@@ -249,26 +265,3 @@ generate_country_sample <- function(bib_data) {
 }
 
 country_sample <- generate_country_sample(biblio_sample)
-save(country_sample, file = "R/data/country_sample.rda", compress = "xz")
-
-# ============================================================================
-# Dataset Documentation
-# ============================================================================
-
-#' Sample Bibliometric Dataset
-#'
-#' Datasets for testing and demonstrating RBiblioSynth functions.
-#'
-#' @format
-#' \itemize{
-#'   \item \code{biblio_sample}: Full bibliographic dataset (500 records)
-#'   \item \code{annual_sample}: Annualproduction time series (14 years)
-#'   \item \code{country_sample}: Country-level aggregated data
-#' }
-#'
-#' @source Simulated data for demonstration purposes.
-#' @usage
-#' data(biblio_sample)
-#' data(annual_sample)
-#' data(country_sample)
-"rbibliosynth_data"

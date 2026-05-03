@@ -12,6 +12,14 @@
 #' @return Result of division or default if division by zero
 #' @export
 safe_divide <- function(numerator, denominator, default = 0) {
+  invalid_scalar <- length(numerator) == 1L &&
+    length(denominator) == 1L &&
+    (is.na(denominator) || denominator == 0 || is.nan(denominator) || is.infinite(denominator))
+
+  if (invalid_scalar) {
+    return(default)
+  }
+
   result <- numerator / denominator
   result[is.na(result) | is.nan(result) | is.infinite(result)] <- default
   result[denominator == 0] <- default
@@ -34,7 +42,7 @@ safe_proportion <- function(part, total, default = 0) {
   if (is.na(result) || is.nan(result) || is.infinite(result)) {
     return(default)
   }
-  result
+  clamp(result, lower = 0, upper = 1)
 }
 
 #' Safe percentage calculation

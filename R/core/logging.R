@@ -58,13 +58,13 @@ write_log_header <- function(file) {
 #' Log a message
 #'
 #' @param level Log level
-#' @param msg Message with glue-style interpolation {var}
+#' @param msg Message with placeholder interpolation such as \code{\{var\}}
 #' @param ... Named variables for interpolation
 #' @param context Optional context list (module, function, etc.)
 #' @export
 #' @examples
 #' log_message("INFO", "Processing {n} records", n = 100)
-#' log_message("WARN", "Missing column: {col}", col = "PY", 
+#' log_message("WARN", "Missing column: {col}", col = "PY",
 #'             context = list(module = "M1", function = "run_m1"))
 log_message <- function(level, msg, ..., context = NULL) {
   # Check if logging is enabled

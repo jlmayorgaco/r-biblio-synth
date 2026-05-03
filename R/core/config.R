@@ -24,6 +24,31 @@
 #' @param n_cores Number of cores for parallel processing (NULL = auto-detect)
 #' @param cache_dir Directory for caching results (default: "cache")
 #' @param cache_enabled Enable result caching (default: TRUE)
+#' @param counting_mode Counting mode for shared entities: "full" or "fractional".
+#' @param dedup_method Deduplication strategy: "doi_exact",
+#'   "title_year_normalized", or "title_year_fuzzy".
+#' @param report_format Pipeline reporting format: "none", "quarto_html",
+#'   "quarto_pdf", or "latex_bundle".
+#' @param validate_strict Fail fast on broken contracts when TRUE.
+#' @param source_priority Preferred source order when resolving field conflicts.
+#' @param api_email Optional email passed to open scholarly APIs that support it.
+#' @param api_limit Default maximum rows fetched per API request.
+#' @param api_timeout Timeout in seconds for API calls.
+#' @param openalex_api_key Optional OpenAlex API key.
+#' @param orcid_access_token Optional ORCID bearer token for public/member API access.
+#' @param enable_enrichment Whether to enrich merged records using API providers.
+#' @param enrichment_sources Providers used when enrichment is enabled.
+#' @param m0_chunk_size_rows Default chunk size used by large CSV readers in M0.
+#' @param m0_csv_delimiter Default delimiter used by CSV readers in M0.
+#' @param m0_csv_encoding Default encoding used by CSV readers in M0.
+#' @param advanced_analytics Enable optional journal-grade advanced analytics.
+#' @param advanced_fail_policy Failure policy for optional advanced analytics:
+#'   "soft" records omissions, "hard" raises errors.
+#' @param bootstrap_n Bootstrap replications for advanced uncertainty summaries.
+#' @param forecast_horizon Forecast horizon used by temporal models.
+#' @param rolling_origin_min_train Minimum training length for rolling-origin CV.
+#' @param min_years_for_advanced_ts Minimum years required by advanced M2 analyses.
+#' @param min_countries_for_advanced_geo Minimum countries required by advanced M3 analyses.
 #' @param log_level Logging level: "DEBUG", "INFO", "WARN", "ERROR" (default: "INFO")
 #' @param log_file Optional log file path (default: NULL = console only)
 #' @param ... Additional custom parameters
@@ -42,6 +67,7 @@
 #'   output_dir = "my_results"
 #' )
 biblio_config <- function(output_dir = "results",
+                           export = NULL,
                            export_plots = TRUE,
                            export_json = TRUE,
                            export_reports = TRUE,
@@ -59,9 +85,37 @@ biblio_config <- function(output_dir = "results",
                            n_cores = NULL,
                            cache_dir = "cache",
                            cache_enabled = TRUE,
+                           counting_mode = "full",
+                           dedup_method = "title_year_normalized",
+                           report_format = "none",
+                           validate_strict = TRUE,
+                           source_priority = c("WOS", "SCOPUS", "PUBMED", "CROSSREF", "OPENALEX", "GENERIC", "ORCID", "ROR"),
+                           api_email = NULL,
+                           api_limit = 50,
+                           api_timeout = 30,
+                           openalex_api_key = NULL,
+                           orcid_access_token = NULL,
+                           enable_enrichment = FALSE,
+                           enrichment_sources = c("crossref", "openalex", "orcid", "ror"),
+                           m0_chunk_size_rows = 50000,
+                           m0_csv_delimiter = ",",
+                           m0_csv_encoding = "UTF-8",
+                           advanced_analytics = TRUE,
+                           advanced_fail_policy = "soft",
+                           bootstrap_n = 500,
+                           forecast_horizon = 5,
+                           rolling_origin_min_train = 8,
+                           min_years_for_advanced_ts = 12,
+                           min_countries_for_advanced_geo = 8,
                            log_level = "INFO",
                            log_file = NULL,
                            ...) {
+
+  if (!is.null(export)) {
+    export_plots <- export
+    export_json <- export
+    export_reports <- export
+  }
   
   # Build configuration list
   config <- list(
@@ -83,6 +137,28 @@ biblio_config <- function(output_dir = "results",
     n_cores         = n_cores,
     cache_dir       = cache_dir,
     cache_enabled   = cache_enabled,
+    counting_mode   = counting_mode,
+    dedup_method    = dedup_method,
+    report_format   = report_format,
+    validate_strict = validate_strict,
+    source_priority = source_priority,
+    api_email       = api_email,
+    api_limit       = api_limit,
+    api_timeout     = api_timeout,
+    openalex_api_key = openalex_api_key,
+    orcid_access_token = orcid_access_token,
+    enable_enrichment = enable_enrichment,
+    enrichment_sources = enrichment_sources,
+    m0_chunk_size_rows = m0_chunk_size_rows,
+    m0_csv_delimiter = m0_csv_delimiter,
+    m0_csv_encoding = m0_csv_encoding,
+    advanced_analytics = advanced_analytics,
+    advanced_fail_policy = advanced_fail_policy,
+    bootstrap_n = bootstrap_n,
+    forecast_horizon = forecast_horizon,
+    rolling_origin_min_train = rolling_origin_min_train,
+    min_years_for_advanced_ts = min_years_for_advanced_ts,
+    min_countries_for_advanced_geo = min_countries_for_advanced_geo,
     log_level       = log_level,
     log_file        = log_file
   )
@@ -110,7 +186,10 @@ validate_config <- function(config) {
   # Validate numeric parameters
   numeric_params <- c("dpi", "plot_width", "plot_height", 
                       "top_n_countries", "top_n_authors", 
-                      "top_n_sources", "top_n_keywords", "top_n_citations")
+                      "top_n_sources", "top_n_keywords", "top_n_citations",
+                      "api_limit", "api_timeout", "m0_chunk_size_rows",
+                      "bootstrap_n", "forecast_horizon", "rolling_origin_min_train",
+                      "min_years_for_advanced_ts", "min_countries_for_advanced_geo")
   
   for (param in numeric_params) {
     if (param %in% names(config)) {
@@ -125,7 +204,8 @@ validate_config <- function(config) {
   
   # Validate logical parameters
   logical_params <- c("export_plots", "export_json", "export_reports", 
-                     "verbose", "parallel", "cache_enabled")
+                     "verbose", "parallel", "cache_enabled", "validate_strict",
+                     "enable_enrichment", "advanced_analytics")
   
   for (param in logical_params) {
     if (param %in% names(config)) {
@@ -150,6 +230,81 @@ validate_config <- function(config) {
   if (!config$log_level %in% valid_levels) {
     warning(sprintf("Invalid log level: %s. Using 'INFO'.", config$log_level))
     config$log_level <- "INFO"
+  }
+
+  valid_counting_modes <- c("full", "fractional")
+  if (!config$counting_mode %in% valid_counting_modes) {
+    warning(sprintf("Invalid counting mode: %s. Using 'full'.", config$counting_mode))
+    config$counting_mode <- "full"
+  }
+
+  valid_dedup_methods <- c("doi_exact", "title_year_normalized", "title_year_fuzzy")
+  dedup_method <- config$dedup_method
+  if (is.null(dedup_method) || length(dedup_method) == 0) {
+    dedup_method <- "title_year_normalized"
+  }
+  dedup_method <- unique(as.character(dedup_method))
+  invalid_dedup <- setdiff(dedup_method, valid_dedup_methods)
+  if (length(invalid_dedup) > 0) {
+    warning(sprintf(
+      "Invalid dedup_method value(s): %s. Using 'title_year_normalized'.",
+      paste(invalid_dedup, collapse = ", ")
+    ))
+    dedup_method <- "title_year_normalized"
+  }
+  if (!"doi_exact" %in% dedup_method) {
+    dedup_method <- c("doi_exact", dedup_method)
+  }
+  config$dedup_method <- dedup_method
+
+  valid_report_formats <- c("none", "quarto_html", "quarto_pdf", "latex_bundle")
+  if (!config$report_format %in% valid_report_formats) {
+    warning(sprintf("Invalid report format: %s. Using 'none'.", config$report_format))
+    config$report_format <- "none"
+  }
+
+  valid_advanced_fail_policy <- c("soft", "hard")
+  if (is.null(config$advanced_fail_policy) || !config$advanced_fail_policy %in% valid_advanced_fail_policy) {
+    warning(sprintf("Invalid advanced_fail_policy: %s. Using 'soft'.", as.character(config$advanced_fail_policy)))
+    config$advanced_fail_policy <- "soft"
+  }
+
+  if (is.null(config$source_priority) || length(config$source_priority) == 0) {
+    config$source_priority <- biblio_config()$source_priority
+  }
+  config$source_priority <- unique(toupper(as.character(config$source_priority)))
+
+  if (is.null(config$api_email) || !nzchar(trimws(as.character(config$api_email)))) {
+    config$api_email <- NULL
+  } else {
+    config$api_email <- trimws(as.character(config$api_email))
+  }
+
+  if (is.null(config$openalex_api_key) || !nzchar(trimws(as.character(config$openalex_api_key)))) {
+    env_key <- Sys.getenv("OPENALEX_API_KEY", unset = "")
+    config$openalex_api_key <- if (nzchar(env_key)) env_key else NULL
+  }
+
+  if (is.null(config$orcid_access_token) || !nzchar(trimws(as.character(config$orcid_access_token)))) {
+    env_token <- Sys.getenv("ORCID_ACCESS_TOKEN", unset = "")
+    config$orcid_access_token <- if (nzchar(env_token)) env_token else NULL
+  }
+
+  if (is.null(config$enrichment_sources) || length(config$enrichment_sources) == 0) {
+    config$enrichment_sources <- c("crossref", "openalex", "orcid", "ror")
+  }
+  config$enrichment_sources <- unique(tolower(as.character(config$enrichment_sources)))
+
+  if (is.null(config$m0_csv_delimiter) || !nzchar(as.character(config$m0_csv_delimiter))) {
+    config$m0_csv_delimiter <- ","
+  } else {
+    config$m0_csv_delimiter <- as.character(config$m0_csv_delimiter)[1]
+  }
+
+  if (is.null(config$m0_csv_encoding) || !nzchar(as.character(config$m0_csv_encoding))) {
+    config$m0_csv_encoding <- "UTF-8"
+  } else {
+    config$m0_csv_encoding <- as.character(config$m0_csv_encoding)[1]
   }
   
   # Ensure output directory exists
@@ -313,6 +468,23 @@ print_config <- function(config) {
   if (config$cache_enabled) {
     cat("  Cache directory:", config$cache_dir, "\n")
   }
+  cat("  Counting mode:", config$counting_mode, "\n")
+  cat("  Deduplication:", paste(config$dedup_method, collapse = ", "), "\n")
+  cat("  Report format:", config$report_format, "\n")
+  cat("  Strict validation:", config$validate_strict, "\n")
+  cat("  Source priority:", paste(config$source_priority, collapse = " > "), "\n")
+  cat("  API limit:", config$api_limit, "\n")
+  cat("  Enrichment enabled:", config$enable_enrichment, "\n")
+  cat("  Enrichment providers:", paste(config$enrichment_sources, collapse = ", "), "\n")
+
+  cat("\nAdvanced Analytics:\n")
+  cat("  Enabled:", config$advanced_analytics, "\n")
+  cat("  Failure policy:", config$advanced_fail_policy, "\n")
+  cat("  Bootstrap n:", config$bootstrap_n, "\n")
+  cat("  Forecast horizon:", config$forecast_horizon, "\n")
+  cat("  Rolling-origin min train:", config$rolling_origin_min_train, "\n")
+  cat("  Min years for advanced TS:", config$min_years_for_advanced_ts, "\n")
+  cat("  Min countries for advanced GEO:", config$min_countries_for_advanced_geo, "\n")
   
   cat("\nLogging Settings:\n")
   cat("  Log level:", config$log_level, "\n")

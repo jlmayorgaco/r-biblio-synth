@@ -5,38 +5,92 @@
 # for all key metrics across modules
 # Also handles package loading and sourcing all project R files on startup
 
-.project_root <- if (exists("project_root")) project_root else dirname(dirname(getwd()))
-.bootstrap_dir <- file.path(.project_root, "R", "core")
+.project_root <- NULL
+.bootstrap_dir <- NULL
 
-.auto_install_path <- file.path(.project_root, "R", "core", "auto_install.R")
+#' Collect project R files in deterministic order for development workflows
+#'
+#' Split source files under subdirectories are treated as the editable source of
+#' truth. Root-level `zz_*.R` overrides are loaded last so they can patch
+#' generated/legacy behavior. Any legacy `R/000_package_flat.R` artifact is
+#' excluded by default to avoid sourcing the flat package artifact together with
+#' the split tree.
+#'
+#' @param project_root Project root directory.
+#' @param include_flat Logical. Include `R/000_package_flat.R`.
+#' @return Character vector of absolute paths.
+#' @keywords internal
+rbiblio_collect_r_files <- function(project_root = getwd(), include_flat = FALSE) {
+  r_dir <- file.path(project_root, "R")
+  if (!dir.exists(r_dir)) {
+    return(character(0))
+  }
 
-cat("DEBUG bootstrap.R: .project_root =", .project_root, "\n")
-cat("DEBUG bootstrap.R: .auto_install_path =", .auto_install_path, "\n")
-desc_path <- file.path(.project_root, "DESCRIPTION")
-cat("DEBUG bootstrap.R: desc_path =", desc_path, "exists=", file.exists(desc_path), "\n")
+  files <- list.files(r_dir, pattern = "\\.R$", recursive = TRUE, full.names = TRUE)
+  files <- normalizePath(files, winslash = "/", mustWork = FALSE)
 
-if (file.exists(.auto_install_path)) {
-  source(.auto_install_path)
-  auto_install_dependencies(desc_path = desc_path, quiet = FALSE)
-} else {
-  warning("Could not find auto_install.R - packages may not be loaded properly")
+  bootstrap_path <- normalizePath(file.path(r_dir, "core", "bootstrap.R"), winslash = "/", mustWork = FALSE)
+  flat_path <- normalizePath(file.path(r_dir, "000_package_flat.R"), winslash = "/", mustWork = FALSE)
+
+  files <- files[files != bootstrap_path]
+  if (!isTRUE(include_flat)) {
+    files <- files[files != flat_path]
+  }
+
+  files <- files[!grepl("(^|/)(validate|test)[^/]*\\.R$", files, ignore.case = TRUE)]
+
+  r_dir_norm <- normalizePath(r_dir, winslash = "/", mustWork = FALSE)
+  rel <- files
+  prefix <- paste0(r_dir_norm, "/")
+  rel[startsWith(rel, prefix)] <- substring(rel[startsWith(rel, prefix)], nchar(prefix) + 1L)
+  rel <- gsub("\\\\", "/", rel)
+
+  root_files <- files[!grepl("/", rel, fixed = TRUE)]
+  subdir_files <- files[grepl("/", rel, fixed = TRUE)]
+  root_names <- basename(root_files)
+
+  root_regular <- root_files[!grepl("^zz_.*\\.R$", root_names, ignore.case = TRUE)]
+  root_overrides <- root_files[grepl("^zz_.*\\.R$", root_names, ignore.case = TRUE)]
+
+  c(sort(subdir_files), sort(root_regular), sort(root_overrides))
 }
 
-# ---- Source all R files ----
-# Source all R files in the project to load all functions
-.bootstrap_r_dir <- file.path(.project_root, "R")
-if (dir.exists(.bootstrap_r_dir)) {
-  .r_files <- list.files(.bootstrap_r_dir, pattern = "\\.R$", recursive = TRUE, full.names = TRUE)
-  # Exclude this file (bootstrap.R) to avoid recursion
-  .bootstrap_path <- normalizePath(file.path(.bootstrap_dir, "bootstrap.R"), mustWork = FALSE)
-  .r_files <- .r_files[!normalizePath(.r_files, mustWork = FALSE) == .bootstrap_path]
-  # Exclude validation and test scripts that run automatically
-  .r_files <- .r_files[!grepl("(^|/)(validate|test)[^/]*\\.R$", .r_files, ignore.case = TRUE)]
-  for (.f in .r_files) {
-    tryCatch(source(.f), error = function(e) {
-      warning("Failed to source ", .f, ": ", e$message)
-    })
+#' Bootstrap the project for local development
+#'
+#' Explicitly installs missing dependencies and sources the `R/` tree. This is
+#' intended for contributor workflows and is intentionally not executed when the
+#' package is loaded through `library()` or `pkgload::load_all()`.
+#'
+#' @param project_root Project root directory.
+#' @param install_deps Logical. If TRUE, run dependency bootstrap.
+#' @param quiet Logical. Forwarded to dependency bootstrap.
+#' @return Invisibly returns TRUE on success.
+bootstrap_project <- function(project_root = getwd(),
+                              install_deps = TRUE,
+                              quiet = TRUE) {
+  bootstrap_dir <- file.path(project_root, "R", "core")
+  auto_install_path <- file.path(project_root, "R", "core", "auto_install.R")
+  desc_path <- file.path(project_root, "DESCRIPTION")
+
+  if (install_deps) {
+    if (file.exists(auto_install_path)) {
+      source(auto_install_path, local = TRUE)
+      auto_install_dependencies(desc_path = desc_path, quiet = quiet)
+    } else {
+      warning("Could not find auto_install.R - packages may not be loaded properly")
+    }
   }
+
+  r_files <- rbiblio_collect_r_files(project_root = project_root, include_flat = FALSE)
+  if (length(r_files) > 0) {
+    for (f in r_files) {
+      tryCatch(source(f), error = function(e) {
+        warning("Failed to source ", f, ": ", e$message)
+      })
+    }
+  }
+
+  invisible(TRUE)
 }
 
 #' Bootstrap confidence interval for a statistic
@@ -53,11 +107,15 @@ bootstrap_ci <- function(data, statistic, R = 1000, conf_level = 0.95, method = 
   if (!is.null(seed)) {
     set.seed(seed)
   }
+
+  if (!is.data.frame(data)) {
+    data <- data[!is.na(data)]
+  }
   
   n <- if (is.data.frame(data)) nrow(data) else length(data)
   
   # Compute original estimate
-  estimate <- tryCatch(statistic(data), error = function(e) NA)
+  estimate <- bootstrap_eval_statistic(data, statistic)
   
   if (is.na(estimate) || is.null(estimate)) {
     return(list(
@@ -79,7 +137,7 @@ bootstrap_ci <- function(data, statistic, R = 1000, conf_level = 0.95, method = 
     } else {
       sample(data, replace = TRUE)
     }
-    boot_samples[i] <- tryCatch(statistic(boot_data), error = function(e) NA)
+    boot_samples[i] <- bootstrap_eval_statistic(boot_data, statistic)
   }
   
   # Remove NAs
@@ -147,6 +205,18 @@ bootstrap_ci <- function(data, statistic, R = 1000, conf_level = 0.95, method = 
   )
 }
 
+#' Evaluate a bootstrap statistic with NA-aware fallback
+#' @keywords internal
+bootstrap_eval_statistic <- function(data, statistic) {
+  value <- tryCatch(statistic(data), error = function(e) NA_real_)
+
+  if (!is.data.frame(data) && length(value) == 1L && is.na(value)) {
+    value <- tryCatch(statistic(data, na.rm = TRUE), error = function(e) NA_real_)
+  }
+
+  suppressWarnings(as.numeric(value)[1])
+}
+
 #' Bootstrap CI for mean
 #' @export
 bootstrap_mean_ci <- function(x, R = 1000, conf_level = 0.95, seed = NULL) {
@@ -163,6 +233,32 @@ bootstrap_median_ci <- function(x, R = 1000, conf_level = 0.95, seed = NULL) {
 #' @export
 bootstrap_proportion_ci <- function(x, R = 1000, conf_level = 0.95, seed = NULL) {
   bootstrap_ci(x, mean, R = R, conf_level = conf_level, method = "percentile", seed = seed)
+}
+
+#' Bootstrap CI for mean
+#' @export
+bootstrap_mean <- function(x, R = 1000, conf_level = 0.95, seed = NULL) {
+  bootstrap_mean_ci(x, R = R, conf_level = conf_level, seed = seed)
+}
+
+#' Bootstrap CI for median
+#' @export
+bootstrap_median <- function(x, R = 1000, conf_level = 0.95, seed = NULL) {
+  bootstrap_median_ci(x, R = R, conf_level = conf_level, seed = seed)
+}
+
+#' Bootstrap CI for proportion
+#' @export
+bootstrap_proportion <- function(successes, trials = NULL, R = 1000, conf_level = 0.95, seed = NULL) {
+  x <- if (is.null(trials)) {
+    successes
+  } else if (length(successes) == 1L && length(trials) == 1L) {
+    c(rep(1, max(0, as.integer(successes))), rep(0, max(0, as.integer(trials - successes))))
+  } else {
+    suppressWarnings(as.numeric(successes) / as.numeric(trials))
+  }
+
+  bootstrap_proportion_ci(x, R = R, conf_level = conf_level, seed = seed)
 }
 
 #' Bootstrap CI for correlation
@@ -191,9 +287,18 @@ bootstrap_gini_ci <- function(x, R = 1000, conf_level = 0.95, seed = NULL) {
     d <- sort(d[!is.na(d)])
     n <- length(d)
     if (n < 2) return(NA)
-    (n + 1 - 2 * sum((n + 1 - seq_len(n)) * d) / (n * sum(d))) / n
+    sum_d <- sum(d)
+    if (!is.finite(sum_d) || sum_d <= 0) return(NA)
+    gini <- (2 * sum(seq_len(n) * d) / (n * sum_d)) - ((n + 1) / n)
+    max(0, min(1, gini))
   }
   bootstrap_ci(x, gini_fn, R = R, conf_level = conf_level, method = "bca", seed = seed)
+}
+
+#' Bootstrap CI for Gini coefficient
+#' @export
+bootstrap_gini <- function(x, R = 1000, conf_level = 0.95, seed = NULL) {
+  bootstrap_gini_ci(x, R = R, conf_level = conf_level, seed = seed)
 }
 
 #' Bootstrap CI for h-index
