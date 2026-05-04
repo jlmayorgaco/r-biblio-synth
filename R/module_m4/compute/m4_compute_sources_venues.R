@@ -196,11 +196,32 @@ m4_compute_source_similarity <- function(prepared, config = biblio_config()) {
   rows <- lapply(seq_len(nrow(records)), function(i) {
     terms <- trimws(unlist(strsplit(as.character(records$keywords[i] %||% ""), ";|,", perl = TRUE)))
     terms <- tolower(terms[nzchar(terms)])
+    terms[terms == "source"] <- "source_keyword"
     if (length(terms) == 0) return(NULL)
     tibble::tibble(source = records$source[i], keyword = terms)
   })
   long <- dplyr::bind_rows(rows)
   if (!is.data.frame(long) || nrow(long) == 0) {
+    return(list(status = "empty", source_keyword_matrix = tibble::tibble(), pairwise = tibble::tibble()))
+  }
+
+  summary <- prepared$source_summary %||% tibble::tibble()
+  if (is.data.frame(summary) && nrow(summary) > 0) {
+    max_sources <- as.integer(config$m4_similarity_max_sources %||% max(config$top_n_sources %||% 20L, 50L))
+    keep_sources <- summary |>
+      dplyr::arrange(dplyr::desc(.data$tp), dplyr::desc(.data$tc)) |>
+      dplyr::slice(seq_len(min(max_sources, dplyr::n()))) |>
+      dplyr::pull(.data$source)
+    long <- long[long$source %in% keep_sources, , drop = FALSE]
+  }
+  max_keywords <- as.integer(config$m4_similarity_max_keywords %||% 250L)
+  keyword_keep <- long |>
+    dplyr::count(.data$keyword, name = "n") |>
+    dplyr::arrange(dplyr::desc(.data$n), .data$keyword) |>
+    dplyr::slice(seq_len(min(max_keywords, dplyr::n()))) |>
+    dplyr::pull(.data$keyword)
+  long <- long[long$keyword %in% keyword_keep, , drop = FALSE]
+  if (nrow(long) == 0) {
     return(list(status = "empty", source_keyword_matrix = tibble::tibble(), pairwise = tibble::tibble()))
   }
 

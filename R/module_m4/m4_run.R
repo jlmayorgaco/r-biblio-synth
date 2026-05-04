@@ -92,6 +92,7 @@ m4_compute_all <- function(prepared, config) {
   data$lifecycle <- m4_compute_source_lifecycle(prepared, data$growth, config)
   data$clusters <- m4_compute_source_clusters(data, config)
   data$advanced_analytics <- m4_compute_advanced_analytics(data, config)
+  data$hypotheses <- m4_compute_hypotheses(data, config)
   data$narrative <- m4_compute_narrative(data, config)
   data
 }
@@ -152,6 +153,7 @@ m4_build_tables <- function(result, data, config) {
     lifecycle = build_m4_lifecycle_table(data$lifecycle, config),
     clusters = build_m4_clusters_table(data$clusters, config),
     advanced_analytics = build_m4_advanced_analytics_table(data$advanced_analytics, config),
+    hypotheses = build_m4_hypotheses_table(data$hypotheses, config),
     narrative = build_m4_narrative_table(data$narrative, config)
   )
   result
@@ -179,7 +181,8 @@ export_m4 <- function(result, config = biblio_config()) {
         )
         if (!inherits(plot_obj, "ggplot") && !inherits(plot_obj, "recordedplot")) next
         spec <- ieee_get_plot_export_spec(plot_obj, config, section_id = section_nm, plot_id = plot_nm)
-        base <- build_artifact_path(config, "m4", "plots", paste(section_nm, plot_nm, sep = "_"))
+        base <- build_artifact_path("m4", "plots", paste0("m4_", section_nm, "_", plot_nm), "png", config)
+        base <- tools::file_path_sans_ext(base)
         exported_plots <- c(exported_plots, export_plot_artifact(plot_obj, base, width = spec$width, height = spec$height, dpi = spec$dpi))
       }
     }
@@ -189,7 +192,7 @@ export_m4 <- function(result, config = biblio_config()) {
     for (table_nm in names(result$artifacts$tables)) {
       tables <- m4_flatten_table_collection(result$artifacts$tables[[table_nm]])
       for (sub_nm in names(tables)) {
-        path <- build_artifact_path(config, "m4", "tables", paste(table_nm, sub_nm, sep = "_"), ext = "json")
+        path <- build_artifact_path("m4", "tables", paste0("m4_", table_nm, "_", sub_nm), "json", config)
         write_json_artifact(tables[[sub_nm]], path)
         exported_tables <- c(exported_tables, path)
       }
@@ -197,13 +200,13 @@ export_m4 <- function(result, config = biblio_config()) {
   }
 
   if (config$export_json) {
-    path <- build_artifact_path(config, "m4", "data", "m4_result_data", ext = "json")
+    path <- build_artifact_path("m4", "json", "m4_result_data", "json", config)
     write_json_artifact(result$data, path)
     exported_jsons <- c(exported_jsons, path)
   }
 
   if (config$export_reports && length(result$artifacts$reports) > 0) {
-    path <- build_artifact_path(config, "m4", "reports", "m4_report", ext = "txt")
+    path <- build_artifact_path("m4", "reports", "m4_report", "txt", config)
     write_text_report(result$artifacts$reports[[1]]$lines %||% result$artifacts$reports[[1]], path)
     exported_reports <- c(exported_reports, path)
   }

@@ -29,6 +29,8 @@ build_m4_report <- function(result, config = biblio_config()) {
     "",
     .m4_report_lifecycle(data),
     "",
+    .m4_report_hypotheses(data),
+    "",
     .m4_report_advanced_analytics(data),
     "",
     .m4_report_clusters(data)
@@ -40,7 +42,7 @@ build_m4_report <- function(result, config = biblio_config()) {
   list(
     status = "success",
     title = "M4 Sources / Journals & Venues Report",
-    sections = c("narrative", "overview", "bradford", "growth", "similarity", "specialization", "lifecycle", "advanced_analytics", "clusters"),
+    sections = c("narrative", "overview", "bradford", "growth", "similarity", "specialization", "lifecycle", "hypotheses", "advanced_analytics", "clusters"),
     lines = lines,
     tex = tex
   )
@@ -148,6 +150,33 @@ build_m4_report <- function(result, config = biblio_config()) {
     cv_line,
     sprintf("  Impact regression R-squared: %.3f.", ieee_safe_num(regression$r_squared)),
     sprintf("  Cluster silhouette: %.3f.", ieee_safe_num(silhouette$mean_silhouette))
+  )
+}
+
+.m4_report_hypotheses <- function(data) {
+  hyp <- data$hypotheses$hypotheses %||% list()
+  if (!is.list(hyp) || length(hyp) == 0) {
+    return(c(
+      "--- Statistical Hypotheses ---",
+      "  Not available: source-level hypothesis tests were not computed."
+    ))
+  }
+  rows <- Filter(function(x) is.list(x), hyp)
+  rejected <- rows[vapply(rows, function(x) identical(x$result %||% "", "reject"), logical(1))]
+  p_values <- vapply(rows, function(x) {
+    value <- suppressWarnings(as.numeric(x$p_value))
+    if (length(value) == 1L && is.finite(value)) value else Inf
+  }, numeric(1))
+  strongest <- if (length(rows) > 0 && any(is.finite(p_values))) rows[[which.min(p_values)]] else NULL
+  c(
+    "--- Statistical Hypotheses ---",
+    sprintf("  Formal H0 tests: %d; rejected nulls: %d.", length(rows), length(rejected)),
+    if (!is.null(strongest)) {
+      sprintf("  Strongest finding: %s", strongest$interpretation %||% strongest$hypothesis)
+    } else {
+      "  Strongest finding: not estimable."
+    },
+    "  Coverage: Bradford concentration, zone impact/growth, specialization, cluster separability, source similarity, lifecycle, ML validity, anomalies, and forecast direction."
   )
 }
 

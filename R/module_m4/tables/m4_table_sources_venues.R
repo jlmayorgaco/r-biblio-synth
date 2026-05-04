@@ -75,6 +75,49 @@ build_m4_advanced_analytics_table <- function(result, config = biblio_config()) 
   )
 }
 
+build_m4_hypotheses_table <- function(result, config = biblio_config()) {
+  hyp_list <- result$hypotheses %||% result$hyphypotheses %||% list()
+  if (!is.list(hyp_list) || length(hyp_list) == 0) {
+    return(list(status = "stub", table = tibble::tibble()))
+  }
+  rows <- lapply(names(hyp_list), function(id) {
+    x <- hyp_list[[id]]
+    if (!is.list(x)) return(NULL)
+    tibble::tibble(
+      id = id,
+      hypothesis = x$hypothesis %||% x$hyphypothesis %||% id,
+      null = x$null %||% NA_character_,
+      decision = x$result %||% "unknown",
+      evidence_class = x$evidence_class %||% if (!is.null(x$p_value)) "statistical" else "heuristic",
+      test = x$test %||% if (!is.null(x$p_value)) "statistical test" else "heuristic diagnostic",
+      statistic = m4_table_first_numeric(x$statistic),
+      p_value = m4_table_first_numeric(x$p_value),
+      effect_size = m4_table_first_numeric(x$effect_size),
+      interpretation = x$interpretation %||% NA_character_
+    )
+  })
+  rows <- Filter(Negate(is.null), rows)
+  if (length(rows) == 0) {
+    return(list(status = "stub", table = tibble::tibble()))
+  }
+  table <- dplyr::bind_rows(rows) |>
+    dplyr::arrange(
+      dplyr::desc(.data$evidence_class == "statistical"),
+      dplyr::desc(.data$decision == "reject"),
+      .data$p_value
+    )
+  list(status = result$status %||% "success", table = table)
+}
+
 build_m4_narrative_table <- function(result, config = biblio_config()) {
   list(status = result$status %||% "stub", table = tibble::as_tibble(result$metrics %||% tibble::tibble()))
+}
+
+m4_table_first_numeric <- function(...) {
+  candidates <- list(...)
+  for (candidate in candidates) {
+    value <- suppressWarnings(as.numeric(candidate))
+    if (length(value) == 1L && is.finite(value)) return(value)
+  }
+  NA_real_
 }
