@@ -237,6 +237,7 @@ m3_build_tables <- function(result, data, config) {
     experiments             = m3_table_experiments(data$experiments, config),
     collaboration_indices   = m3_table_collaboration_indices(data$collaboration_indices, config),
     country_regressions     = m3_table_country_regressions(data$country_regressions, config),
+    hypotheses             = m3_table_hypotheses(data$hypotheses, config),
     spatial                 = build_m3_spatial_table(data$spatial, config),
     regional                = build_m3_regional_table(data$regional, config),
     economic                = build_m3_economic_table(data$economic, config),

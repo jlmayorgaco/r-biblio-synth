@@ -37,6 +37,8 @@ build_m3_report <- function(result, config = biblio_config()) {
     "",
     .m3_report_positioning(data),
     "",
+    .m3_report_hypotheses(data),
+    "",
     .m3_report_inequality(data),
     "",
     .m3_report_growth(data),
@@ -84,6 +86,9 @@ build_m3_report <- function(result, config = biblio_config()) {
     "\\subsection*{Country Positioning and Trajectories}",
     paste(.m3_report_positioning(data), collapse = "\\\\"),
     "",
+    "\\subsection*{Statistical Hypotheses}",
+    paste(.m3_report_hypotheses(data), collapse = "\\\\"),
+    "",
     "\\subsection*{Inequality}",
     paste(.m3_report_inequality(data), collapse = "\\\\"),
     "",
@@ -109,7 +114,7 @@ build_m3_report <- function(result, config = biblio_config()) {
   list(
     status   = "success",
     title    = "M3 Countries Module Report",
-    sections = c("narrative", "overview", "production", "citations", "scp_mcp", "positioning", "inequality",
+    sections = c("narrative", "overview", "production", "citations", "scp_mcp", "positioning", "hypotheses", "inequality",
                  "growth", "change_points", "profiles", "spatial",
                  "regional", "economic", "temporal_dynamics", "advanced_journal", "experiments", "caveats"),
     lines    = lines,
@@ -272,6 +277,38 @@ build_m3_report <- function(result, config = biblio_config()) {
     sprintf("  Citations  HHI   : %.4f", .safe_num(s$citations$hhi)),
     sprintf("  Citations  Top-5 : %.1f%%",
             .safe_num(s$citations$top5_share) * 100)
+  )
+}
+
+.m3_report_hypotheses <- function(data) {
+  hyp <- data$hypotheses$hypotheses %||% data$hypotheses$hyphypotheses %||% list()
+  if (!is.list(hyp) || length(hyp) == 0) {
+    return(c(
+      "--- Statistical Hypotheses ---",
+      "  Not available: hypothesis tests were not computed."
+    ))
+  }
+  rows <- Filter(function(x) is.list(x), hyp)
+  statistical <- rows[vapply(rows, function(x) identical(x$evidence_class %||% if (!is.null(x$p_value)) "statistical" else "heuristic", "statistical"), logical(1))]
+  rejected <- statistical[vapply(statistical, function(x) identical(x$result %||% "", "reject"), logical(1))]
+  p_values <- vapply(statistical, function(x) {
+    value <- suppressWarnings(as.numeric(x$p_value))
+    if (length(value) == 1L && is.finite(value)) value else Inf
+  }, numeric(1))
+  strongest <- if (length(statistical) > 0 && any(is.finite(p_values))) {
+    statistical[[which.min(p_values)]]
+  } else {
+    NULL
+  }
+  c(
+    "--- Statistical Hypotheses ---",
+    sprintf("  Statistical tests: %d; rejected nulls: %d.", length(statistical), length(rejected)),
+    if (!is.null(strongest)) {
+      sprintf("  Strongest finding: %s", strongest$interpretation %||% strongest$hypothesis %||% strongest$hyphypothesis)
+    } else {
+      "  Strongest finding: not estimable."
+    },
+    "  Added tests cover regional adjusted impact, role-cluster differences, MCP mediation, inequality gaps, emerging-country acceleration, network modularity, and trajectory direction."
   )
 }
 

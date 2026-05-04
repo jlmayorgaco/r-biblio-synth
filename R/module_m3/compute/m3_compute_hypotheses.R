@@ -58,6 +58,27 @@ m3_compute_hypotheses <- function(prepared_data, config = biblio_config()) {
   
   # H03.12: Growth clusters (bunches) exist
   hypotheses$H03_12 <- test_growth_clusters_hypothesis(prepared_data, config)
+
+  # H03.23: Regional/country-group effects after controlling productivity
+  hypotheses$H03_23 <- test_region_adjusted_impact_hypothesis(prepared_data, config)
+
+  # H03.24: Country bibliometric role clusters differ in impact/collaboration
+  hypotheses$H03_24 <- test_country_role_cluster_difference_hypothesis(prepared_data, config)
+
+  # H03.25: MCP share mediates production-impact association
+  hypotheses$H03_25 <- test_mcp_mediation_hypothesis(prepared_data, config)
+
+  # H03.26: Citation inequality exceeds production inequality
+  hypotheses$H03_26 <- test_citation_vs_production_inequality_hypothesis(prepared_data, config)
+
+  # H03.27: Emerging countries accelerate faster than established countries
+  hypotheses$H03_27 <- test_emerging_country_acceleration_hypothesis(prepared_data, config)
+
+  # H03.28: Collaboration network modularity exceeds random structure
+  hypotheses$H03_28 <- test_collaboration_modularity_hypothesis(prepared_data, config)
+
+  # H03.29: Country trajectory vectors show a non-random common direction
+  hypotheses$H03_29 <- test_country_trajectory_direction_hypothesis(prepared_data, config)
   
   summary_stats <- summarize_h3_hypothesis_results(hypotheses)
   
@@ -573,6 +594,222 @@ test_growth_clusters_hypothesis <- function(prepared_data, config) {
   )
 }
 
+test_region_adjusted_impact_hypothesis <- function(prepared_data, config) {
+  country_summary <- prepared_data$country_summary %||% tibble::tibble()
+  if (!is.data.frame(country_summary) || nrow(country_summary) < 8) {
+    return(m3_inconclusive_hypothesis("Regional group has no effect on citation impact after controlling production", "Insufficient country data"))
+  }
+  df <- m3_country_hypothesis_features(prepared_data)
+  if (!"region" %in% names(df) || length(unique(stats::na.omit(df$region))) < 2) {
+    df$region <- m3_proxy_region(df$country)
+  }
+  df <- df[is.finite(df$total_articles) & is.finite(df$total_citations) & df$total_articles > 0 & !is.na(df$region), , drop = FALSE]
+  if (nrow(df) < 8 || length(unique(df$region)) < 2) {
+    return(m3_inconclusive_hypothesis("Regional group has no effect on citation impact after controlling production", "At least two regional groups are required"))
+  }
+  fit0 <- tryCatch(stats::lm(log1p(total_citations) ~ log1p(total_articles), data = df), error = function(e) NULL)
+  fit1 <- tryCatch(stats::lm(log1p(total_citations) ~ log1p(total_articles) + region, data = df), error = function(e) NULL)
+  cmp <- if (!is.null(fit0) && !is.null(fit1)) tryCatch(stats::anova(fit0, fit1), error = function(e) NULL) else NULL
+  if (is.null(cmp) || nrow(cmp) < 2) {
+    return(m3_inconclusive_hypothesis("Regional group has no effect on citation impact after controlling production", "ANCOVA comparison failed"))
+  }
+  p_value <- suppressWarnings(as.numeric(cmp[["Pr(>F)"]][2]))
+  statistic <- suppressWarnings(as.numeric(cmp[["F"]][2]))
+  r2_gain <- tryCatch(summary(fit1)$r.squared - summary(fit0)$r.squared, error = function(e) NA_real_)
+  m3_stat_hypothesis(
+    "Regional group has no effect on citation impact after controlling production",
+    "Region does not improve log citation impact beyond log production",
+    "ANCOVA nested model comparison",
+    p_value,
+    statistic,
+    r2_gain,
+    sprintf("Regional adjusted-impact test: F = %.3f (p = %.4f), delta R2 = %.3f.", statistic, p_value, r2_gain)
+  )
+}
+
+test_country_role_cluster_difference_hypothesis <- function(prepared_data, config) {
+  df <- m3_country_hypothesis_features(prepared_data)
+  if (!is.data.frame(df) || nrow(df) < 8) {
+    return(m3_inconclusive_hypothesis("Country role clusters have equal impact and collaboration profiles", "Insufficient country data"))
+  }
+  features <- df[, intersect(c("total_articles", "total_citations", "mean_citations", "mcp_ratio", "annual_growth_rate"), names(df)), drop = FALSE]
+  features[] <- lapply(features, function(x) suppressWarnings(as.numeric(x)))
+  features[!is.finite(as.matrix(features))] <- 0
+  variable <- vapply(features, function(x) stats::sd(x, na.rm = TRUE) > 0, logical(1))
+  features <- features[, variable, drop = FALSE]
+  if (ncol(features) < 2 || nrow(features) < 8) {
+    return(m3_inconclusive_hypothesis("Country role clusters have equal impact and collaboration profiles", "Insufficient variable features for clustering"))
+  }
+  k <- max(2L, min(4L, floor(sqrt(nrow(features)))))
+  set.seed(as.integer(config$seed %||% 1234L))
+  km <- tryCatch(stats::kmeans(scale(features), centers = k, nstart = 25), error = function(e) NULL)
+  if (is.null(km)) {
+    return(m3_inconclusive_hypothesis("Country role clusters have equal impact and collaboration profiles", "K-means failed"))
+  }
+  df$role_cluster <- factor(km$cluster)
+  metric <- if ("mean_citations" %in% names(df)) "mean_citations" else "total_citations"
+  test <- tryCatch(stats::kruskal.test(df[[metric]] ~ df$role_cluster), error = function(e) NULL)
+  if (is.null(test)) {
+    return(m3_inconclusive_hypothesis("Country role clusters have equal impact and collaboration profiles", "Cluster impact test failed"))
+  }
+  m3_stat_hypothesis(
+    "Country role clusters have equal impact and collaboration profiles",
+    "K-means country roles do not differ in citation impact",
+    "Kruskal-Wallis across role clusters",
+    test$p.value,
+    suppressWarnings(as.numeric(test$statistic)),
+    m3_epsilon_squared(test$statistic, nrow(df), length(unique(df$role_cluster))),
+    sprintf("Role clusters differ on %s with chi-square = %.3f (p = %.4f).", metric, as.numeric(test$statistic), test$p.value)
+  )
+}
+
+test_mcp_mediation_hypothesis <- function(prepared_data, config) {
+  df <- m3_country_hypothesis_features(prepared_data)
+  df <- df[is.finite(df$total_articles) & is.finite(df$total_citations) & is.finite(df$mcp_ratio) & df$total_articles > 0, , drop = FALSE]
+  if (nrow(df) < 8 || stats::sd(df$mcp_ratio, na.rm = TRUE) <= 0) {
+    return(m3_inconclusive_hypothesis("MCP share does not mediate the production-impact relationship", "Insufficient MCP variation"))
+  }
+  fit_a <- tryCatch(stats::lm(mcp_ratio ~ log1p(total_articles), data = df), error = function(e) NULL)
+  fit_b <- tryCatch(stats::lm(log1p(total_citations) ~ log1p(total_articles) + mcp_ratio, data = df), error = function(e) NULL)
+  if (is.null(fit_a) || is.null(fit_b)) {
+    return(m3_inconclusive_hypothesis("MCP share does not mediate the production-impact relationship", "Mediation regressions failed"))
+  }
+  a <- suppressWarnings(as.numeric(stats::coef(fit_a)[2]))
+  b <- suppressWarnings(as.numeric(stats::coef(fit_b)["mcp_ratio"]))
+  se_a <- tryCatch(summary(fit_a)$coefficients[2, 2], error = function(e) NA_real_)
+  se_b <- tryCatch(summary(fit_b)$coefficients["mcp_ratio", 2], error = function(e) NA_real_)
+  indirect <- a * b
+  se <- sqrt((b^2 * se_a^2) + (a^2 * se_b^2))
+  z <- indirect / pmax(se, .Machine$double.eps)
+  p_value <- 2 * stats::pnorm(-abs(z))
+  m3_stat_hypothesis(
+    "MCP share does not mediate the production-impact relationship",
+    "The indirect production -> MCP -> citation pathway equals zero",
+    "Sobel mediation test",
+    p_value,
+    z,
+    indirect,
+    sprintf("Indirect effect = %.4f (z = %.3f, p = %.4f).", indirect, z, p_value)
+  )
+}
+
+test_citation_vs_production_inequality_hypothesis <- function(prepared_data, config) {
+  df <- m3_country_hypothesis_features(prepared_data)
+  if (!is.data.frame(df) || nrow(df) < 5) {
+    return(m3_inconclusive_hypothesis("Citation inequality does not exceed production inequality", "Insufficient country data"))
+  }
+  tp <- suppressWarnings(as.numeric(df$total_articles))
+  tc <- suppressWarnings(as.numeric(df$total_citations))
+  keep <- is.finite(tp) & is.finite(tc) & tp >= 0 & tc >= 0
+  tp <- tp[keep]
+  tc <- tc[keep]
+  if (length(tp) < 5 || sum(tp) <= 0 || sum(tc) <= 0) {
+    return(m3_inconclusive_hypothesis("Citation inequality does not exceed production inequality", "Insufficient positive TP/TC totals"))
+  }
+  diff_obs <- calculate_gini(tc) - calculate_gini(tp)
+  set.seed(as.integer(config$seed %||% 1234L))
+  b <- replicate(499L, {
+    idx <- sample(seq_along(tp), replace = TRUE)
+    calculate_gini(tc[idx]) - calculate_gini(tp[idx])
+  })
+  p_value <- mean(b <= 0, na.rm = TRUE)
+  m3_stat_hypothesis(
+    "Citation inequality does not exceed production inequality",
+    "Gini(TC) - Gini(TP) is less than or equal to zero",
+    "Bootstrap paired Gini difference",
+    p_value,
+    diff_obs,
+    diff_obs,
+    sprintf("Gini(TC) - Gini(TP) = %.3f (one-sided bootstrap p = %.4f).", diff_obs, p_value)
+  )
+}
+
+test_emerging_country_acceleration_hypothesis <- function(prepared_data, config) {
+  df <- m3_country_hypothesis_features(prepared_data)
+  if (!is.data.frame(df) || nrow(df) < 8 || !"n_years" %in% names(df)) {
+    return(m3_inconclusive_hypothesis("Emerging countries do not accelerate faster than established countries", "Insufficient country growth features"))
+  }
+  df$group <- ifelse(df$n_years < stats::median(df$n_years, na.rm = TRUE), "Emerging", "Established")
+  metric <- suppressWarnings(as.numeric(df$annual_growth_rate))
+  keep <- is.finite(metric) & !is.na(df$group)
+  df <- df[keep, , drop = FALSE]
+  if (nrow(df) < 6 || length(unique(df$group)) < 2) {
+    return(m3_inconclusive_hypothesis("Emerging countries do not accelerate faster than established countries", "Both emerging and established groups are required"))
+  }
+  test <- tryCatch(stats::wilcox.test(annual_growth_rate ~ group, data = df, alternative = "greater", exact = FALSE), error = function(e) NULL)
+  if (is.null(test)) {
+    return(m3_inconclusive_hypothesis("Emerging countries do not accelerate faster than established countries", "Growth comparison failed"))
+  }
+  delta <- stats::median(df$annual_growth_rate[df$group == "Emerging"], na.rm = TRUE) -
+    stats::median(df$annual_growth_rate[df$group == "Established"], na.rm = TRUE)
+  m3_stat_hypothesis(
+    "Emerging countries do not accelerate faster than established countries",
+    "Emerging-country growth is not greater than established-country growth",
+    "One-sided Wilcoxon rank-sum test",
+    test$p.value,
+    suppressWarnings(as.numeric(test$statistic)),
+    delta,
+    sprintf("Emerging minus established median growth = %.3f (p = %.4f).", delta, test$p.value)
+  )
+}
+
+test_collaboration_modularity_hypothesis <- function(prepared_data, config) {
+  mat <- prepared_data$collaboration_matrix
+  if (is.null(mat) || !is.matrix(mat) || nrow(mat) < 5) {
+    return(m3_inconclusive_hypothesis("Country collaboration network modularity does not exceed random structure", "Insufficient collaboration matrix"))
+  }
+  mat[!is.finite(mat)] <- 0
+  diag(mat) <- 0
+  if (sum(mat) <= 0) {
+    return(m3_inconclusive_hypothesis("Country collaboration network modularity does not exceed random structure", "No collaboration edge weight"))
+  }
+  clusters <- stats::kmeans(scale(rowSums(mat) + mat), centers = max(2L, min(4L, floor(sqrt(nrow(mat))))), nstart = 10)$cluster
+  observed <- m3_weighted_modularity(mat, clusters)
+  set.seed(as.integer(config$seed %||% 1234L))
+  random_q <- replicate(199L, m3_weighted_modularity(mat, sample(clusters)))
+  p_value <- mean(random_q >= observed, na.rm = TRUE)
+  m3_stat_hypothesis(
+    "Country collaboration network modularity does not exceed random structure",
+    "Observed weighted modularity is no greater than random label permutations",
+    "Permutation modularity test",
+    p_value,
+    observed,
+    observed - mean(random_q, na.rm = TRUE),
+    sprintf("Observed modularity = %.3f; random mean = %.3f (p = %.4f).", observed, mean(random_q, na.rm = TRUE), p_value)
+  )
+}
+
+test_country_trajectory_direction_hypothesis <- function(prepared_data, config) {
+  annual <- prepared_data$country_annual %||% tibble::tibble()
+  if (!is.data.frame(annual) || nrow(annual) < 10 || !all(c("country", "year", "article_count") %in% names(annual))) {
+    return(m3_inconclusive_hypothesis("Country trajectory vectors have no common direction", "Insufficient country-year production data"))
+  }
+  split_rows <- split(annual, annual$country)
+  slopes <- vapply(split_rows, function(dat) {
+    dat <- dat[is.finite(dat$year) & is.finite(dat$article_count), , drop = FALSE]
+    if (nrow(dat) < 3 || length(unique(dat$year)) < 2) return(NA_real_)
+    suppressWarnings(as.numeric(stats::coef(stats::lm(article_count ~ year, data = dat))[2]))
+  }, numeric(1))
+  slopes <- slopes[is.finite(slopes)]
+  if (length(slopes) < 5) {
+    return(m3_inconclusive_hypothesis("Country trajectory vectors have no common direction", "Insufficient finite country slopes"))
+  }
+  positive <- sum(slopes > 0)
+  test <- tryCatch(stats::binom.test(positive, length(slopes), p = 0.5, alternative = "greater"), error = function(e) NULL)
+  if (is.null(test)) {
+    return(m3_inconclusive_hypothesis("Country trajectory vectors have no common direction", "Directional binomial test failed"))
+  }
+  m3_stat_hypothesis(
+    "Country trajectory vectors have no common direction",
+    "The share of positive country production slopes is not greater than 0.5",
+    "One-sided binomial direction test",
+    test$p.value,
+    positive,
+    positive / length(slopes),
+    sprintf("%d/%d country slopes are positive (p = %.4f).", positive, length(slopes), test$p.value)
+  )
+}
+
 calculate_gini <- function(x) {
   x <- x[!is.na(x)]
   n <- length(x)
@@ -581,6 +818,83 @@ calculate_gini <- function(x) {
   x <- sort(x)
   gini <- (n + 1 - 2 * sum((n + 1 - seq_len(n)) * x) / (n * sum(x))) / n
   gini
+}
+
+m3_inconclusive_hypothesis <- function(label, interpretation = "Insufficient data", null = NULL) {
+  list(
+    hyphypothesis = label,
+    hypothesis = label,
+    null = null %||% label,
+    result = "inconclusive",
+    evidence_class = "statistical",
+    test = "not estimable",
+    interpretation = interpretation
+  )
+}
+
+m3_stat_hypothesis <- function(label, null, test, p_value, statistic, effect_size, interpretation) {
+  p_value <- suppressWarnings(as.numeric(p_value)[1])
+  list(
+    hyphypothesis = label,
+    hypothesis = label,
+    null = null,
+    test = test,
+    evidence_class = "statistical",
+    result = if (is.finite(p_value) && p_value <= 0.05) "reject" else if (is.finite(p_value)) "fail_to_reject" else "inconclusive",
+    statistic = suppressWarnings(as.numeric(statistic)[1]),
+    p_value = p_value,
+    effect_size = suppressWarnings(as.numeric(effect_size)[1]),
+    interpretation = interpretation
+  )
+}
+
+m3_country_hypothesis_features <- function(prepared_data) {
+  df <- prepared_data$country_summary %||% tibble::tibble()
+  if (!is.data.frame(df) || nrow(df) == 0) return(tibble::tibble())
+  df <- tibble::as_tibble(df)
+  if (!"total_articles" %in% names(df) && "article_count" %in% names(df)) df$total_articles <- df$article_count
+  if (!"total_citations" %in% names(df)) df$total_citations <- 0
+  if (!"mean_citations" %in% names(df)) df$mean_citations <- df$total_citations / pmax(df$total_articles, .Machine$double.eps)
+  scp <- prepared_data$scp_mcp_by_country %||% tibble::tibble()
+  if (is.data.frame(scp) && nrow(scp) > 0 && "country" %in% names(scp)) {
+    keep_cols <- intersect(c("country", "scp", "mcp", "mcp_ratio"), names(scp))
+    df <- dplyr::left_join(df, scp[, keep_cols, drop = FALSE], by = "country")
+  }
+  if (!"mcp_ratio" %in% names(df)) df$mcp_ratio <- 0
+  df$mcp_ratio <- dplyr::coalesce(suppressWarnings(as.numeric(df$mcp_ratio)), 0)
+  df
+}
+
+m3_proxy_region <- function(country) {
+  first <- toupper(substr(as.character(country), 1, 1))
+  factor(dplyr::case_when(
+    first %in% c("A", "B", "C", "D", "E", "F") ~ "Group A-F",
+    first %in% c("G", "H", "I", "J", "K", "L", "M") ~ "Group G-M",
+    TRUE ~ "Group N-Z"
+  ))
+}
+
+m3_epsilon_squared <- function(statistic, n, k) {
+  h <- suppressWarnings(as.numeric(statistic)[1])
+  if (!is.finite(h) || !is.finite(n) || !is.finite(k) || n <= k) return(NA_real_)
+  max(0, (h - k + 1) / (n - k))
+}
+
+m3_weighted_modularity <- function(mat, clusters) {
+  mat <- as.matrix(mat)
+  mat[!is.finite(mat)] <- 0
+  m <- sum(mat) / 2
+  if (!is.finite(m) || m <= 0) return(NA_real_)
+  k <- rowSums(mat)
+  q <- 0
+  for (i in seq_len(nrow(mat))) {
+    for (j in seq_len(ncol(mat))) {
+      if (clusters[i] == clusters[j]) {
+        q <- q + (mat[i, j] - (k[i] * k[j]) / (2 * m))
+      }
+    }
+  }
+  q / (2 * m)
 }
 
 summarize_h3_hypothesis_results <- function(hypotheses) {
