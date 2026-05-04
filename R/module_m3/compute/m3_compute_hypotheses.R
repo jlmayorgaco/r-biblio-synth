@@ -79,6 +79,36 @@ m3_compute_hypotheses <- function(prepared_data, config = biblio_config()) {
 
   # H03.29: Country trajectory vectors show a non-random common direction
   hypotheses$H03_29 <- test_country_trajectory_direction_hypothesis(prepared_data, config)
+
+  # H03.30: Geographic Matthew effect / cumulative advantage
+  hypotheses$H03_30 <- test_geographic_matthew_effect_hypothesis(prepared_data, config)
+
+  # H03.31: Collaboration reduces impact inequality
+  hypotheses$H03_31 <- test_collaboration_impact_gap_hypothesis(prepared_data, config)
+
+  # H03.32: Peripheral countries depend more on MCP
+  hypotheses$H03_32 <- test_peripheral_mcp_dependency_hypothesis(prepared_data, config)
+
+  # H03.33: Initial productivity predicts future leadership
+  hypotheses$H03_33 <- test_initial_productivity_future_leadership_hypothesis(prepared_data, config)
+
+  # H03.34: Beta convergence between countries
+  hypotheses$H03_34 <- test_country_beta_convergence_hypothesis(prepared_data, config)
+
+  # H03.35: Sigma convergence between countries
+  hypotheses$H03_35 <- test_country_sigma_convergence_hypothesis(prepared_data, config)
+
+  # H03.36: Citation impact is decoupled from productivity for some countries
+  hypotheses$H03_36 <- test_residual_impact_decoupling_hypothesis(prepared_data, config)
+
+  # H03.37: New entrants alter field concentration
+  hypotheses$H03_37 <- test_new_entrant_concentration_shift_hypothesis(prepared_data, config)
+
+  # H03.38: Collaboration bridge centrality predicts impact
+  hypotheses$H03_38 <- test_bridge_centrality_impact_hypothesis(prepared_data, config)
+
+  # H03.39: Regional assortativity in collaboration
+  hypotheses$H03_39 <- test_regional_collaboration_assortativity_hypothesis(prepared_data, config)
   
   summary_stats <- summarize_h3_hypothesis_results(hypotheses)
   
@@ -810,6 +840,313 @@ test_country_trajectory_direction_hypothesis <- function(prepared_data, config) 
   )
 }
 
+test_geographic_matthew_effect_hypothesis <- function(prepared_data, config) {
+  shares <- m3_country_window_shares(prepared_data)
+  if (!is.data.frame(shares) || nrow(shares) < 6) {
+    return(m3_inconclusive_hypothesis("Initial country share does not predict later share gains", "Insufficient country-window share data"))
+  }
+  fit <- tryCatch(stats::lm(share_change ~ initial_share, data = shares), error = function(e) NULL)
+  if (is.null(fit)) {
+    return(m3_inconclusive_hypothesis("Initial country share does not predict later share gains", "Matthew-effect regression failed"))
+  }
+  coefs <- tryCatch(summary(fit)$coefficients, error = function(e) NULL)
+  if (is.null(coefs) || nrow(coefs) < 2) {
+    return(m3_inconclusive_hypothesis("Initial country share does not predict later share gains", "Initial-share coefficient unavailable"))
+  }
+  beta <- suppressWarnings(as.numeric(coefs[2, 1]))
+  t_stat <- suppressWarnings(as.numeric(coefs[2, 3]))
+  p_two <- suppressWarnings(as.numeric(coefs[2, 4]))
+  p_value <- if (is.finite(beta) && beta > 0) p_two / 2 else 1 - p_two / 2
+  m3_stat_hypothesis(
+    "Initial country share does not predict later share gains",
+    "Initial country production share has no positive association with subsequent share change",
+    "One-sided share-change regression",
+    p_value,
+    t_stat,
+    beta,
+    sprintf("Initial-share beta = %.3f (one-sided p = %.4f). Positive beta supports a geographic Matthew effect.", beta, p_value)
+  )
+}
+
+test_collaboration_impact_gap_hypothesis <- function(prepared_data, config) {
+  df <- m3_country_hypothesis_features(prepared_data)
+  if (!is.data.frame(df) || nrow(df) < 8 || stats::sd(df$mcp_ratio, na.rm = TRUE) <= 0) {
+    return(m3_inconclusive_hypothesis("MCP share is not associated with smaller citation-impact gaps", "Insufficient MCP variation"))
+  }
+  df$cpp <- suppressWarnings(as.numeric(df$total_citations)) / pmax(suppressWarnings(as.numeric(df$total_articles)), .Machine$double.eps)
+  median_cpp <- stats::median(df$cpp, na.rm = TRUE)
+  df$impact_gap <- abs(log1p(df$cpp) - log1p(median_cpp))
+  keep <- is.finite(df$mcp_ratio) & is.finite(df$impact_gap)
+  df <- df[keep, , drop = FALSE]
+  if (nrow(df) < 8) {
+    return(m3_inconclusive_hypothesis("MCP share is not associated with smaller citation-impact gaps", "Insufficient finite impact gaps"))
+  }
+  test <- tryCatch(stats::cor.test(df$mcp_ratio, -df$impact_gap, method = "spearman", exact = FALSE), error = function(e) NULL)
+  if (is.null(test)) {
+    return(m3_inconclusive_hypothesis("MCP share is not associated with smaller citation-impact gaps", "Spearman test failed"))
+  }
+  rho <- suppressWarnings(as.numeric(test$estimate))
+  p_value <- if (is.finite(rho) && rho > 0) test$p.value / 2 else 1 - test$p.value / 2
+  m3_stat_hypothesis(
+    "MCP share is not associated with smaller citation-impact gaps",
+    "MCP ratio has no association with smaller deviation from median CPP",
+    "Spearman MCP versus negative impact-gap test",
+    p_value,
+    rho,
+    rho,
+    sprintf("MCP ratio versus negative CPP gap Spearman rho = %.3f (one-sided p = %.4f).", rho, p_value)
+  )
+}
+
+test_peripheral_mcp_dependency_hypothesis <- function(prepared_data, config) {
+  df <- m3_country_hypothesis_features(prepared_data)
+  if (!is.data.frame(df) || nrow(df) < 8 || stats::sd(df$mcp_ratio, na.rm = TRUE) <= 0) {
+    return(m3_inconclusive_hypothesis("Peripheral countries do not have higher MCP dependence than core countries", "Insufficient MCP variation"))
+  }
+  threshold <- stats::median(df$total_articles, na.rm = TRUE)
+  df$core_status <- ifelse(df$total_articles >= threshold, "Core", "Peripheral")
+  df <- df[is.finite(df$mcp_ratio) & !is.na(df$core_status), , drop = FALSE]
+  if (nrow(df) < 8 || length(unique(df$core_status)) < 2) {
+    return(m3_inconclusive_hypothesis("Peripheral countries do not have higher MCP dependence than core countries", "Both core and peripheral groups are required"))
+  }
+  test <- tryCatch(stats::wilcox.test(
+    df$mcp_ratio[df$core_status == "Peripheral"],
+    df$mcp_ratio[df$core_status == "Core"],
+    alternative = "greater",
+    exact = FALSE
+  ), error = function(e) NULL)
+  if (is.null(test)) {
+    return(m3_inconclusive_hypothesis("Peripheral countries do not have higher MCP dependence than core countries", "MCP group comparison failed"))
+  }
+  delta <- stats::median(df$mcp_ratio[df$core_status == "Peripheral"], na.rm = TRUE) -
+    stats::median(df$mcp_ratio[df$core_status == "Core"], na.rm = TRUE)
+  m3_stat_hypothesis(
+    "Peripheral countries do not have higher MCP dependence than core countries",
+    "Peripheral-country MCP ratios are not greater than core-country MCP ratios",
+    "One-sided Wilcoxon core-periphery MCP test",
+    test$p.value,
+    suppressWarnings(as.numeric(test$statistic)),
+    delta,
+    sprintf("Peripheral minus core median MCP ratio = %.3f (p = %.4f).", delta, test$p.value)
+  )
+}
+
+test_initial_productivity_future_leadership_hypothesis <- function(prepared_data, config) {
+  shares <- m3_country_window_shares(prepared_data)
+  if (!is.data.frame(shares) || nrow(shares) < 6) {
+    return(m3_inconclusive_hypothesis("Initial productivity does not predict future leadership", "Insufficient country-window share data"))
+  }
+  test <- tryCatch(stats::cor.test(shares$initial_share, shares$final_share, method = "spearman", exact = FALSE), error = function(e) NULL)
+  if (is.null(test)) {
+    return(m3_inconclusive_hypothesis("Initial productivity does not predict future leadership", "Lagged rank correlation failed"))
+  }
+  rho <- suppressWarnings(as.numeric(test$estimate))
+  p_value <- if (is.finite(rho) && rho > 0) test$p.value / 2 else 1 - test$p.value / 2
+  m3_stat_hypothesis(
+    "Initial productivity does not predict future leadership",
+    "Initial production share is not positively associated with final production share",
+    "Spearman lagged leadership correlation",
+    p_value,
+    rho,
+    rho,
+    sprintf("Initial versus final share Spearman rho = %.3f (one-sided p = %.4f).", rho, p_value)
+  )
+}
+
+test_country_beta_convergence_hypothesis <- function(prepared_data, config) {
+  shares <- m3_country_window_shares(prepared_data)
+  if (!is.data.frame(shares) || nrow(shares) < 8) {
+    return(m3_inconclusive_hypothesis("Countries do not show beta convergence in production", "Insufficient country-window share data"))
+  }
+  shares <- shares[shares$initial_articles > 0, , drop = FALSE]
+  if (nrow(shares) < 8) {
+    return(m3_inconclusive_hypothesis("Countries do not show beta convergence in production", "At least 8 countries active in the initial window are required"))
+  }
+  shares$growth <- (shares$final_articles - shares$initial_articles) / pmax(shares$initial_articles, .Machine$double.eps)
+  shares$log_initial <- log1p(shares$initial_articles)
+  shares <- shares[is.finite(shares$growth) & is.finite(shares$log_initial), , drop = FALSE]
+  if (nrow(shares) < 8 || stats::sd(shares$log_initial, na.rm = TRUE) <= 0) {
+    return(m3_inconclusive_hypothesis("Countries do not show beta convergence in production", "Insufficient initial productivity variation"))
+  }
+  fit <- tryCatch(stats::lm(growth ~ log_initial, data = shares), error = function(e) NULL)
+  coefs <- if (!is.null(fit)) tryCatch(summary(fit)$coefficients, error = function(e) NULL) else NULL
+  if (is.null(coefs) || nrow(coefs) < 2) {
+    return(m3_inconclusive_hypothesis("Countries do not show beta convergence in production", "Beta-convergence coefficient unavailable"))
+  }
+  beta <- suppressWarnings(as.numeric(coefs[2, 1]))
+  t_stat <- suppressWarnings(as.numeric(coefs[2, 3]))
+  p_two <- suppressWarnings(as.numeric(coefs[2, 4]))
+  p_value <- if (is.finite(beta) && beta < 0) p_two / 2 else 1 - p_two / 2
+  m3_stat_hypothesis(
+    "Countries do not show beta convergence in production",
+    "Initial production does not negatively predict subsequent growth",
+    "One-sided beta-convergence regression",
+    p_value,
+    t_stat,
+    beta,
+    sprintf("Beta-convergence coefficient = %.3f (one-sided p = %.4f). Negative beta supports catch-up.", beta, p_value)
+  )
+}
+
+test_country_sigma_convergence_hypothesis <- function(prepared_data, config) {
+  gini <- prepared_data$gini_over_time
+  if (is.null(gini) || length(gini) < 6) {
+    return(m3_inconclusive_hypothesis("Cross-country production dispersion is not decreasing over time", "Insufficient annual inequality data"))
+  }
+  df <- data.frame(year = suppressWarnings(as.numeric(names(gini))), gini = suppressWarnings(as.numeric(gini)))
+  df <- df[is.finite(df$year) & is.finite(df$gini), , drop = FALSE]
+  if (nrow(df) < 6 || stats::sd(df$gini, na.rm = TRUE) <= 0) {
+    return(m3_inconclusive_hypothesis("Cross-country production dispersion is not decreasing over time", "Insufficient Gini variation"))
+  }
+  fit <- tryCatch(stats::lm(gini ~ year, data = df), error = function(e) NULL)
+  coefs <- if (!is.null(fit)) tryCatch(summary(fit)$coefficients, error = function(e) NULL) else NULL
+  if (is.null(coefs) || nrow(coefs) < 2) {
+    return(m3_inconclusive_hypothesis("Cross-country production dispersion is not decreasing over time", "Sigma-convergence coefficient unavailable"))
+  }
+  slope <- suppressWarnings(as.numeric(coefs[2, 1]))
+  t_stat <- suppressWarnings(as.numeric(coefs[2, 3]))
+  p_two <- suppressWarnings(as.numeric(coefs[2, 4]))
+  p_value <- if (is.finite(slope) && slope < 0) p_two / 2 else 1 - p_two / 2
+  m3_stat_hypothesis(
+    "Cross-country production dispersion is not decreasing over time",
+    "Annual production Gini slope is not negative",
+    "One-sided sigma-convergence trend test",
+    p_value,
+    t_stat,
+    slope,
+    sprintf("Annual production Gini slope = %.4f/year (one-sided p = %.4f).", slope, p_value)
+  )
+}
+
+test_residual_impact_decoupling_hypothesis <- function(prepared_data, config) {
+  df <- m3_country_hypothesis_features(prepared_data)
+  df <- df[is.finite(df$total_articles) & is.finite(df$total_citations) & df$total_articles > 0, , drop = FALSE]
+  if (!is.data.frame(df) || nrow(df) < 8 || stats::sd(df$total_citations, na.rm = TRUE) <= 0) {
+    return(m3_inconclusive_hypothesis("Citation impact is fully coupled to productivity", "Insufficient TP/TC variation"))
+  }
+  fit <- tryCatch(stats::lm(log1p(total_citations) ~ log1p(total_articles), data = df), error = function(e) NULL)
+  if (is.null(fit)) {
+    return(m3_inconclusive_hypothesis("Citation impact is fully coupled to productivity", "Impact-productivity model failed"))
+  }
+  std_res <- tryCatch(suppressWarnings(stats::rstandard(fit)), error = function(e) rep(NA_real_, nrow(df)))
+  p_raw <- 2 * stats::pnorm(-abs(std_res))
+  p_adj <- stats::p.adjust(p_raw, method = "BH")
+  outliers <- which(is.finite(p_adj) & p_adj <= 0.05)
+  min_p <- if (any(is.finite(p_adj))) min(p_adj, na.rm = TRUE) else NA_real_
+  m3_stat_hypothesis(
+    "Citation impact is fully coupled to productivity",
+    "No country has an FDR-significant residual impact after controlling production",
+    "Residual impact outlier scan",
+    min_p,
+    if (length(outliers) > 0) max(abs(std_res[outliers]), na.rm = TRUE) else max(abs(std_res), na.rm = TRUE),
+    length(outliers),
+    sprintf("%d country impact outlier(s) detected after FDR correction; strongest adjusted p = %.4f.", length(outliers), min_p)
+  )
+}
+
+test_new_entrant_concentration_shift_hypothesis <- function(prepared_data, config) {
+  annual <- prepared_data$country_annual %||% tibble::tibble()
+  gini <- prepared_data$gini_over_time
+  if (!is.data.frame(annual) || nrow(annual) < 10 || is.null(gini) || length(gini) < 6) {
+    return(m3_inconclusive_hypothesis("New country entry waves do not alter production concentration", "Insufficient annual country-entry data"))
+  }
+  annual <- annual[is.finite(annual$year) & !is.na(annual$country), , drop = FALSE]
+  first_year <- stats::aggregate(year ~ country, data = annual, FUN = min)
+  entrants <- as.data.frame(table(first_year$year), stringsAsFactors = FALSE)
+  names(entrants) <- c("year", "new_entrants")
+  entrants$year <- suppressWarnings(as.numeric(as.character(entrants$year)))
+  entrants$new_entrants <- suppressWarnings(as.numeric(entrants$new_entrants))
+  df <- data.frame(year = suppressWarnings(as.numeric(names(gini))), gini = suppressWarnings(as.numeric(gini)))
+  df <- merge(df, entrants, by = "year", all.x = TRUE)
+  df$new_entrants[is.na(df$new_entrants)] <- 0
+  df <- df[is.finite(df$year) & is.finite(df$gini) & is.finite(df$new_entrants), , drop = FALSE]
+  if (nrow(df) < 6 || stats::sd(df$new_entrants, na.rm = TRUE) <= 0) {
+    return(m3_inconclusive_hypothesis("New country entry waves do not alter production concentration", "Insufficient entrant variation"))
+  }
+  fit <- tryCatch(stats::lm(gini ~ year + new_entrants, data = df), error = function(e) NULL)
+  coefs <- if (!is.null(fit)) tryCatch(summary(fit)$coefficients, error = function(e) NULL) else NULL
+  if (is.null(coefs) || !"new_entrants" %in% rownames(coefs)) {
+    return(m3_inconclusive_hypothesis("New country entry waves do not alter production concentration", "Entrant coefficient unavailable"))
+  }
+  beta <- suppressWarnings(as.numeric(coefs["new_entrants", 1]))
+  t_stat <- suppressWarnings(as.numeric(coefs["new_entrants", 3]))
+  p_value <- suppressWarnings(as.numeric(coefs["new_entrants", 4]))
+  m3_stat_hypothesis(
+    "New country entry waves do not alter production concentration",
+    "Annual new-entrant count has no association with production Gini after controlling year",
+    "Entrant-adjusted Gini regression",
+    p_value,
+    t_stat,
+    beta,
+    sprintf("New-entrant beta on production Gini = %.4f (p = %.4f).", beta, p_value)
+  )
+}
+
+test_bridge_centrality_impact_hypothesis <- function(prepared_data, config) {
+  mat <- prepared_data$collaboration_matrix
+  df <- m3_country_hypothesis_features(prepared_data)
+  if (is.null(mat) || !is.matrix(mat) || nrow(mat) < 5 || !is.data.frame(df) || nrow(df) < 8) {
+    return(m3_inconclusive_hypothesis("Collaboration bridge centrality does not predict citation impact", "Insufficient collaboration matrix or country impact data"))
+  }
+  mat[!is.finite(mat)] <- 0
+  diag(mat) <- 0
+  centrality <- rowSums(mat, na.rm = TRUE)
+  cent_df <- data.frame(country = names(centrality), bridge_centrality = as.numeric(centrality))
+  df <- dplyr::left_join(df, cent_df, by = "country")
+  df <- df[is.finite(df$total_articles) & is.finite(df$total_citations) & is.finite(df$bridge_centrality) & df$total_articles > 0, , drop = FALSE]
+  if (nrow(df) < 8 || stats::sd(df$bridge_centrality, na.rm = TRUE) <= 0) {
+    return(m3_inconclusive_hypothesis("Collaboration bridge centrality does not predict citation impact", "Insufficient bridge-centrality variation"))
+  }
+  fit <- tryCatch(stats::lm(log1p(total_citations) ~ log1p(total_articles) + log1p(bridge_centrality), data = df), error = function(e) NULL)
+  coefs <- if (!is.null(fit)) tryCatch(summary(fit)$coefficients, error = function(e) NULL) else NULL
+  term <- "log1p(bridge_centrality)"
+  if (is.null(coefs) || !term %in% rownames(coefs)) {
+    return(m3_inconclusive_hypothesis("Collaboration bridge centrality does not predict citation impact", "Centrality coefficient unavailable"))
+  }
+  beta <- suppressWarnings(as.numeric(coefs[term, 1]))
+  t_stat <- suppressWarnings(as.numeric(coefs[term, 3]))
+  p_value <- suppressWarnings(as.numeric(coefs[term, 4]))
+  m3_stat_hypothesis(
+    "Collaboration bridge centrality does not predict citation impact",
+    "Bridge centrality has zero coefficient after controlling production",
+    "Production-adjusted bridge-centrality regression",
+    p_value,
+    t_stat,
+    beta,
+    sprintf("Bridge-centrality beta = %.3f (t = %.3f, p = %.4f).", beta, t_stat, p_value)
+  )
+}
+
+test_regional_collaboration_assortativity_hypothesis <- function(prepared_data, config) {
+  mat <- prepared_data$collaboration_matrix
+  if (is.null(mat) || !is.matrix(mat) || nrow(mat) < 5) {
+    return(m3_inconclusive_hypothesis("Collaboration is not regionally assortative", "Insufficient collaboration matrix"))
+  }
+  mat[!is.finite(mat)] <- 0
+  diag(mat) <- 0
+  if (sum(mat) <= 0) {
+    return(m3_inconclusive_hypothesis("Collaboration is not regionally assortative", "No collaboration edge weight"))
+  }
+  countries <- rownames(mat)
+  regions <- m3_country_continent(countries)
+  if (length(unique(stats::na.omit(regions))) < 2) {
+    return(m3_inconclusive_hypothesis("Collaboration is not regionally assortative", "At least two regions are required"))
+  }
+  observed <- m3_intra_region_edge_share(mat, regions)
+  set.seed(as.integer(config$seed %||% 1234L))
+  random <- replicate(299L, m3_intra_region_edge_share(mat, sample(regions)))
+  p_value <- mean(random >= observed, na.rm = TRUE)
+  m3_stat_hypothesis(
+    "Collaboration is not regionally assortative",
+    "Intra-region collaboration share is no greater than random region permutations",
+    "Permutation regional assortativity test",
+    p_value,
+    observed,
+    observed - mean(random, na.rm = TRUE),
+    sprintf("Observed intra-region collaboration share = %.3f; random mean = %.3f (p = %.4f).", observed, mean(random, na.rm = TRUE), p_value)
+  )
+}
+
 calculate_gini <- function(x) {
   x <- x[!is.na(x)]
   n <- length(x)
@@ -895,6 +1232,57 @@ m3_weighted_modularity <- function(mat, clusters) {
     }
   }
   q / (2 * m)
+}
+
+m3_country_window_shares <- function(prepared_data) {
+  annual <- prepared_data$country_annual %||% tibble::tibble()
+  if (!is.data.frame(annual) || nrow(annual) == 0 || !all(c("country", "year", "article_count") %in% names(annual))) {
+    return(tibble::tibble())
+  }
+  annual <- annual[is.finite(annual$year) & is.finite(annual$article_count) & !is.na(annual$country), , drop = FALSE]
+  years <- sort(unique(annual$year))
+  if (length(years) < 4) {
+    return(tibble::tibble())
+  }
+  window_n <- max(2L, floor(length(years) / 3))
+  initial_years <- utils::head(years, window_n)
+  final_years <- utils::tail(years, window_n)
+  initial <- stats::aggregate(article_count ~ country, data = annual[annual$year %in% initial_years, , drop = FALSE], FUN = sum)
+  final <- stats::aggregate(article_count ~ country, data = annual[annual$year %in% final_years, , drop = FALSE], FUN = sum)
+  names(initial)[2] <- "initial_articles"
+  names(final)[2] <- "final_articles"
+  out <- merge(initial, final, by = "country", all = TRUE)
+  out$initial_articles[is.na(out$initial_articles)] <- 0
+  out$final_articles[is.na(out$final_articles)] <- 0
+  total_initial <- sum(out$initial_articles, na.rm = TRUE)
+  total_final <- sum(out$final_articles, na.rm = TRUE)
+  out$initial_share <- out$initial_articles / pmax(total_initial, .Machine$double.eps)
+  out$final_share <- out$final_articles / pmax(total_final, .Machine$double.eps)
+  out$share_change <- out$final_share - out$initial_share
+  tibble::as_tibble(out)
+}
+
+m3_country_continent <- function(country) {
+  country_norm <- toupper(trimws(as.character(country)))
+  out <- rep("Unassigned", length(country_norm))
+  continent_groups <- REGIONAL_GROUPS[c("Africa", "Asia", "Europe", "North America", "South America", "Oceania")]
+  for (region in names(continent_groups)) {
+    out[country_norm %in% continent_groups[[region]]] <- region
+  }
+  out
+}
+
+m3_intra_region_edge_share <- function(mat, regions) {
+  mat <- as.matrix(mat)
+  if (!is.matrix(mat) || nrow(mat) < 2 || length(regions) != nrow(mat)) return(NA_real_)
+  idx <- upper.tri(mat)
+  weights <- mat[idx]
+  same_region <- outer(regions, regions, FUN = "==")[idx]
+  valid <- is.finite(weights) & !is.na(same_region) & regions[row(mat)[idx]] != "Unassigned" & regions[col(mat)[idx]] != "Unassigned"
+  weights <- weights[valid]
+  same_region <- same_region[valid]
+  if (length(weights) == 0 || sum(weights, na.rm = TRUE) <= 0) return(NA_real_)
+  sum(weights[same_region], na.rm = TRUE) / sum(weights, na.rm = TRUE)
 }
 
 summarize_h3_hypothesis_results <- function(hypotheses) {

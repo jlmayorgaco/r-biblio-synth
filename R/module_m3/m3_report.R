@@ -308,7 +308,7 @@ build_m3_report <- function(result, config = biblio_config()) {
     } else {
       "  Strongest finding: not estimable."
     },
-    "  Added tests cover regional adjusted impact, role-cluster differences, MCP mediation, inequality gaps, emerging-country acceleration, network modularity, and trajectory direction."
+    "  Added tests cover regional adjusted impact, role-cluster differences, MCP mediation, inequality gaps, emerging-country acceleration, network modularity, trajectory direction, Matthew effects, convergence, core-periphery MCP, residual impact, entrants, bridge centrality, and regional collaboration assortativity."
   )
 }
 
