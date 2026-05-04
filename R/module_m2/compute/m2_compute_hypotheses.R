@@ -32,7 +32,13 @@ compute_m2_hypotheses <- function(input, config = biblio_config()) {
     H02_9 = test_stationarity_hypothesis(years, articles),
     H02_10 = test_acceleration_hypothesis(years, articles),
     H02_11 = test_monotonic_trend_hypothesis(years, articles),
-    H02_12 = test_sen_slope_hypothesis(years, articles)
+    H02_12 = test_sen_slope_hypothesis(years, articles),
+    H02_37 = test_regime_mean_difference_hypothesis(years, articles),
+    H02_38 = test_regime_slope_difference_hypothesis(years, articles),
+    H02_39 = test_forecast_residual_independence_hypothesis(years, articles),
+    H02_40 = test_growth_volatility_shift_hypothesis(years, articles),
+    H02_41 = test_model_family_error_equivalence_hypothesis(years, articles),
+    H02_42 = test_recent_acceleration_baseline_hypothesis(years, articles)
   )
 
   hypotheses <- m2_standardize_hypotheses(hypotheses)
@@ -595,6 +601,311 @@ test_acceleration_hypothesis <- function(years, articles) {
   )
 }
 
+test_regime_mean_difference_hypothesis <- function(years, articles) {
+  df <- m2_clean_time_series(years, articles)
+  if (nrow(df) < 9) {
+    return(m2_inconclusive_hypothesis(
+      label = "Annual production means are equal across temporal regimes",
+      null = "Mean production is equal across early, middle, and recent regimes",
+      interpretation = "At least 9 annual observations are required for regime ANOVA"
+    ))
+  }
+  df$regime <- m2_regime_factor(df$year)
+  if (length(unique(df$regime)) < 2) {
+    return(m2_inconclusive_hypothesis(
+      label = "Annual production means are equal across temporal regimes",
+      null = "Mean production is equal across temporal regimes",
+      interpretation = "Temporal regimes could not be separated"
+    ))
+  }
+  fit <- tryCatch(stats::aov(articles ~ regime, data = df), error = function(e) NULL)
+  if (is.null(fit)) {
+    return(m2_inconclusive_hypothesis(
+      label = "Annual production means are equal across temporal regimes",
+      null = "Mean production is equal across temporal regimes",
+      interpretation = "ANOVA could not be estimated"
+    ))
+  }
+  aov_tbl <- summary(fit)[[1]]
+  p_value <- suppressWarnings(as.numeric(aov_tbl[["Pr(>F)"]][1]))
+  statistic <- suppressWarnings(as.numeric(aov_tbl[["F value"]][1]))
+  ss_between <- suppressWarnings(as.numeric(aov_tbl[["Sum Sq"]][1]))
+  ss_total <- sum(suppressWarnings(as.numeric(aov_tbl[["Sum Sq"]])), na.rm = TRUE)
+  eta_sq <- if (is.finite(ss_total) && ss_total > 0) ss_between / ss_total else NA_real_
+  if (!m2_is_finite_scalar(p_value)) {
+    return(m2_inconclusive_hypothesis(
+      label = "Annual production means are equal across temporal regimes",
+      null = "Mean production is equal across temporal regimes",
+      interpretation = "ANOVA returned a non-finite p-value"
+    ))
+  }
+  list(
+    hypothesis = "Annual production means are equal across temporal regimes",
+    null = "Mean production is equal across early, middle, and recent regimes",
+    test = "One-way ANOVA",
+    evidence_class = "statistical",
+    result = if (p_value <= 0.05) "reject" else "fail_to_reject",
+    statistic = statistic,
+    p_value = p_value,
+    eta_squared = eta_sq,
+    effect_size = eta_sq,
+    interpretation = sprintf(
+      "ANOVA F = %.3f (p = %.4f, eta^2 = %.3f). %s",
+      statistic, p_value, eta_sq,
+      if (p_value <= 0.05) "Temporal regimes differ in production level." else "No regime-level mean difference was detected."
+    )
+  )
+}
+
+test_regime_slope_difference_hypothesis <- function(years, articles) {
+  df <- m2_clean_time_series(years, articles)
+  if (nrow(df) < 9) {
+    return(m2_inconclusive_hypothesis(
+      label = "Annual production slopes are equal across temporal regimes",
+      null = "The Year x Regime interaction is zero",
+      interpretation = "At least 9 annual observations are required for regime slope testing"
+    ))
+  }
+  df$regime <- m2_regime_factor(df$year)
+  fit <- tryCatch(stats::lm(articles ~ year * regime, data = df), error = function(e) NULL)
+  reduced <- tryCatch(stats::lm(articles ~ year + regime, data = df), error = function(e) NULL)
+  if (is.null(fit) || is.null(reduced)) {
+    return(m2_inconclusive_hypothesis(
+      label = "Annual production slopes are equal across temporal regimes",
+      null = "The Year x Regime interaction is zero",
+      interpretation = "ANCOVA models could not be estimated"
+    ))
+  }
+  cmp <- tryCatch(stats::anova(reduced, fit), error = function(e) NULL)
+  if (is.null(cmp) || nrow(cmp) < 2) {
+    return(m2_inconclusive_hypothesis(
+      label = "Annual production slopes are equal across temporal regimes",
+      null = "The Year x Regime interaction is zero",
+      interpretation = "Model comparison could not be computed"
+    ))
+  }
+  p_value <- suppressWarnings(as.numeric(cmp[["Pr(>F)"]][2]))
+  statistic <- suppressWarnings(as.numeric(cmp[["F"]][2]))
+  if (!m2_is_finite_scalar(p_value)) {
+    return(m2_inconclusive_hypothesis(
+      label = "Annual production slopes are equal across temporal regimes",
+      null = "The Year x Regime interaction is zero",
+      interpretation = "ANCOVA returned a non-finite p-value"
+    ))
+  }
+  slopes <- tapply(seq_len(nrow(df)), df$regime, function(idx) {
+    dat <- df[idx, , drop = FALSE]
+    if (length(unique(dat$year)) < 2) return(NA_real_)
+    suppressWarnings(as.numeric(stats::coef(stats::lm(articles ~ year, data = dat))[2]))
+  })
+  list(
+    hypothesis = "Annual production slopes are equal across temporal regimes",
+    null = "The Year x Regime interaction is zero",
+    test = "ANCOVA interaction test",
+    evidence_class = "statistical",
+    result = if (p_value <= 0.05) "reject" else "fail_to_reject",
+    statistic = statistic,
+    p_value = p_value,
+    effect_size = max(slopes, na.rm = TRUE) - min(slopes, na.rm = TRUE),
+    regime_slopes = slopes,
+    interpretation = sprintf(
+      "Year x Regime F = %.3f (p = %.4f). %s",
+      statistic, p_value,
+      if (p_value <= 0.05) "Growth slopes differ between temporal regimes." else "No regime-specific slope difference was detected."
+    )
+  )
+}
+
+test_forecast_residual_independence_hypothesis <- function(years, articles) {
+  df <- m2_clean_time_series(years, articles)
+  if (nrow(df) < 10) {
+    return(m2_inconclusive_hypothesis(
+      label = "Forecast residuals are independent and unbiased",
+      null = "One-step residuals have zero mean and no autocorrelation",
+      interpretation = "At least 10 annual observations are required"
+    ))
+  }
+  fit <- tryCatch(stats::lm(articles ~ year, data = df), error = function(e) NULL)
+  if (is.null(fit)) {
+    return(m2_inconclusive_hypothesis(
+      label = "Forecast residuals are independent and unbiased",
+      null = "One-step residuals have zero mean and no autocorrelation",
+      interpretation = "Residual model could not be estimated"
+    ))
+  }
+  res <- stats::residuals(fit)
+  mean_test <- tryCatch(stats::t.test(res, mu = 0), error = function(e) NULL)
+  lb <- tryCatch(stats::Box.test(res, lag = min(5, length(res) - 1L), type = "Ljung-Box"), error = function(e) NULL)
+  p_mean <- if (!is.null(mean_test)) suppressWarnings(as.numeric(mean_test$p.value)) else NA_real_
+  p_lb <- if (!is.null(lb)) suppressWarnings(as.numeric(lb$p.value)) else NA_real_
+  p_value <- suppressWarnings(min(p_mean, p_lb, na.rm = TRUE))
+  if (!m2_is_finite_scalar(p_value)) {
+    return(m2_inconclusive_hypothesis(
+      label = "Forecast residuals are independent and unbiased",
+      null = "One-step residuals have zero mean and no autocorrelation",
+      interpretation = "Residual tests returned non-finite p-values"
+    ))
+  }
+  list(
+    hypothesis = "Forecast residuals are independent and unbiased",
+    null = "One-step residuals have zero mean and no autocorrelation",
+    test = "Residual t-test and Ljung-Box",
+    evidence_class = "statistical",
+    result = if (p_value <= 0.05) "reject" else "fail_to_reject",
+    statistic = if (!is.null(lb)) suppressWarnings(as.numeric(lb$statistic)) else NA_real_,
+    p_value = p_value,
+    mean_residual_p = p_mean,
+    ljung_box_p = p_lb,
+    effect_size = mean(res, na.rm = TRUE),
+    interpretation = sprintf(
+      "Residual mean p = %.4f; Ljung-Box p = %.4f. %s",
+      p_mean, p_lb,
+      if (p_value <= 0.05) "Residual diagnostics indicate bias or autocorrelation." else "No residual bias/autocorrelation was detected."
+    )
+  )
+}
+
+test_growth_volatility_shift_hypothesis <- function(years, articles) {
+  df <- m2_clean_time_series(years, articles)
+  if (nrow(df) < 10) {
+    return(m2_inconclusive_hypothesis(
+      label = "Growth volatility is equal between early and recent windows",
+      null = "Year-over-year growth variance is equal across windows",
+      interpretation = "At least 10 annual observations are required"
+    ))
+  }
+  growth <- diff(df$articles) / pmax(df$articles[-nrow(df)], .Machine$double.eps)
+  growth <- growth[is.finite(growth)]
+  if (length(growth) < 8) {
+    return(m2_inconclusive_hypothesis(
+      label = "Growth volatility is equal between early and recent windows",
+      null = "Year-over-year growth variance is equal across windows",
+      interpretation = "Insufficient finite year-over-year growth values"
+    ))
+  }
+  window <- factor(ifelse(seq_along(growth) <= floor(length(growth) / 2), "Early", "Recent"), levels = c("Early", "Recent"))
+  fligner <- tryCatch(stats::fligner.test(growth ~ window), error = function(e) NULL)
+  if (is.null(fligner) || !m2_is_finite_scalar(fligner$p.value)) {
+    return(m2_inconclusive_hypothesis(
+      label = "Growth volatility is equal between early and recent windows",
+      null = "Year-over-year growth variance is equal across windows",
+      interpretation = "Fligner-Killeen test could not be computed"
+    ))
+  }
+  sd_early <- stats::sd(growth[window == "Early"], na.rm = TRUE)
+  sd_recent <- stats::sd(growth[window == "Recent"], na.rm = TRUE)
+  list(
+    hypothesis = "Growth volatility is equal between early and recent windows",
+    null = "Year-over-year growth variance is equal across windows",
+    test = "Fligner-Killeen variance test",
+    evidence_class = "statistical",
+    result = if (fligner$p.value <= 0.05) "reject" else "fail_to_reject",
+    statistic = suppressWarnings(as.numeric(fligner$statistic)),
+    p_value = fligner$p.value,
+    effect_size = sd_recent - sd_early,
+    early_sd = sd_early,
+    recent_sd = sd_recent,
+    interpretation = sprintf(
+      "Early SD = %.3f, recent SD = %.3f (p = %.4f). %s",
+      sd_early, sd_recent, fligner$p.value,
+      if (fligner$p.value <= 0.05) "Growth volatility changed between windows." else "No volatility shift was detected."
+    )
+  )
+}
+
+test_model_family_error_equivalence_hypothesis <- function(years, articles) {
+  df <- m2_clean_time_series(years, articles)
+  if (nrow(df) < 8) {
+    return(m2_inconclusive_hypothesis(
+      label = "Forecast model families have equivalent one-step errors",
+      null = "Linear, exponential, and quadratic one-step absolute errors are equal",
+      interpretation = "At least 8 annual observations are required"
+    ))
+  }
+  errors <- m2_rolling_model_errors(df)
+  if (!is.data.frame(errors) || nrow(errors) < 6 || length(unique(errors$model)) < 2) {
+    return(m2_inconclusive_hypothesis(
+      label = "Forecast model families have equivalent one-step errors",
+      null = "Linear, exponential, and quadratic one-step absolute errors are equal",
+      interpretation = "Rolling model errors could not be estimated"
+    ))
+  }
+  kw <- tryCatch(stats::kruskal.test(abs_error ~ model, data = errors), error = function(e) NULL)
+  if (is.null(kw) || !m2_is_finite_scalar(kw$p.value)) {
+    return(m2_inconclusive_hypothesis(
+      label = "Forecast model families have equivalent one-step errors",
+      null = "Linear, exponential, and quadratic one-step absolute errors are equal",
+      interpretation = "Kruskal-Wallis comparison could not be computed"
+    ))
+  }
+  med <- stats::aggregate(abs_error ~ model, data = errors, FUN = stats::median)
+  best <- med$model[which.min(med$abs_error)]
+  list(
+    hypothesis = "Forecast model families have equivalent one-step errors",
+    null = "Linear, exponential, and quadratic one-step absolute errors are equal",
+    test = "Kruskal-Wallis on rolling absolute errors",
+    evidence_class = "statistical",
+    result = if (kw$p.value <= 0.05) "reject" else "fail_to_reject",
+    statistic = suppressWarnings(as.numeric(kw$statistic)),
+    p_value = kw$p.value,
+    effect_size = max(med$abs_error, na.rm = TRUE) - min(med$abs_error, na.rm = TRUE),
+    best_model_family = best,
+    interpretation = sprintf(
+      "Kruskal-Wallis chi-square = %.3f (p = %.4f). Best median-error family: %s.",
+      suppressWarnings(as.numeric(kw$statistic)), kw$p.value, best
+    )
+  )
+}
+
+test_recent_acceleration_baseline_hypothesis <- function(years, articles) {
+  df <- m2_clean_time_series(years, articles)
+  if (nrow(df) < 10) {
+    return(m2_inconclusive_hypothesis(
+      label = "Recent production slope does not exceed the historical baseline",
+      null = "Recent annual slope is not greater than the historical baseline slope",
+      interpretation = "At least 10 annual observations are required"
+    ))
+  }
+  split_at <- floor(nrow(df) / 2)
+  early <- df[seq_len(split_at), , drop = FALSE]
+  recent <- df[(split_at + 1L):nrow(df), , drop = FALSE]
+  early_slopes <- m2_pairwise_slopes(early$year, early$articles)
+  recent_slopes <- m2_pairwise_slopes(recent$year, recent$articles)
+  if (length(early_slopes) < 3 || length(recent_slopes) < 3) {
+    return(m2_inconclusive_hypothesis(
+      label = "Recent production slope does not exceed the historical baseline",
+      null = "Recent annual slope is not greater than the historical baseline slope",
+      interpretation = "Insufficient pairwise slopes for window comparison"
+    ))
+  }
+  test <- tryCatch(stats::wilcox.test(recent_slopes, early_slopes, alternative = "greater", exact = FALSE), error = function(e) NULL)
+  if (is.null(test) || !m2_is_finite_scalar(test$p.value)) {
+    return(m2_inconclusive_hypothesis(
+      label = "Recent production slope does not exceed the historical baseline",
+      null = "Recent annual slope is not greater than the historical baseline slope",
+      interpretation = "Slope comparison could not be computed"
+    ))
+  }
+  delta <- stats::median(recent_slopes, na.rm = TRUE) - stats::median(early_slopes, na.rm = TRUE)
+  list(
+    hypothesis = "Recent production slope does not exceed the historical baseline",
+    null = "Recent annual slope is not greater than the historical baseline slope",
+    test = "Wilcoxon one-sided slope comparison",
+    evidence_class = "statistical",
+    result = if (test$p.value <= 0.05) "reject" else "fail_to_reject",
+    statistic = suppressWarnings(as.numeric(test$statistic)),
+    p_value = test$p.value,
+    effect_size = delta,
+    early_median_slope = stats::median(early_slopes, na.rm = TRUE),
+    recent_median_slope = stats::median(recent_slopes, na.rm = TRUE),
+    interpretation = sprintf(
+      "Recent median slope minus baseline = %.3f (p = %.4f). %s",
+      delta, test$p.value,
+      if (test$p.value <= 0.05) "Recent production is accelerating beyond the baseline." else "Recent production does not significantly exceed the baseline slope."
+    )
+  )
+}
+
 summarize_hypothesis_results <- function(hypotheses) {
   n_total <- length(hypotheses)
   if (n_total == 0) {
@@ -687,6 +998,68 @@ m2_pairwise_slopes <- function(years, articles) {
     }
   }
   slopes
+}
+
+m2_clean_time_series <- function(years, articles) {
+  df <- data.frame(
+    year = suppressWarnings(as.numeric(years)),
+    articles = suppressWarnings(as.numeric(articles))
+  )
+  df <- df[is.finite(df$year) & is.finite(df$articles), , drop = FALSE]
+  df <- df[order(df$year), , drop = FALSE]
+  rownames(df) <- NULL
+  df
+}
+
+m2_regime_factor <- function(years) {
+  n <- length(years)
+  if (n < 3) {
+    return(factor(rep("All", n)))
+  }
+  rank_id <- seq_len(n)
+  cut(
+    rank_id,
+    breaks = unique(c(0, floor(n / 3), floor(2 * n / 3), n)),
+    labels = c("Early", "Middle", "Recent")[seq_len(length(unique(c(0, floor(n / 3), floor(2 * n / 3), n))) - 1L)],
+    include.lowest = TRUE
+  )
+}
+
+m2_rolling_model_errors <- function(df) {
+  if (!is.data.frame(df) || nrow(df) < 8) {
+    return(data.frame())
+  }
+  rows <- list()
+  min_train <- max(5L, floor(nrow(df) / 3))
+  for (i in seq.int(min_train, nrow(df) - 1L)) {
+    train <- df[seq_len(i), , drop = FALSE]
+    test <- df[i + 1L, , drop = FALSE]
+    candidates <- list(
+      linear = articles ~ year,
+      quadratic = articles ~ year + I(year^2)
+    )
+    if (all(train$articles > 0, na.rm = TRUE)) {
+      candidates$exponential <- log(articles) ~ year
+    }
+    for (nm in names(candidates)) {
+      pred <- tryCatch({
+        fit <- stats::lm(candidates[[nm]], data = train)
+        yhat <- suppressWarnings(as.numeric(stats::predict(fit, newdata = test)))
+        if (identical(nm, "exponential")) exp(yhat) else yhat
+      }, error = function(e) NA_real_)
+      if (length(pred) == 1L && is.finite(pred)) {
+        rows[[length(rows) + 1L]] <- data.frame(
+          model = nm,
+          year = test$year,
+          abs_error = abs(test$articles - pred)
+        )
+      }
+    }
+  }
+  if (length(rows) == 0) {
+    return(data.frame())
+  }
+  do.call(rbind, rows)
 }
 
 m2_pettitt_test <- function(x) {
