@@ -589,6 +589,90 @@ m2_hypothesis_spec <- function(id) {
       supported_when = "reject",
       test = "Binomial probability-of-superiority test"
     ),
+    H02_37 = list(
+      question = "Do annual production means differ across early, middle, and recent temporal regimes?",
+      null = "Mean annual production is equal across temporal regimes.",
+      supported_when = "reject",
+      test = "One-way ANOVA"
+    ),
+    H02_38 = list(
+      question = "Do annual production slopes differ across temporal regimes?",
+      null = "The Year by Regime interaction is zero.",
+      supported_when = "reject",
+      test = "ANCOVA interaction test"
+    ),
+    H02_39 = list(
+      question = "Are forecast residuals independent and unbiased?",
+      null = "One-step residuals have zero mean and no autocorrelation.",
+      supported_when = "fail_to_reject",
+      test = "Residual t-test and Ljung-Box"
+    ),
+    H02_40 = list(
+      question = "Did growth volatility shift between early and recent windows?",
+      null = "Year-over-year growth variance is equal across windows.",
+      supported_when = "reject",
+      test = "Fligner-Killeen variance test"
+    ),
+    H02_41 = list(
+      question = "Do forecast model families have equivalent one-step errors?",
+      null = "Linear, exponential, and quadratic one-step absolute errors are equal.",
+      supported_when = "reject",
+      test = "Kruskal-Wallis rolling-error comparison"
+    ),
+    H02_42 = list(
+      question = "Does the recent production slope exceed the historical baseline?",
+      null = "Recent annual slope is not greater than the historical baseline slope.",
+      supported_when = "reject",
+      test = "One-sided Wilcoxon slope comparison"
+    ),
+    H02_43 = list(
+      question = "Is annual production compatible with a stable-intensity Poisson process?",
+      null = "The Poisson intensity does not change with year.",
+      supported_when = "reject",
+      test = "Poisson log-linear trend likelihood-ratio test"
+    ),
+    H02_44 = list(
+      question = "Is annual production overdispersed relative to a Poisson trend model?",
+      null = "The Poisson dispersion ratio is less than or equal to one.",
+      supported_when = "reject",
+      test = "Pearson dispersion test"
+    ),
+    H02_45 = list(
+      question = "Are there statistically significant burst years after FDR correction?",
+      null = "No positive annual residual remains significant after FDR correction.",
+      supported_when = "reject",
+      test = "Poisson residual burst scan"
+    ),
+    H02_46 = list(
+      question = "Does annual production show temporal momentum after trend removal?",
+      null = "Lag-1 residual autocorrelation equals zero.",
+      supported_when = "reject",
+      test = "Lag-1 residual autocorrelation test"
+    ),
+    H02_47 = list(
+      question = "Has recent annual production entered a plateau?",
+      null = "The recent annual slope remains positive.",
+      supported_when = "reject",
+      test = "One-sided recent-window slope test"
+    ),
+    H02_48 = list(
+      question = "Does an abrupt intervention model outperform a gradual temporal curve?",
+      null = "A smooth gradual curve is not improved by an abrupt breakpoint intervention.",
+      supported_when = "reject",
+      test = "Quadratic curve versus interrupted time-series comparison"
+    ),
+    H02_49 = list(
+      question = "Is acceleration evidence robust to leaving out individual years?",
+      null = "The acceleration sign is unstable when individual years are removed.",
+      supported_when = "reject",
+      test = "Leave-one-year-out acceleration sign-stability test"
+    ),
+    H02_50 = list(
+      question = "Does annual production show a diffusion-style growth signature?",
+      null = "Diffusion-style growth models do not improve over a simple polynomial trend.",
+      supported_when = "reject",
+      test = "Logistic/Gompertz versus polynomial AIC contrast"
+    ),
     list(
       question = id,
       null = NA_character_,

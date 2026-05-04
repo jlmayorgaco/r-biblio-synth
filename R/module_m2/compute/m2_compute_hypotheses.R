@@ -38,7 +38,15 @@ compute_m2_hypotheses <- function(input, config = biblio_config()) {
     H02_39 = test_forecast_residual_independence_hypothesis(years, articles),
     H02_40 = test_growth_volatility_shift_hypothesis(years, articles),
     H02_41 = test_model_family_error_equivalence_hypothesis(years, articles),
-    H02_42 = test_recent_acceleration_baseline_hypothesis(years, articles)
+    H02_42 = test_recent_acceleration_baseline_hypothesis(years, articles),
+    H02_43 = test_poisson_stable_intensity_hypothesis(years, articles),
+    H02_44 = test_poisson_overdispersion_hypothesis(years, articles),
+    H02_45 = test_burst_year_hypothesis(years, articles),
+    H02_46 = test_temporal_momentum_hypothesis(years, articles),
+    H02_47 = test_recent_plateau_hypothesis(years, articles),
+    H02_48 = test_gradual_vs_abrupt_change_hypothesis(years, articles),
+    H02_49 = test_leave_one_year_acceleration_robustness_hypothesis(years, articles),
+    H02_50 = test_diffusion_growth_signature_hypothesis(years, articles)
   )
 
   hypotheses <- m2_standardize_hypotheses(hypotheses)
@@ -902,6 +910,353 @@ test_recent_acceleration_baseline_hypothesis <- function(years, articles) {
       "Recent median slope minus baseline = %.3f (p = %.4f). %s",
       delta, test$p.value,
       if (test$p.value <= 0.05) "Recent production is accelerating beyond the baseline." else "Recent production does not significantly exceed the baseline slope."
+    )
+  )
+}
+
+test_poisson_stable_intensity_hypothesis <- function(years, articles) {
+  df <- m2_clean_time_series(years, articles)
+  df <- df[df$articles >= 0, , drop = FALSE]
+  if (nrow(df) < 8 || length(unique(df$articles)) < 2) {
+    return(m2_inconclusive_hypothesis(
+      label = "Annual production follows a stable-intensity Poisson process",
+      null = "The Poisson intensity does not change with year",
+      interpretation = "At least 8 non-degenerate annual observations are required"
+    ))
+  }
+  fit0 <- tryCatch(stats::glm(articles ~ 1, family = stats::poisson(), data = df), error = function(e) NULL)
+  fit1 <- tryCatch(stats::glm(articles ~ year, family = stats::poisson(), data = df), error = function(e) NULL)
+  cmp <- if (!is.null(fit0) && !is.null(fit1)) tryCatch(stats::anova(fit0, fit1, test = "Chisq"), error = function(e) NULL) else NULL
+  if (is.null(cmp) || nrow(cmp) < 2) {
+    return(m2_inconclusive_hypothesis(
+      label = "Annual production follows a stable-intensity Poisson process",
+      null = "The Poisson intensity does not change with year",
+      interpretation = "Poisson intensity comparison could not be computed"
+    ))
+  }
+  p_value <- suppressWarnings(as.numeric(cmp[["Pr(>Chi)"]][2]))
+  statistic <- suppressWarnings(as.numeric(cmp[["Deviance"]][2]))
+  slope <- suppressWarnings(as.numeric(stats::coef(fit1)[2]))
+  list(
+    hypothesis = "Annual production follows a stable-intensity Poisson process",
+    null = "The Poisson intensity does not change with year",
+    test = "Poisson log-linear trend likelihood-ratio test",
+    evidence_class = "statistical",
+    result = if (is.finite(p_value) && p_value <= 0.05) "reject" else "fail_to_reject",
+    statistic = statistic,
+    p_value = p_value,
+    effect_size = slope,
+    interpretation = sprintf(
+      "Poisson year effect deviance = %.3f (p = %.4f); log-rate slope = %.4f/year.",
+      statistic, p_value, slope
+    )
+  )
+}
+
+test_poisson_overdispersion_hypothesis <- function(years, articles) {
+  df <- m2_clean_time_series(years, articles)
+  df <- df[df$articles >= 0, , drop = FALSE]
+  if (nrow(df) < 8 || length(unique(df$articles)) < 2) {
+    return(m2_inconclusive_hypothesis(
+      label = "Annual production is not overdispersed relative to Poisson",
+      null = "Poisson dispersion ratio is less than or equal to one",
+      interpretation = "At least 8 non-degenerate annual observations are required"
+    ))
+  }
+  fit <- tryCatch(stats::glm(articles ~ year, family = stats::poisson(), data = df), error = function(e) NULL)
+  if (is.null(fit)) {
+    return(m2_inconclusive_hypothesis(
+      label = "Annual production is not overdispersed relative to Poisson",
+      null = "Poisson dispersion ratio is less than or equal to one",
+      interpretation = "Poisson model could not be estimated"
+    ))
+  }
+  pearson <- sum(stats::residuals(fit, type = "pearson")^2, na.rm = TRUE)
+  df_resid <- stats::df.residual(fit)
+  ratio <- pearson / pmax(df_resid, .Machine$double.eps)
+  p_value <- 1 - stats::pchisq(pearson, df = df_resid)
+  list(
+    hypothesis = "Annual production is not overdispersed relative to Poisson",
+    null = "Poisson dispersion ratio is less than or equal to one",
+    test = "Pearson dispersion test",
+    evidence_class = "statistical",
+    result = if (is.finite(p_value) && p_value <= 0.05 && ratio > 1) "reject" else "fail_to_reject",
+    statistic = pearson,
+    p_value = p_value,
+    effect_size = ratio,
+    dispersion_ratio = ratio,
+    interpretation = sprintf(
+      "Pearson dispersion ratio = %.3f (p = %.4f). %s",
+      ratio, p_value,
+      if (is.finite(p_value) && p_value <= 0.05 && ratio > 1) "Burst-like variance exceeds Poisson expectation." else "No strong Poisson overdispersion was detected."
+    )
+  )
+}
+
+test_burst_year_hypothesis <- function(years, articles) {
+  df <- m2_clean_time_series(years, articles)
+  df <- df[df$articles >= 0, , drop = FALSE]
+  if (nrow(df) < 8 || length(unique(df$articles)) < 2) {
+    return(m2_inconclusive_hypothesis(
+      label = "No individual year shows a statistically significant production burst",
+      null = "No positive annual residual remains significant after FDR correction",
+      interpretation = "At least 8 non-degenerate annual observations are required"
+    ))
+  }
+  fit <- tryCatch(stats::glm(articles ~ year, family = stats::poisson(), data = df), error = function(e) NULL)
+  if (is.null(fit)) {
+    return(m2_inconclusive_hypothesis(
+      label = "No individual year shows a statistically significant production burst",
+      null = "No positive annual residual remains significant after FDR correction",
+      interpretation = "Poisson baseline could not be estimated"
+    ))
+  }
+  res <- suppressWarnings(stats::residuals(fit, type = "pearson"))
+  p_raw <- stats::pnorm(res, lower.tail = FALSE)
+  p_adj <- stats::p.adjust(p_raw, method = "BH")
+  burst_idx <- which(is.finite(p_adj) & p_adj <= 0.05 & res > 0)
+  min_p <- if (any(is.finite(p_adj))) min(p_adj, na.rm = TRUE) else NA_real_
+  list(
+    hypothesis = "No individual year shows a statistically significant production burst",
+    null = "No positive annual residual remains significant after FDR correction",
+    test = "Poisson residual burst scan with Benjamini-Hochberg correction",
+    evidence_class = "statistical",
+    result = if (length(burst_idx) > 0) "reject" else "fail_to_reject",
+    statistic = if (length(burst_idx) > 0) max(res[burst_idx], na.rm = TRUE) else max(res, na.rm = TRUE),
+    p_value = min_p,
+    effect_size = length(burst_idx),
+    burst_years = df$year[burst_idx],
+    interpretation = sprintf(
+      "%d burst year(s) detected after FDR correction; strongest adjusted p = %.4f.",
+      length(burst_idx), min_p
+    )
+  )
+}
+
+test_temporal_momentum_hypothesis <- function(years, articles) {
+  df <- m2_clean_time_series(years, articles)
+  if (nrow(df) < 10) {
+    return(m2_inconclusive_hypothesis(
+      label = "Annual production has no temporal momentum after trend removal",
+      null = "Lag-1 residual autocorrelation equals zero",
+      interpretation = "At least 10 annual observations are required"
+    ))
+  }
+  fit <- tryCatch(stats::lm(articles ~ year, data = df), error = function(e) NULL)
+  if (is.null(fit)) {
+    return(m2_inconclusive_hypothesis(
+      label = "Annual production has no temporal momentum after trend removal",
+      null = "Lag-1 residual autocorrelation equals zero",
+      interpretation = "Trend model could not be estimated"
+    ))
+  }
+  res <- stats::residuals(fit)
+  test <- tryCatch(stats::cor.test(res[-length(res)], res[-1], method = "pearson"), error = function(e) NULL)
+  if (is.null(test) || !m2_is_finite_scalar(test$p.value)) {
+    return(m2_inconclusive_hypothesis(
+      label = "Annual production has no temporal momentum after trend removal",
+      null = "Lag-1 residual autocorrelation equals zero",
+      interpretation = "Lag-1 residual correlation could not be computed"
+    ))
+  }
+  rho <- suppressWarnings(as.numeric(test$estimate))
+  list(
+    hypothesis = "Annual production has no temporal momentum after trend removal",
+    null = "Lag-1 residual autocorrelation equals zero",
+    test = "Lag-1 residual autocorrelation test",
+    evidence_class = "statistical",
+    result = if (test$p.value <= 0.05) "reject" else "fail_to_reject",
+    statistic = rho,
+    p_value = test$p.value,
+    effect_size = rho,
+    interpretation = sprintf(
+      "Lag-1 residual correlation = %.3f (p = %.4f).",
+      rho, test$p.value
+    )
+  )
+}
+
+test_recent_plateau_hypothesis <- function(years, articles) {
+  df <- m2_clean_time_series(years, articles)
+  if (nrow(df) < 10) {
+    return(m2_inconclusive_hypothesis(
+      label = "Recent annual production has not entered a plateau",
+      null = "The recent annual slope remains positive",
+      interpretation = "At least 10 annual observations are required"
+    ))
+  }
+  recent_n <- max(5L, ceiling(nrow(df) / 3))
+  recent <- utils::tail(df, recent_n)
+  fit <- tryCatch(stats::lm(articles ~ year, data = recent), error = function(e) NULL)
+  if (is.null(fit)) {
+    return(m2_inconclusive_hypothesis(
+      label = "Recent annual production has not entered a plateau",
+      null = "The recent annual slope remains positive",
+      interpretation = "Recent slope model could not be estimated"
+    ))
+  }
+  coefs <- tryCatch(summary(fit)$coefficients, error = function(e) NULL)
+  if (is.null(coefs) || nrow(coefs) < 2) {
+    return(m2_inconclusive_hypothesis(
+      label = "Recent annual production has not entered a plateau",
+      null = "The recent annual slope remains positive",
+      interpretation = "Recent slope coefficient was unavailable"
+    ))
+  }
+  slope <- suppressWarnings(as.numeric(coefs[2, 1]))
+  se <- suppressWarnings(as.numeric(coefs[2, 2]))
+  t_stat <- slope / pmax(se, .Machine$double.eps)
+  p_value <- stats::pt(t_stat, df = stats::df.residual(fit), lower.tail = TRUE)
+  list(
+    hypothesis = "Recent annual production has not entered a plateau",
+    null = "The recent annual slope remains positive",
+    test = "One-sided recent-window slope test",
+    evidence_class = "statistical",
+    result = if (is.finite(p_value) && p_value <= 0.05) "reject" else "fail_to_reject",
+    statistic = t_stat,
+    p_value = p_value,
+    effect_size = slope,
+    recent_window_years = paste(range(recent$year), collapse = "-"),
+    interpretation = sprintf(
+      "Recent slope = %.3f articles/year over %s (one-sided p = %.4f).",
+      slope, paste(range(recent$year), collapse = "-"), p_value
+    )
+  )
+}
+
+test_gradual_vs_abrupt_change_hypothesis <- function(years, articles) {
+  df <- m2_clean_time_series(years, articles)
+  if (nrow(df) < 12) {
+    return(m2_inconclusive_hypothesis(
+      label = "A gradual temporal curve explains production as well as an abrupt intervention model",
+      null = "A smooth gradual curve is not improved by an abrupt breakpoint intervention",
+      interpretation = "At least 12 annual observations are required"
+    ))
+  }
+  pettitt <- m2_pettitt_test(df$articles)
+  break_year <- if (is.finite(pettitt$index) && pettitt$index > 1 && pettitt$index < nrow(df)) df$year[pettitt$index] else stats::median(df$year)
+  df$post_break <- as.integer(df$year > break_year)
+  df$time_after_break <- pmax(0, df$year - break_year)
+  gradual <- tryCatch(stats::lm(articles ~ stats::poly(year, 2), data = df), error = function(e) NULL)
+  abrupt <- tryCatch(stats::lm(articles ~ year + post_break + time_after_break, data = df), error = function(e) NULL)
+  if (is.null(gradual) || is.null(abrupt)) {
+    return(m2_inconclusive_hypothesis(
+      label = "A gradual temporal curve explains production as well as an abrupt intervention model",
+      null = "A smooth gradual curve is not improved by an abrupt breakpoint intervention",
+      interpretation = "Gradual or abrupt model could not be estimated"
+    ))
+  }
+  aic_gradual <- stats::AIC(gradual)
+  aic_abrupt <- stats::AIC(abrupt)
+  delta_aic <- aic_gradual - aic_abrupt
+  cmp <- tryCatch(stats::anova(gradual, abrupt), error = function(e) NULL)
+  p_value <- if (!is.null(cmp) && nrow(cmp) >= 2) suppressWarnings(as.numeric(cmp[["Pr(>F)"]][2])) else NA_real_
+  list(
+    hypothesis = "A gradual temporal curve explains production as well as an abrupt intervention model",
+    null = "A smooth gradual curve is not improved by an abrupt breakpoint intervention",
+    test = "Quadratic gradual model versus interrupted time-series AIC/F test",
+    evidence_class = "statistical",
+    result = if (is.finite(delta_aic) && delta_aic > 2 && is.finite(p_value) && p_value <= 0.05) "reject" else "fail_to_reject",
+    statistic = delta_aic,
+    p_value = p_value,
+    effect_size = delta_aic,
+    breakpoint_year = break_year,
+    interpretation = sprintf(
+      "Abrupt model AIC improvement = %.3f at breakpoint %s (nested p = %.4f).",
+      delta_aic, format(round(break_year, 0), trim = TRUE), p_value
+    )
+  )
+}
+
+test_leave_one_year_acceleration_robustness_hypothesis <- function(years, articles) {
+  df <- m2_clean_time_series(years, articles)
+  if (nrow(df) < 10) {
+    return(m2_inconclusive_hypothesis(
+      label = "Acceleration evidence is not robust to leave-one-year-out perturbations",
+      null = "The acceleration sign is unstable when individual years are removed",
+      interpretation = "At least 10 annual observations are required"
+    ))
+  }
+  slopes <- vapply(seq_len(nrow(df)), function(i) {
+    dat <- df[-i, , drop = FALSE]
+    fit <- tryCatch(stats::lm(articles ~ year + I(year^2), data = dat), error = function(e) NULL)
+    if (is.null(fit)) return(NA_real_)
+    suppressWarnings(as.numeric(stats::coef(fit)[3]))
+  }, numeric(1))
+  slopes <- slopes[is.finite(slopes)]
+  if (length(slopes) < 6) {
+    return(m2_inconclusive_hypothesis(
+      label = "Acceleration evidence is not robust to leave-one-year-out perturbations",
+      null = "The acceleration sign is unstable when individual years are removed",
+      interpretation = "Leave-one-year-out acceleration estimates were insufficient"
+    ))
+  }
+  full_fit <- tryCatch(stats::lm(articles ~ year + I(year^2), data = df), error = function(e) NULL)
+  full_accel <- if (!is.null(full_fit)) suppressWarnings(as.numeric(stats::coef(full_fit)[3])) else NA_real_
+  same_sign <- mean(sign(slopes) == sign(full_accel), na.rm = TRUE)
+  test <- tryCatch(stats::binom.test(round(same_sign * length(slopes)), length(slopes), p = 0.5, alternative = "greater"), error = function(e) NULL)
+  p_value <- if (!is.null(test)) test$p.value else NA_real_
+  list(
+    hypothesis = "Acceleration evidence is not robust to leave-one-year-out perturbations",
+    null = "The acceleration sign is unstable when individual years are removed",
+    test = "Leave-one-year-out acceleration sign-stability test",
+    evidence_class = "statistical",
+    result = if (is.finite(p_value) && p_value <= 0.05 && same_sign >= 0.8) "reject" else "fail_to_reject",
+    statistic = same_sign,
+    p_value = p_value,
+    effect_size = same_sign,
+    full_acceleration = full_accel,
+    interpretation = sprintf(
+      "Acceleration sign stability = %.1f%% across leave-one-year-out fits (p = %.4f).",
+      100 * same_sign, p_value
+    )
+  )
+}
+
+test_diffusion_growth_signature_hypothesis <- function(years, articles) {
+  df <- m2_clean_time_series(years, articles)
+  df <- df[df$articles >= 0, , drop = FALSE]
+  if (nrow(df) < 10 || max(df$articles, na.rm = TRUE) <= 0) {
+    return(m2_inconclusive_hypothesis(
+      label = "Annual production does not show a diffusion-style growth signature",
+      null = "Diffusion-style growth models do not improve over a simple polynomial trend",
+      interpretation = "At least 10 positive annual observations are required"
+    ))
+  }
+  linear <- tryCatch(stats::lm(articles ~ year, data = df), error = function(e) NULL)
+  quadratic <- tryCatch(stats::lm(articles ~ year + I(year^2), data = df), error = function(e) NULL)
+  logistic <- tryCatch(stats::nls(
+    articles ~ K / (1 + exp(-r * (year - t0))),
+    data = df,
+    start = list(K = max(df$articles, na.rm = TRUE) * 1.25, r = 0.2, t0 = stats::median(df$year)),
+    control = stats::nls.control(warnOnly = TRUE, maxiter = 100)
+  ), error = function(e) NULL)
+  gompertz <- tryCatch(stats::nls(
+    articles ~ K * exp(-exp(-r * (year - t0))),
+    data = df,
+    start = list(K = max(df$articles, na.rm = TRUE) * 1.25, r = 0.2, t0 = stats::median(df$year)),
+    control = stats::nls.control(warnOnly = TRUE, maxiter = 100)
+  ), error = function(e) NULL)
+  models <- list(linear = linear, quadratic = quadratic, logistic = logistic, gompertz = gompertz)
+  aic <- vapply(models, function(fit) if (is.null(fit)) Inf else stats::AIC(fit), numeric(1))
+  diffusion_best <- min(aic[c("logistic", "gompertz")], na.rm = TRUE)
+  baseline_best <- min(aic[c("linear", "quadratic")], na.rm = TRUE)
+  delta <- baseline_best - diffusion_best
+  best_model <- names(which.min(aic))[1]
+  p_value <- stats::pchisq(max(0, delta), df = 1, lower.tail = FALSE)
+  list(
+    hypothesis = "Annual production does not show a diffusion-style growth signature",
+    null = "Diffusion-style growth models do not improve over a simple polynomial trend",
+    test = "AIC contrast for logistic/Gompertz versus linear/quadratic models",
+    evidence_class = "statistical",
+    result = if (is.finite(delta) && delta > 2) "reject" else "fail_to_reject",
+    statistic = delta,
+    p_value = p_value,
+    effect_size = delta,
+    best_model_family = best_model,
+    interpretation = sprintf(
+      "Best diffusion AIC advantage over simple trend = %.3f; best model = %s.",
+      delta, best_model
     )
   )
 }
